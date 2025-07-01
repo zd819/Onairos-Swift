@@ -16,7 +16,7 @@ public class OnairosAPIClient {
     private let timeoutInterval: TimeInterval = 30.0
     
     /// Private initializer
-    private init() {
+    public init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = timeoutInterval
         config.timeoutIntervalForResource = timeoutInterval * 2
@@ -81,7 +81,7 @@ public class OnairosAPIClient {
     /// - Parameter email: Email address
     /// - Returns: Verification status
     public func checkEmailVerificationStatus(email: String) async -> Result<Bool, OnairosError> {
-        return await performRequest(
+        return await performRequestWithoutBody(
             endpoint: "/email/verification/status/\(email)",
             method: .GET,
             responseType: EmailVerificationResponse.self
@@ -138,7 +138,7 @@ public class OnairosAPIClient {
     public func refreshYouTubeToken(refreshToken: String) async -> Result<String, OnairosError> {
         let body = ["refresh_token": refreshToken]
         
-        return await performRequest(
+        return await performRequestWithDictionary(
             endpoint: "/youtube/refresh-token",
             method: .POST,
             body: body,
@@ -154,7 +154,7 @@ public class OnairosAPIClient {
     public func revokePlatform(_ platform: String) async -> Result<Bool, OnairosError> {
         let body = ["platform": platform]
         
-        return await performRequest(
+        return await performRequestWithDictionary(
             endpoint: "/revoke",
             method: .POST,
             body: body,
@@ -191,7 +191,7 @@ public class OnairosAPIClient {
         var body = userData
         body["socket_id"] = socketId
         
-        return await performRequest(
+        return await performRequestWithDictionary(
             endpoint: "/enoch/trainModel/mobile",
             method: .POST,
             body: body,
@@ -206,7 +206,7 @@ public class OnairosAPIClient {
     /// Check API health
     /// - Returns: Health status
     public func healthCheck() async -> Result<Bool, OnairosError> {
-        return await performRequest(
+        return await performRequestWithoutBody(
             endpoint: "/health",
             method: .GET,
             responseType: [String: AnyCodable].self
@@ -217,7 +217,7 @@ public class OnairosAPIClient {
     
     // MARK: - Generic Request Handler
     
-    /// Perform HTTP request
+    /// Perform HTTP request with Codable body
     /// - Parameters:
     ///   - endpoint: API endpoint
     ///   - method: HTTP method
@@ -227,7 +227,7 @@ public class OnairosAPIClient {
     private func performRequest<T: Codable, U: Codable>(
         endpoint: String,
         method: HTTPMethod,
-        body: T? = nil,
+        body: T?,
         responseType: U.Type
     ) async -> Result<U, OnairosError> {
         
@@ -274,6 +274,52 @@ public class OnairosAPIClient {
         }
     }
     
+    /// Perform request without body
+    /// - Parameters:
+    ///   - endpoint: API endpoint
+    ///   - method: HTTP method
+    ///   - responseType: Expected response type
+    /// - Returns: Decoded response or error
+    private func performRequestWithoutBody<U: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        responseType: U.Type
+    ) async -> Result<U, OnairosError> {
+        
+        guard let url = URL(string: baseURL + endpoint) else {
+            return .failure(.configurationError("Invalid URL: \(baseURL + endpoint)"))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("OnairosSDK/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        
+        // Perform request
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            // Check for HTTP errors
+            if let httpResponse = response as? HTTPURLResponse {
+                guard 200...299 ~= httpResponse.statusCode else {
+                    return .failure(OnairosError.fromHTTPResponse(data: data, response: response, error: nil))
+                }
+            }
+            
+            // Decode response
+            do {
+                let decoder = JSONDecoder()
+                let result = try decoder.decode(responseType, from: data)
+                return .success(result)
+            } catch {
+                return .failure(.unknownError("Failed to decode response: \(error.localizedDescription)"))
+            }
+            
+        } catch {
+            return .failure(OnairosError.fromHTTPResponse(data: nil, response: nil, error: error))
+        }
+    }
+    
     /// Perform request with dictionary body
     /// - Parameters:
     ///   - endpoint: API endpoint
@@ -281,7 +327,7 @@ public class OnairosAPIClient {
     ///   - body: Dictionary body
     ///   - responseType: Expected response type
     /// - Returns: Decoded response or error
-    private func performRequest<U: Codable>(
+    private func performRequestWithDictionary<U: Codable>(
         endpoint: String,
         method: HTTPMethod,
         body: [String: Any],
