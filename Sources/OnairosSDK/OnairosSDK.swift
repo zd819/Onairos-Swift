@@ -482,13 +482,13 @@ public enum OnboardingResult {
 public typealias OnboardingCompletion = (OnboardingResult) -> Void
 
 /// Successful onboarding data
-public struct OnboardingData {
+public struct OnboardingData: Codable {
     public let apiURL: String
     public let token: String
-    public let userData: [String: Any]
+    public let userData: [String: AnyCodable]
     public let connectedPlatforms: [String: PlatformData]
     public let sessionSaved: Bool
-    public let inferenceData: [String: Any]?
+    public let inferenceData: [String: AnyCodable]?
     public let partner: String?
     
     public init(
@@ -502,21 +502,21 @@ public struct OnboardingData {
     ) {
         self.apiURL = apiURL
         self.token = token
-        self.userData = userData
+        self.userData = userData.mapValues { AnyCodable($0) }
         self.connectedPlatforms = connectedPlatforms
         self.sessionSaved = sessionSaved
-        self.inferenceData = inferenceData
+        self.inferenceData = inferenceData?.mapValues { AnyCodable($0) }
         self.partner = partner
     }
 }
 
 /// Platform authentication data
-public struct PlatformData {
+public struct PlatformData: Codable {
     public let platform: String
     public let accessToken: String?
     public let refreshToken: String?
     public let expiresAt: Date?
-    public let userData: [String: Any]?
+    public let userData: [String: AnyCodable]?
     
     public init(
         platform: String,
@@ -529,6 +529,6 @@ public struct PlatformData {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
         self.expiresAt = expiresAt
-        self.userData = userData
+        self.userData = userData?.mapValues { AnyCodable($0) }
     }
 } 

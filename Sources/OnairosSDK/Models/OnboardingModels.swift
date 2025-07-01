@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// Onboarding step enumeration
 public enum OnboardingStep: String, CaseIterable {
