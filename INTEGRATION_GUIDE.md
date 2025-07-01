@@ -32,7 +32,7 @@
 **For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.10")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.11")
     // ✅ SocketIO and GoogleSignIn are automatically included!
 ],
 targets: [
@@ -49,7 +49,7 @@ targets: [
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.10` or `Up to Next Major`
+3. Version: `1.0.11` or `Up to Next Major`
 4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
 
 **What gets installed automatically:**
@@ -298,7 +298,7 @@ let package = Package(
         .executable(name: "YourApp", targets: ["YourApp"])
     ],
     dependencies: [
-        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.10"),
+        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.11"),
         .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
         .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
     ],
@@ -323,11 +323,17 @@ echo "   3. Update Info.plist with URL schemes"
 
 ## 🔧 Troubleshooting for AI Assistants
 
-### Recent Fixes (v1.0.10)
+### Recent Fixes (v1.0.11)
 
 **🚨 SWIFT 6.1 COMPATIBILITY FIXES:**
 
-**v1.0.10 (Latest):**
+**v1.0.11 (Latest):**
+- ✅ **Fixed Swift 6.1 concurrency issues** - Resolved MainActor isolation errors in TrainingStepViewController
+- ✅ **Fixed "Call to main actor-isolated instance method" errors** - Proper Task { @MainActor in } usage
+- ✅ **Strict concurrency compliance** - All UI operations properly isolated to main actor
+- ✅ **Complete Swift 6.1 compatibility** - Zero compilation errors with strict concurrency checking
+
+**v1.0.10:**
 - ✅ **Fixed OnairosError enum cases** - Added missing networkError, authenticationFailed, validationFailed, and serverError cases
 - ✅ **Complete error handling** - All OnairosError usage now properly defined throughout the SDK
 - ✅ **Resolved "Type has no member" errors** - Fixed all remaining Swift 6.1 compilation issues
@@ -350,7 +356,7 @@ echo "   3. Update Info.plist with URL schemes"
 - ✅ **Fixed DeviceInfo Codable conformance** - Removed problematic default value assignments
 - ✅ **Fixed all remaining compilation errors** - Complete compatibility with latest Swift/Xcode
 
-**⚠️ IMPORTANT: Versions 1.0.1-1.0.9 had compilation bugs. Use v1.0.10 or later for Swift 6.1.**
+**⚠️ IMPORTANT: Versions 1.0.1-1.0.10 had compilation bugs. Use v1.0.11 or later for Swift 6.1.**
 
 **If upgrading from any earlier version:**
 ```bash
@@ -384,7 +390,7 @@ swift package resolve
 ```swift
 // Ensure repository is public and accessible
 // Check Package.swift has correct dependency:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.11")
 
 // Verify import statement:
 import OnairosSDK  // Correct
@@ -458,5 +464,7 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 // Error: "Type 'OnairosError' has no member 'serverError'"
 // Solution: Fixed in v1.0.10 (added missing enum cases)
 
-// CRITICAL: Update to v1.0.10 for complete Swift 6.1 compatibility
-```
+// Error: "Call to main actor-isolated instance method 'stopTrainingAnimation()' in a synchronous nonisolated context"
+// Solution: Fixed in v1.0.11 (proper MainActor isolation with Task blocks)
+
+// CRITICAL: Update to v1.0.11 for complete Swift 6.1 compatibility

@@ -5,6 +5,22 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2024-12-28
+
+### Fixed
+- **Swift 6.1 Concurrency Issues**: Fixed MainActor isolation errors in TrainingStepViewController
+  - Fixed `Call to main actor-isolated instance method 'stopTrainingAnimation()' in a synchronous nonisolated context`
+  - Wrapped `stopTrainingAnimation()` calls in `Task { @MainActor in }` blocks
+  - Fixed concurrency issue in `updateProgress()` method
+  - Fixed concurrency issue in `deinit` method
+- **Strict Concurrency Compliance**: Ensures proper main actor isolation for all UI operations
+- **Swift 6.1 Compatibility**: Resolves all remaining strict concurrency checking errors
+
+### Technical Details
+- Updated `updateProgress()` to use `Task { @MainActor in }` for UI updates
+- Updated `deinit` to properly handle MainActor isolation when cleaning up animations
+- Maintains backward compatibility while adhering to Swift 6.1's strict concurrency model
+
 ## [1.0.10] - 2024-12-28
 
 ### Fixed
