@@ -41,11 +41,11 @@ public class TrainingManager {
         
         manager = SocketManager(socketURL: url, config: [
             .log(false),
-            .compress(true),
+            .compress,
             .reconnects(true),
             .reconnectAttempts(3),
             .reconnectWait(2),
-            .timeout(30)
+            .connectTimeout(30)
         ])
         
         socket = manager?.defaultSocket

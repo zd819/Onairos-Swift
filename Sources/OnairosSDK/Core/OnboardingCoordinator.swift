@@ -243,8 +243,7 @@ public class OnboardingCoordinator {
         return UserRegistrationRequest(
             email: state.email,
             pin: state.pin,
-            connectedPlatforms: Array(state.connectedPlatforms),
-            platformData: connectedPlatformData
+            connectedPlatforms: connectedPlatformData
         )
     }
     

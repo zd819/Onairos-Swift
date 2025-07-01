@@ -241,12 +241,13 @@ public struct UserRegistrationRequest: Codable {
 
 /// Device information
 public struct DeviceInfo: Codable {
-    public let platform: String = "iOS"
+    public let platform: String
     public let version: String
     public let model: String
     public let appVersion: String
     
     public init() {
+        self.platform = "iOS"
         self.version = UIDevice.current.systemVersion
         self.model = UIDevice.current.model
         self.appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
