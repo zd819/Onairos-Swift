@@ -196,19 +196,22 @@ public class TrainingStepViewController: BaseStepViewController {
         
         // Update button when complete
         if progress >= 1.0 {
-            stopTrainingAnimation()
-            
-            // Show completion animation
-            showCompletionAnimation()
-            
-            // Update button
-            primaryButton.setTitle("Complete", for: .normal)
-            primaryButton.backgroundColor = .systemGreen
-            
-            // Auto-complete after delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                if self.state.trainingProgress >= 1.0 {
-                    self.coordinator?.proceedToNextStep()
+            // Ensure we're on main actor for UI updates
+            Task { @MainActor in
+                self.stopTrainingAnimation()
+                
+                // Show completion animation
+                self.showCompletionAnimation()
+                
+                // Update button
+                self.primaryButton.setTitle("Complete", for: .normal)
+                self.primaryButton.backgroundColor = .systemGreen
+                
+                // Auto-complete after delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    if self.state.trainingProgress >= 1.0 {
+                        self.coordinator?.proceedToNextStep()
+                    }
                 }
             }
         }
@@ -296,6 +299,9 @@ public class TrainingStepViewController: BaseStepViewController {
     }
     
     deinit {
-        stopTrainingAnimation()
+        // Use Task to properly handle MainActor isolation
+        Task { @MainActor in
+            self.stopTrainingAnimation()
+        }
     }
 } 
