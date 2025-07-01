@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.6] - 2024-12-19
+
+### Fixed
+- 🚨 **CRITICAL COMPILATION FIXES** - Resolved all Swift compilation errors
+- Added missing `import UIKit` to OnboardingModels.swift (fixes "Cannot find 'UIDevice' in scope")
+- Fixed Codable conformance for `UserRegistrationRequest` struct
+- Fixed Codable conformance for `PlatformData` struct by using `AnyCodable` for userData
+- Fixed Codable conformance for `OnboardingData` struct by using `AnyCodable` for userData and inferenceData
+- Resolved "Type does not conform to protocol 'Decodable/Encodable'" errors
+- Updated integration guide with detailed troubleshooting for compilation issues
+
+### Changed
+- Updated all version references in documentation from 1.0.4/1.0.5 to 1.0.6
+- Enhanced integration guide with comprehensive compilation error solutions
+- Added critical update notice highlighting importance of v1.0.6
+
+### Notes
+- **BREAKING**: Versions 1.0.1-1.0.5 had compilation bugs and are not usable
+- **REQUIRED**: All consuming apps must update to v1.0.6 or later
+
+## [1.0.5] - 2024-12-19
+
+### Changed
+- Improved API design for createConnectButton() method
+- Added automatic view controller detection for better developer experience
+- Enhanced button creation with both simple and completion handler overloads
+
+### Added
+- findTopViewController() helper method for automatic presentation
+
+## [1.0.4] - 2024-12-19
+
+### Fixed
+- Removed invalid `protected` keyword (Swift doesn't support protected access)
+- Added `@MainActor` attributes to all UI classes for proper concurrency
+- Fixed import statement ordering in OnairosModalController.swift
+- Resolved Swift compilation failures and frontend command errors
+
+### Changed
+- Updated all UI view controllers to use `internal` instead of `protected`
+- Enhanced concurrency support for Swift 5.5+
+
+## [1.0.3] - 2024-12-19
+
+### Added
+- Enhanced SDK functionality with specific requirements implementation
+- Data request overlay for existing account detection
+- Improved email confirmation flow with API verification
+- WebView OAuth authentication for additional platforms
+
+### Changed
+- Updated SDK to provide Onairos connect button with logo
+- Enhanced keyboard handling and user experience
+
+## [1.0.2] - 2024-12-19
+
+### Added
+- Complete step view controllers implementation
+- Enhanced UI components and user experience
+- Improved error handling and validation
+
 ## [1.0.1] - 2024-12-19
 
 ### Changed
