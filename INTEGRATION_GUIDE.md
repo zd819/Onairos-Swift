@@ -1,44 +1,126 @@
-# 🚀 Onairos Swift SDK - Integration Guide
+# Onairos Swift SDK - LLM/AI Assistant Integration Guide
 
-This guide shows you how to integrate the Onairos SDK into your iOS app for seamless onboarding with social media authentication and AI training.
+> **Optimized for LLMs, Coding Assistants, and Cursor**  
+> Complete copy-paste instructions for automated integration
 
-## 📋 Quick Integration Checklist
+## 🤖 AI Assistant Quick Setup
 
-- [ ] Add SDK to your project
-- [ ] Configure SDK in AppDelegate
-- [ ] Add connect button to your UI
-- [ ] Handle onboarding results
-- [ ] Configure platform authentication (optional)
-- [ ] Test the integration
+### Step 1: Add Package Dependency
 
-## 🛠 Step 1: Add SDK to Your Project
+**For Package.swift projects:**
+```swift
+// Add to Package.swift dependencies array
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1")
 
-### Using Xcode (Recommended)
+// Add to target dependencies
+.product(name: "OnairosSDK", package: "Onairos-Swift")
+```
 
-1. Open your iOS project in Xcode
-2. Go to **File → Add Package Dependencies**
-3. Enter the repository URL: `https://github.com/YOUR_USERNAME/onairos-swift-sdk`
-4. Select version `1.0.0` or later
-5. Add to your target
+**For Xcode projects:**
+1. File → Add Package Dependencies
+2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
+3. Version: `1.0.1` or `Up to Next Major`
 
-### Using Swift Package Manager
+### Step 2: Required Dependencies Setup
 
-Add to your `Package.swift`:
-
+**Add these to your Package.swift or install via Xcode:**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/YOUR_USERNAME/onairos-swift-sdk.git", from: "1.0.0")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1"),
+    .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
+    .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
 ]
 ```
 
-## ⚙️ Step 2: Configure SDK
+### Step 3: iOS Configuration Files
 
-### Basic Configuration
+**Create/Update Info.plist:**
+```xml
+<!-- Add to Info.plist -->
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLName</key>
+        <string>onairos-oauth</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>YOUR-APP-SCHEME</string>
+        </array>
+    </dict>
+    <dict>
+        <key>CFBundleURLName</key>
+        <string>google-signin</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>YOUR-GOOGLE-CLIENT-ID</string>
+        </array>
+    </dict>
+</array>
 
-In your `AppDelegate.swift`:
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>googlegmail</string>
+    <string>googlemail</string>
+</array>
+```
 
+**Create GoogleService-Info.plist:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create project → Enable YouTube Data API v3
+3. Create OAuth 2.0 credentials for iOS
+4. Download `GoogleService-Info.plist`
+5. Add to Xcode project root
+
+### Step 4: AppDelegate Setup
+
+**SwiftUI App:**
+```swift
+import SwiftUI
+import GoogleSignIn
+import OnairosSDK
+
+@main
+struct YourApp: App {
+    init() {
+        configureGoogleSignIn()
+        configureOnairosSDK()
+    }
+    
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .onOpenURL(perform: handleURL)
+        }
+    }
+    
+    private func configureGoogleSignIn() {
+        guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+              let plist = NSDictionary(contentsOfFile: path),
+              let clientId = plist["CLIENT_ID"] as? String else {
+            fatalError("GoogleService-Info.plist not found")
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientId)
+    }
+    
+    private func configureOnairosSDK() {
+        let config = OnairosConfig(
+            isDebugMode: true, // Set false for production
+            urlScheme: "YOUR-APP-SCHEME", // Replace with your scheme
+            appName: "Your App Name"
+        )
+        OnairosSDK.shared.initialize(config: config)
+    }
+    
+    private func handleURL(_ url: URL) {
+        GIDSignIn.sharedInstance.handle(url)
+    }
+}
+```
+
+**UIKit AppDelegate:**
 ```swift
 import UIKit
+import GoogleSignIn
 import OnairosSDK
 
 @main
@@ -46,43 +128,64 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
+        // Configure Google Sign-In
+        guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+              let plist = NSDictionary(contentsOfFile: path),
+              let clientId = plist["CLIENT_ID"] as? String else {
+            fatalError("GoogleService-Info.plist not found")
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientId)
+        
         // Configure Onairos SDK
         let config = OnairosConfig(
-            isDebugMode: false,                    // Set to true for testing
-            allowEmptyConnections: false,          // Allow skipping platform connections
-            simulateTraining: false,               // Simulate AI training for testing
-            platforms: [.instagram, .youtube, .reddit, .pinterest, .gmail],
-            urlScheme: "your-app-scheme",          // Your app's URL scheme
-            appName: "Your App Name"               // Display name in UI
+            isDebugMode: true, // Set false for production
+            urlScheme: "YOUR-APP-SCHEME", // Replace with your scheme
+            appName: "Your App Name"
         )
-        
         OnairosSDK.shared.initialize(config: config)
         
         return true
     }
+    
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return GIDSignIn.sharedInstance.handle(url)
+    }
 }
 ```
 
-### Advanced Configuration
+### Step 5: Implementation Code
 
+**SwiftUI Implementation:**
 ```swift
-let config = OnairosConfig(
-    isDebugMode: false,
-    allowEmptyConnections: true,
-    simulateTraining: false,
-    apiBaseURL: "https://api2.onairos.uk",       // Custom API URL
-    platforms: [.youtube, .reddit],              // Only specific platforms
-    opacityAPIKey: "your-opacity-key",           // Instagram Opacity SDK key
-    googleClientID: "your-google-client-id",     // YouTube authentication
-    urlScheme: "your-app-scheme",
-    appName: "Your App Name"
-)
+import SwiftUI
+import OnairosSDK
+
+struct ContentView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Welcome to Your App")
+                .font(.title)
+            
+            // Onairos Connect Button
+            OnairosConnectButtonView()
+        }
+        .padding()
+    }
+}
+
+struct OnairosConnectButtonView: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let button = OnairosSDK.shared.createConnectButton(text: "Connect Your Data")
+        return button
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // No updates needed
+    }
+}
 ```
 
-## 🎨 Step 3: Add Connect Button
-
-### Method 1: SDK-Generated Button (Recommended)
-
+**UIKit Implementation:**
 ```swift
 import UIKit
 import OnairosSDK
@@ -91,373 +194,176 @@ class ViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupOnairosButton()
+        setupUI()
     }
     
-    private func setupOnairosButton() {
-        // Create button with default "Connect Data" text
-        let connectButton = OnairosSDK.shared.createConnectButton(
-            target: self,
-            completion: handleOnboardingResult
-        )
+    private func setupUI() {
+        view.backgroundColor = .systemBackground
         
-        // Or with custom text
-        let customButton = OnairosSDK.shared.createConnectButton(
-            text: "Start Onboarding",
-            target: self,
-            completion: handleOnboardingResult
-        )
+        // Create Onairos connect button
+        let connectButton = OnairosSDK.shared.createConnectButton(text: "Connect Your Data")
+        connectButton.translatesAutoresizingMaskIntoConstraints = false
         
-        // Add to your view
         view.addSubview(connectButton)
         
-        // Setup constraints
-        connectButton.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             connectButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            connectButton.centerYAnchor.constraint(equalTo: view.centerYAnchor)
-        ])
-    }
-    
-    private func handleOnboardingResult(_ result: Result<OnboardingResult, OnairosError>) {
-        switch result {
-        case .success(let data):
-            print("✅ Onboarding completed!")
-            print("Connected platforms: \(data.connectedPlatforms)")
-            print("Session saved: \(data.sessionSaved)")
-            
-        case .failure(let error):
-            print("❌ Onboarding failed: \(error.localizedDescription)")
-        }
-    }
-}
-```
-
-### Method 2: Custom Button
-
-```swift
-@IBAction func customButtonTapped(_ sender: UIButton) {
-    OnairosSDK.shared.presentOnboarding(from: self) { result in
-        switch result {
-        case .success(let data):
-            // Handle success
-            self.onOnboardingSuccess(data)
-            
-        case .failure(let error):
-            // Handle error
-            self.onOnboardingError(error)
-        }
-    }
-}
-```
-
-## 📱 Step 4: Handle Results
-
-### Success Handling
-
-```swift
-private func onOnboardingSuccess(_ data: OnboardingResult) {
-    // User completed onboarding successfully
-    
-    // Check what platforms were connected
-    for platform in data.connectedPlatforms {
-        print("✅ Connected to \(platform)")
-    }
-    
-    // Check if session was saved
-    if data.sessionSaved {
-        print("💾 Session saved - user won't need to onboard again")
-    }
-    
-    // Check if AI training completed
-    if data.trainingCompleted {
-        print("🤖 AI training completed")
-        
-        // Access user data
-        if let email = data.email {
-            print("📧 User email: \(email)")
-        }
-        
-        // Access platform data
-        for (platform, platformData) in data.platformData {
-            print("🔗 \(platform) data available")
-        }
-    }
-    
-    // Continue with your app flow
-    navigateToMainApp()
-}
-```
-
-### Error Handling
-
-```swift
-private func onOnboardingError(_ error: OnairosError) {
-    switch error {
-    case .userCancelled:
-        print("User cancelled onboarding")
-        // Maybe show a "Skip for now" option
-        
-    case .networkUnavailable:
-        showAlert("Please check your internet connection and try again")
-        
-    case .platformUnavailable(let platform):
-        showAlert("\(platform) is currently unavailable. Please try again later.")
-        
-    case .validationFailed(let message):
-        showAlert("Validation error: \(message)")
-        
-    case .authenticationFailed(let message):
-        showAlert("Authentication failed: \(message)")
-        
-    default:
-        showAlert("An error occurred: \(error.localizedDescription)")
-        
-        // Show recovery suggestion if available
-        if !error.recoverySuggestion.isEmpty {
-            print("💡 Suggestion: \(error.recoverySuggestion)")
-        }
-    }
-}
-```
-
-## 🔐 Step 5: Platform Authentication Setup
-
-### YouTube (Google Sign-In)
-
-1. **Add GoogleService-Info.plist** to your project
-2. **Configure URL scheme** in Info.plist:
-
-```xml
-<key>CFBundleURLTypes</key>
-<array>
-    <dict>
-        <key>CFBundleURLName</key>
-        <string>google-signin</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-            <string>YOUR_REVERSED_CLIENT_ID</string>
-        </array>
-    </dict>
-</array>
-```
-
-3. **Handle URL callbacks** in AppDelegate:
-
-```swift
-import GoogleSignIn
-
-func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    return GIDSignIn.sharedInstance.handle(url)
-}
-```
-
-### OAuth Platforms (Reddit, Pinterest, Gmail)
-
-1. **Configure URL scheme** in Info.plist:
-
-```xml
-<key>CFBundleURLTypes</key>
-<array>
-    <dict>
-        <key>CFBundleURLName</key>
-        <string>onairos-oauth</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-            <string>your-app-scheme</string>
-        </array>
-    </dict>
-</array>
-```
-
-2. **Handle deep links** in AppDelegate:
-
-```swift
-func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    // Handle OAuth callbacks
-    if url.scheme == "your-app-scheme" && url.host == "oauth" {
-        // OAuth callback will be handled automatically by SDK
-        return true
-    }
-    
-    return false
-}
-```
-
-### Instagram (Opacity SDK)
-
-1. **Add Opacity SDK** to your project
-2. **Configure API key** in OnairosConfig:
-
-```swift
-let config = OnairosConfig(
-    opacityAPIKey: "your-opacity-api-key",
-    // ... other config
-)
-```
-
-## 🧪 Step 6: Testing
-
-### Debug Mode
-
-Enable debug mode for testing:
-
-```swift
-let config = OnairosConfig(
-    isDebugMode: true,
-    allowEmptyConnections: true,  // Skip platform connections
-    simulateTraining: true        // Simulate AI training
-)
-```
-
-Debug mode features:
-- ✅ All email verification codes accepted
-- ✅ Platform connections can be skipped
-- ✅ Training progress is simulated
-- ✅ Enhanced logging
-
-### Session Management
-
-```swift
-// Check if user has existing session
-if OnairosSDK.shared.hasExistingSession() {
-    // User has completed onboarding before
-    print("Welcome back!")
-} else {
-    // Show onboarding for new user
-    showOnboardingButton()
-}
-
-// Clear session (for testing)
-OnairosSDK.shared.clearSession()
-```
-
-## 🎯 Advanced Features
-
-### Custom Error Reporting
-
-```swift
-class MyErrorReporter: ErrorReporting {
-    func reportError(_ error: OnairosError, context: [String: Any]?) {
-        // Send to your analytics service
-        Analytics.track("onairos_error", properties: [
-            "error": error.localizedDescription,
-            "category": error.category.rawValue
+            connectButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            connectButton.widthAnchor.constraint(equalToConstant: 280),
+            connectButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
 }
-
-// Set custom error reporter
-OnairosSDK.shared.setErrorReporter(MyErrorReporter())
 ```
 
-### Custom Styling
+### Step 6: Advanced Configuration (Optional)
 
-The SDK uses system colors and adapts to light/dark mode automatically. UI elements follow iOS design guidelines:
-
-- ✅ 24px corner radius for modal
-- ✅ System blue primary color
-- ✅ Proper contrast ratios
-- ✅ Dynamic type support
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-**1. Button doesn't appear**
+**Custom Configuration:**
 ```swift
-// Make sure SDK is initialized
-OnairosSDK.shared.initialize(config: config)
-
-// Check button constraints
-connectButton.translatesAutoresizingMaskIntoConstraints = false
-```
-
-**2. Keyboard blocks input fields**
-- ✅ SDK automatically handles keyboard avoidance
-- ✅ Input fields scroll into view automatically
-- ✅ Works with all device sizes
-
-**3. OAuth callbacks not working**
-```swift
-// Verify URL scheme in Info.plist
-// Check deep link handling in AppDelegate
-// Test URL scheme format: "your-app://oauth/callback"
-```
-
-**4. Training progress stuck**
-```swift
-// Enable debug mode for testing
 let config = OnairosConfig(
-    isDebugMode: true,
-    simulateTraining: true  // Use simulation for testing
+    isDebugMode: false, // Production mode
+    allowEmptyConnections: false, // Require platform connections
+    simulateTraining: false, // Use real Socket.IO training
+    apiBaseURL: "https://api2.onairos.uk", // Default API
+    platforms: [.instagram, .youtube, .reddit, .pinterest, .gmail], // Enabled platforms
+    opacityAPIKey: "YOUR-OPACITY-API-KEY", // For Instagram
+    googleClientID: "YOUR-GOOGLE-CLIENT-ID", // For YouTube
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
 )
 ```
 
-### Debug Logging
-
-Enable verbose logging:
-
+**Handle Completion:**
 ```swift
-let config = OnairosConfig(
-    isDebugMode: true
-    // ... other config
-)
-```
-
-## 📊 Analytics Integration
-
-Track onboarding events:
-
-```swift
-private func handleOnboardingResult(_ result: Result<OnboardingResult, OnairosError>) {
+// Manual presentation with completion handler
+OnairosSDK.shared.presentOnboarding(from: self) { result in
     switch result {
     case .success(let data):
-        // Track successful onboarding
-        Analytics.track("onboarding_completed", properties: [
-            "platforms": data.connectedPlatforms,
-            "session_saved": data.sessionSaved,
-            "training_completed": data.trainingCompleted
-        ])
+        print("Onboarding completed successfully")
+        print("Connected platforms: \(data.connectedPlatforms.keys)")
+        // Handle success - user data available
         
     case .failure(let error):
-        // Track onboarding errors
-        Analytics.track("onboarding_failed", properties: [
-            "error": error.localizedDescription,
-            "category": error.category.rawValue
-        ])
+        print("Onboarding failed: \(error.localizedDescription)")
+        // Handle error
     }
 }
 ```
 
-## 🔄 Migration from React Native
+## 🛠️ Automated Setup Script
 
-If migrating from the React Native SDK:
+**Run this in your project directory:**
+```bash
+# Create required files structure
+mkdir -p Sources/YourApp
+touch Sources/YourApp/App.swift
+touch Sources/YourApp/ContentView.swift
 
-- ✅ Same API endpoints and data structures
-- ✅ Identical onboarding flow
-- ✅ Compatible session management
-- ✅ Same platform authentication
+# Add Package.swift if not exists
+if [ ! -f Package.swift ]; then
+cat > Package.swift << 'EOF'
+// swift-tools-version: 5.9
+import PackageDescription
+
+let package = Package(
+    name: "YourApp",
+    platforms: [.iOS(.v14)],
+    products: [
+        .executable(name: "YourApp", targets: ["YourApp"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1"),
+        .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
+        .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
+    ],
+    targets: [
+        .executableTarget(
+            name: "YourApp",
+            dependencies: [
+                .product(name: "OnairosSDK", package: "Onairos-Swift")
+            ]
+        )
+    ]
+)
+EOF
+fi
+
+echo "✅ Onairos SDK setup complete!"
+echo "📝 Don't forget to:"
+echo "   1. Replace YOUR-APP-SCHEME with your actual URL scheme"
+echo "   2. Add GoogleService-Info.plist to your project"
+echo "   3. Update Info.plist with URL schemes"
+```
+
+## 🔧 Troubleshooting for AI Assistants
+
+### Common Issues & Fixes
+
+**1. GoogleService-Info.plist not found:**
+```swift
+// Add this check in your configuration
+guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil else {
+    print("⚠️ GoogleService-Info.plist missing - YouTube auth will fail")
+    return
+}
+```
+
+**2. URL Scheme not working:**
+```xml
+<!-- Verify in Info.plist -->
+<string>your-app-scheme</string> <!-- Must match OnairosConfig.urlScheme -->
+```
+
+**3. Build errors:**
+```bash
+# Clean and rebuild
+swift package clean
+swift package resolve
+swift build
+```
+
+## 📋 Verification Checklist
+
+Copy this checklist for AI assistants to verify setup:
+
+- [ ] Package dependency added to Package.swift or Xcode
+- [ ] GoogleService-Info.plist added to project
+- [ ] Info.plist updated with URL schemes
+- [ ] AppDelegate/App configured with Google Sign-In
+- [ ] OnairosSDK initialized with correct config
+- [ ] Connect button added to UI
+- [ ] URL scheme matches between Info.plist and config
+- [ ] Project builds without errors
+- [ ] Button appears and is tappable
+
+## 🚀 Production Deployment
+
+**Before releasing:**
+```swift
+let config = OnairosConfig(
+    isDebugMode: false, // ← Change to false
+    allowEmptyConnections: false, // ← Require connections
+    simulateTraining: false, // ← Use real training
+    urlScheme: "your-production-scheme",
+    appName: "Your App Name"
+)
+```
+
+**Required for production:**
+- [ ] Opacity API key for Instagram
+- [ ] Google Cloud Project with YouTube API enabled
+- [ ] Production URL schemes registered
+- [ ] App Store privacy declarations updated
+
+---
 
 ## 📞 Support
 
-Need help?
+For AI assistants encountering issues:
+1. Check the verification checklist above
+2. Ensure all dependencies are properly resolved
+3. Verify URL schemes match exactly
+4. Test in debug mode first before production
 
-- 📧 **Email**: support@onairos.com
-- 📖 **Documentation**: https://docs.onairos.com
-- 🐛 **Issues**: https://github.com/onairos/onairos-swift-sdk/issues
-- 💬 **Discord**: https://discord.gg/onairos
-
-## 🎉 You're Ready!
-
-Your Onairos SDK integration is complete! Users can now:
-
-1. **Tap the connect button** → Opens onboarding modal
-2. **Enter email** → Receives verification code
-3. **Verify email** → Proceeds to platform connections
-4. **Connect platforms** → OAuth/native authentication
-5. **Create PIN** → Secure account setup
-6. **AI training** → Real-time progress with Socket.IO
-7. **Complete** → Returns data to your app
-
-The SDK handles all the complexity while providing a smooth, native iOS experience! 🚀
+**Repository:** https://github.com/zd819/Onairos-Swift  
+**Version:** 1.0.1+

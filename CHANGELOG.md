@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2024-01-XX
+## [1.0.1] - 2024-12-19
+
+### Changed
+- Updated integration guide to be optimized for LLMs, coding assistants, and Cursor
+- Enhanced documentation with copy-paste instructions and automated setup scripts
+- Corrected version numbering from 1.0.0 to 1.0.1
+
+### Fixed
+- Proper semantic versioning implementation
+
+## [1.0.0] - 2024-12-19
 
 ### Added
 - Initial release of Onairos Swift SDK
