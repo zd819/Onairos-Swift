@@ -1,6 +1,7 @@
 import UIKit
 
 /// Email input step view controller
+@MainActor
 public class EmailStepViewController: BaseStepViewController {
     
     /// Email input field

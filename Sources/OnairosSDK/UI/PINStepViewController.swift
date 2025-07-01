@@ -1,6 +1,7 @@
 import UIKit
 
 /// PIN creation step view controller
+@MainActor
 public class PINStepViewController: BaseStepViewController {
     
     /// PIN input field

@@ -1,4 +1,5 @@
 import UIKit
+import Combine
 
 /// Main modal controller for the onboarding flow
 @MainActor
@@ -322,6 +323,3 @@ public class OnairosModalController: UIViewController {
 public protocol LoadingCapable {
     func setLoading(_ isLoading: Bool)
 }
-
-/// Import Combine for state observation
-import Combine 

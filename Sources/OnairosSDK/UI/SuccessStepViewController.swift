@@ -1,6 +1,7 @@
 import UIKit
 
 /// Success step view controller with "Never Connect Again" message
+@MainActor
 public class SuccessStepViewController: BaseStepViewController {
     
     /// Success checkmark view

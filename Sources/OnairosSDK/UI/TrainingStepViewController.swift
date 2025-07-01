@@ -1,6 +1,7 @@
 import UIKit
 
 /// AI training step view controller
+@MainActor
 public class TrainingStepViewController: BaseStepViewController {
     
     /// Training progress view

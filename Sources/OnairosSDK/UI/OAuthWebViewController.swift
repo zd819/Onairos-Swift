@@ -2,6 +2,7 @@ import UIKit
 import WebKit
 
 /// OAuth WebView controller for platform authentication
+@MainActor
 public class OAuthWebViewController: UIViewController {
     
     /// Platform being authenticated

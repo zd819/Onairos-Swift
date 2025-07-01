@@ -1,6 +1,7 @@
 import UIKit
 
 /// Email verification step view controller
+@MainActor
 public class VerifyStepViewController: BaseStepViewController {
     
     /// Code input fields container

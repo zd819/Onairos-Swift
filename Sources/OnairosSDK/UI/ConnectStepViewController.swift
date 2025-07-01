@@ -1,6 +1,7 @@
 import UIKit
 
 /// Platform connection step view controller
+@MainActor
 public class ConnectStepViewController: BaseStepViewController {
     
     /// Platform list container
