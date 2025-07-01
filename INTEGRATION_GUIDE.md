@@ -3,9 +3,9 @@
 > **Optimized for LLMs, Coding Assistants, and Cursor**  
 > Complete copy-paste instructions for automated integration
 
-## 🚨 **CRITICAL UPDATE v1.0.7 - All Compilation Issues Fixed**
+## 🚨 **CRITICAL UPDATE v1.0.9 - Swift 6.1 Compatibility**
 
-**Previous versions (1.0.1-1.0.6) had compilation bugs that prevented building. v1.0.7 fixes ALL issues.**
+**Previous versions (1.0.1-1.0.8) had compilation issues with Swift 6.1. v1.0.9 fixes ALL issues.**
 
 ## 🤖 AI Assistant Quick Setup
 
@@ -14,7 +14,7 @@
 **For Package.swift projects:**
 ```swift
 // Add to Package.swift dependencies array
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.7")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9")
 
 // Add to target dependencies
 .product(name: "OnairosSDK", package: "Onairos-Swift")
@@ -23,7 +23,7 @@
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.7` or `Up to Next Major`
+3. Version: `1.0.9` or `Up to Next Major`
 
 ### Step 2: Required Dependencies Setup
 
@@ -32,7 +32,7 @@
 **For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.7")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9")
     // ✅ SocketIO and GoogleSignIn are automatically included!
 ],
 targets: [
@@ -49,7 +49,7 @@ targets: [
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.7` or `Up to Next Major`
+3. Version: `1.0.9` or `Up to Next Major`
 4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
 
 **What gets installed automatically:**
@@ -298,7 +298,7 @@ let package = Package(
         .executable(name: "YourApp", targets: ["YourApp"])
     ],
     dependencies: [
-        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.7"),
+        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9"),
         .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
         .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
     ],
@@ -323,30 +323,28 @@ echo "   3. Update Info.plist with URL schemes"
 
 ## 🔧 Troubleshooting for AI Assistants
 
-### Recent Fixes (v1.0.7)
+### Recent Fixes (v1.0.9)
 
-**🚨 CRITICAL COMPILATION FIXES:**
+**🚨 SWIFT 6.1 COMPATIBILITY FIXES:**
 
-**v1.0.7 (Latest):**
+**v1.0.9 (Latest):**
+- ✅ **Fixed Swift 6.1 generic type inference issues** - Resolved "Generic parameter 'T' could not be inferred" errors
+- ✅ **Fixed OnairosAPIClient access level** - Made initializer public to resolve private protection level errors
+- ✅ **Split performRequest methods** - Separated into specific methods to avoid overloading conflicts
+- ✅ **Fixed method signature mismatches** - Resolved "Argument passed to call that takes no arguments" errors
+- ✅ **Complete Swift 6.1 compatibility** - All compilation issues resolved for latest Swift version
+
+**v1.0.8:**
+- ✅ **Fixed final SocketIO compatibility** - Removed invalid `.connectTimeout` option
+- ✅ **Complete SocketIO 16.0.0+ compatibility** - Only valid configuration options used
+
+**v1.0.7:**
 - ✅ **Fixed OnboardingCoordinator constructor issues** - Resolved UserRegistrationRequest parameter mismatch
 - ✅ **Fixed SocketIO API compatibility** - Updated .compress and .connectTimeout for newer versions
 - ✅ **Fixed DeviceInfo Codable conformance** - Removed problematic default value assignments
 - ✅ **Fixed all remaining compilation errors** - Complete compatibility with latest Swift/Xcode
 
-**v1.0.6:**
-- ✅ **Fixed missing UIKit import** - Resolved "Cannot find 'UIDevice' in scope" error
-- ✅ **Fixed Codable conformance** - All structs now properly implement Codable protocol
-- ✅ **Fixed PlatformData Codable issues** - Changed `[String: Any]` to `[String: AnyCodable]`
-- ✅ **Fixed UserRegistrationRequest Codable** - Now properly encodes/decodes
-- ✅ **Fixed OnboardingData Codable** - Resolved all "does not conform to protocol" errors
-
-**v1.0.4-1.0.5:**
-- ✅ Fixed `protected` keyword errors (Swift doesn't support `protected`)
-- ✅ Added `@MainActor` to all UI classes for proper concurrency
-- ✅ Fixed import statement ordering issues
-- ✅ Resolved frontend compilation failures
-
-**⚠️ IMPORTANT: Versions 1.0.1-1.0.6 had compilation bugs. Use v1.0.7 or later.**
+**⚠️ IMPORTANT: Versions 1.0.1-1.0.8 had compilation bugs. Use v1.0.9 or later for Swift 6.1.**
 
 **If upgrading from any earlier version:**
 ```bash
@@ -380,7 +378,7 @@ swift package resolve
 ```swift
 // Ensure repository is public and accessible
 // Check Package.swift has correct dependency:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.7")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9")
 
 // Verify import statement:
 import OnairosSDK  // Correct
@@ -424,75 +422,23 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 // Error: "Type has no member 'timeout'"
 // Solution: Fixed in v1.0.7 (changed to .connectTimeout)
 
+// Error: "Generic parameter 'T' could not be inferred"
+// Solution: Fixed in v1.0.9 (split performRequest methods for type safety)
+
+// Error: "'OnairosAPIClient' initializer is inaccessible due to 'private' protection level"
+// Solution: Fixed in v1.0.9 (made initializer public)
+
+// Error: "Argument passed to call that takes no arguments"
+// Solution: Fixed in v1.0.9 (corrected method signatures)
+
+// Error: "Extra arguments at positions #1, #3 in call"
+// Solution: Fixed in v1.0.9 (separated method overloads)
+
 // Error: "expected 'func' keyword in instance method declaration"
 // Solution: Fixed in v1.0.4+ (removed invalid protected keyword)
 
 // Error: "Failed frontend command"
-// Solution: Update to v1.0.7 and clean build
+// Solution: Update to v1.0.9 and clean build
 
-// CRITICAL: Update to v1.0.7 to fix all compilation issues
+// CRITICAL: Update to v1.0.9 for Swift 6.1 compatibility
 ```
-
-**6. Build errors:**
-```bash
-# Clean and rebuild
-swift package clean
-swift package resolve
-swift build
-
-# Or in Xcode:
-# Product → Clean Build Folder
-# File → Swift Packages → Resolve Package Versions
-```
-
-**7. Dependency conflicts:**
-```swift
-// If you get version conflicts, use exact versions:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", exact: "1.0.7")
-```
-
-## 📋 Verification Checklist
-
-Copy this checklist for AI assistants to verify setup:
-
-- [ ] Package dependency added to Package.swift or Xcode
-- [ ] GoogleService-Info.plist added to project
-- [ ] Info.plist updated with URL schemes
-- [ ] AppDelegate/App configured with Google Sign-In
-- [ ] OnairosSDK initialized with correct config
-- [ ] Connect button added to UI
-- [ ] URL scheme matches between Info.plist and config
-- [ ] Project builds without errors
-- [ ] Button appears and is tappable
-
-## 🚀 Production Deployment
-
-**Before releasing:**
-```swift
-let config = OnairosConfig(
-    isDebugMode: false, // ← Change to false
-    allowEmptyConnections: false, // ← Require connections
-    simulateTraining: false, // ← Use real training
-    urlScheme: "your-production-scheme",
-    appName: "Your App Name"
-)
-```
-
-**Required for production:**
-- [ ] Opacity API key for Instagram
-- [ ] Google Cloud Project with YouTube API enabled
-- [ ] Production URL schemes registered
-- [ ] App Store privacy declarations updated
-
----
-
-## 📞 Support
-
-For AI assistants encountering issues:
-1. Check the verification checklist above
-2. Ensure all dependencies are properly resolved
-3. Verify URL schemes match exactly
-4. Test in debug mode first before production
-
-**Repository:** https://github.com/zd819/Onairos-Swift  
-**Version:** 1.0.7+ (REQUIRED - earlier versions have compilation bugs)

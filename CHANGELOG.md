@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.9] - 2024-12-19
+
+### Fixed
+- 🚨 **SWIFT 6.1 COMPATIBILITY FIXES** - Resolved all compilation issues with Swift 6.1
+- Fixed generic type inference issues in OnairosAPIClient ("Generic parameter 'T' could not be inferred")
+- Made OnairosAPIClient initializer public to resolve private protection level errors
+- Split performRequest method into specific variants to avoid overloading conflicts:
+  - `performRequest<T,U>` for Codable body requests
+  - `performRequestWithoutBody<U>` for GET requests without body
+  - `performRequestWithDictionary<U>` for dictionary body requests
+- Resolved "Argument passed to call that takes no arguments" errors
+- Fixed "Extra arguments at positions #1, #3 in call" errors
+- Updated all API method calls to use appropriate specific performRequest methods
+
+### Changed
+- Updated integration guide with Swift 6.1 compatibility information
+- Enhanced troubleshooting with specific Swift 6.1 error solutions
+- Added comprehensive error-to-solution mapping for generic type inference issues
+
+### Notes
+- **BREAKING**: Versions 1.0.1-1.0.8 had compilation issues with Swift 6.1
+- **REQUIRED**: All consuming apps using Swift 6.1 must update to v1.0.9 or later
+- **COMPLETE**: v1.0.9 provides full Swift 6.1 compatibility with stricter type inference
+
+## [1.0.8] - 2024-12-19
+
 ## [1.0.7] - 2024-12-19
 
 ### Fixed
