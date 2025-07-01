@@ -6,52 +6,52 @@ import Combine
 public class BaseStepViewController: UIViewController, LoadingCapable {
     
     /// Coordinator reference
-    protected weak var coordinator: OnboardingCoordinator?
+    internal weak var coordinator: OnboardingCoordinator?
     
     /// Onboarding state
-    protected let state: OnboardingState
+    internal let state: OnboardingState
     
     /// Configuration
-    protected let config: OnairosConfig
+    internal let config: OnairosConfig
     
     /// Main scroll view for content
-    protected let scrollView = UIScrollView()
+    internal let scrollView = UIScrollView()
     
     /// Content view inside scroll view
-    protected let contentView = UIView()
+    internal let contentView = UIView()
     
     /// Header view for logo and title
-    protected let headerView = UIView()
+    internal let headerView = UIView()
     
     /// Onairos logo image view
-    protected let logoImageView = UIImageView()
+    internal let logoImageView = UIImageView()
     
     /// Step title label
-    protected let titleLabel = UILabel()
+    internal let titleLabel = UILabel()
     
     /// Step subtitle label
-    protected let subtitleLabel = UILabel()
+    internal let subtitleLabel = UILabel()
     
     /// Main content stack view
-    protected let contentStackView = UIStackView()
+    internal let contentStackView = UIStackView()
     
     /// Footer view for buttons
-    protected let footerView = UIView()
+    internal let footerView = UIView()
     
     /// Primary action button
-    protected let primaryButton = UIButton(type: .system)
+    internal let primaryButton = UIButton(type: .system)
     
     /// Secondary action button
-    protected let secondaryButton = UIButton(type: .system)
+    internal let secondaryButton = UIButton(type: .system)
     
     /// Loading indicator
-    protected let loadingIndicator = UIActivityIndicatorView(style: .medium)
+    internal let loadingIndicator = UIActivityIndicatorView(style: .medium)
     
     /// Error message label
-    protected let errorLabel = UILabel()
+    internal let errorLabel = UILabel()
     
     /// Combine cancellables
-    protected var cancellables = Set<AnyCancellable>()
+    internal var cancellables = Set<AnyCancellable>()
     
     /// Initialize base step view controller
     /// - Parameters:
