@@ -23,14 +23,36 @@
 
 ### Step 2: Required Dependencies Setup
 
-**Add these to your Package.swift or install via Xcode:**
+**IMPORTANT: OnairosSDK automatically includes all required dependencies!**
+
+**For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1"),
-    .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
-    .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1")
+    // ✅ SocketIO and GoogleSignIn are automatically included!
+],
+targets: [
+    .target(
+        name: "YourAppName",
+        dependencies: [
+            .product(name: "OnairosSDK", package: "Onairos-Swift")
+            // ✅ No need to add SocketIO or GoogleSignIn manually
+        ]
+    )
 ]
 ```
+
+**For Xcode projects:**
+1. File → Add Package Dependencies
+2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
+3. Version: `1.0.1` or `Up to Next Major`
+4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
+
+**What gets installed automatically:**
+- ✅ OnairosSDK (main SDK)
+- ✅ SocketIO (~16.0.0) - for real-time AI training
+- ✅ GoogleSignIn (~7.0.0) - for YouTube authentication
+- ✅ All required frameworks and dependencies
 
 ### Step 3: iOS Configuration Files
 
@@ -299,7 +321,30 @@ echo "   3. Update Info.plist with URL schemes"
 
 ### Common Issues & Fixes
 
-**1. GoogleService-Info.plist not found:**
+**1. "Package Resolution Failed" Error:**
+```bash
+# Solution A: Clear package cache
+rm -rf .build
+rm Package.resolved
+# Then rebuild
+
+# Solution B: In Xcode
+# File → Swift Packages → Reset Package Caches
+# Product → Clean Build Folder
+# Then rebuild
+```
+
+**2. "No such module 'OnairosSDK'" Error:**
+```swift
+// Ensure repository is public and accessible
+// Check Package.swift has correct dependency:
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1")
+
+// Verify import statement:
+import OnairosSDK  // Correct
+```
+
+**3. GoogleService-Info.plist not found:**
 ```swift
 // Add this check in your configuration
 guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil else {
@@ -308,18 +353,28 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 }
 ```
 
-**2. URL Scheme not working:**
+**4. URL Scheme not working:**
 ```xml
 <!-- Verify in Info.plist -->
 <string>your-app-scheme</string> <!-- Must match OnairosConfig.urlScheme -->
 ```
 
-**3. Build errors:**
+**5. Build errors:**
 ```bash
 # Clean and rebuild
 swift package clean
 swift package resolve
 swift build
+
+# Or in Xcode:
+# Product → Clean Build Folder
+# File → Swift Packages → Resolve Package Versions
+```
+
+**6. Dependency conflicts:**
+```swift
+// If you get version conflicts, use exact versions:
+.package(url: "https://github.com/zd819/Onairos-Swift.git", exact: "1.0.1")
 ```
 
 ## 📋 Verification Checklist
