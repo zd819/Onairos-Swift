@@ -5,7 +5,25 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.10] - 2024-12-28
+
+### Fixed
+- **OnairosError Enum Cases**: Added missing enum cases that were causing Swift 6.1 compilation errors
+  - Added `networkError(String)` case for network-related errors
+  - Added `authenticationFailed(String)` case for authentication failures
+  - Added `validationFailed(String)` case for validation errors
+  - Added `serverError(Int, String)` case for server errors
+- **Error Handling**: Updated all switch statements to handle new error cases
+- **Error Descriptions**: Added proper error descriptions and recovery suggestions for new cases
+- **Error Categorization**: Updated error categorization for analytics tracking
+- **Swift 6.1 Compatibility**: Resolved all remaining compilation issues with Swift 6.1
+
+### Technical Details
+- Fixed `Type 'OnairosError' has no member 'networkError'` compilation errors
+- Fixed `Type 'OnairosError' has no member 'authenticationFailed'` compilation errors
+- Fixed `Type 'OnairosError' has no member 'validationFailed'` compilation errors
+- Fixed `Type 'OnairosError' has no member 'serverError'` compilation errors
+- Ensured comprehensive error handling throughout the SDK
 
 ## [1.0.9] - 2024-12-19
 

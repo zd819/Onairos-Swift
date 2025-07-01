@@ -32,7 +32,7 @@
 **For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.10")
     // ✅ SocketIO and GoogleSignIn are automatically included!
 ],
 targets: [
@@ -49,7 +49,7 @@ targets: [
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.9` or `Up to Next Major`
+3. Version: `1.0.10` or `Up to Next Major`
 4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
 
 **What gets installed automatically:**
@@ -298,7 +298,7 @@ let package = Package(
         .executable(name: "YourApp", targets: ["YourApp"])
     ],
     dependencies: [
-        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9"),
+        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.10"),
         .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
         .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
     ],
@@ -323,11 +323,17 @@ echo "   3. Update Info.plist with URL schemes"
 
 ## 🔧 Troubleshooting for AI Assistants
 
-### Recent Fixes (v1.0.9)
+### Recent Fixes (v1.0.10)
 
 **🚨 SWIFT 6.1 COMPATIBILITY FIXES:**
 
-**v1.0.9 (Latest):**
+**v1.0.10 (Latest):**
+- ✅ **Fixed OnairosError enum cases** - Added missing networkError, authenticationFailed, validationFailed, and serverError cases
+- ✅ **Complete error handling** - All OnairosError usage now properly defined throughout the SDK
+- ✅ **Resolved "Type has no member" errors** - Fixed all remaining Swift 6.1 compilation issues
+- ✅ **Enhanced error categorization** - Improved error descriptions and recovery suggestions
+
+**v1.0.9:**
 - ✅ **Fixed Swift 6.1 generic type inference issues** - Resolved "Generic parameter 'T' could not be inferred" errors
 - ✅ **Fixed OnairosAPIClient access level** - Made initializer public to resolve private protection level errors
 - ✅ **Split performRequest methods** - Separated into specific methods to avoid overloading conflicts
@@ -344,7 +350,7 @@ echo "   3. Update Info.plist with URL schemes"
 - ✅ **Fixed DeviceInfo Codable conformance** - Removed problematic default value assignments
 - ✅ **Fixed all remaining compilation errors** - Complete compatibility with latest Swift/Xcode
 
-**⚠️ IMPORTANT: Versions 1.0.1-1.0.8 had compilation bugs. Use v1.0.9 or later for Swift 6.1.**
+**⚠️ IMPORTANT: Versions 1.0.1-1.0.9 had compilation bugs. Use v1.0.10 or later for Swift 6.1.**
 
 **If upgrading from any earlier version:**
 ```bash
@@ -440,5 +446,17 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 // Error: "Failed frontend command"
 // Solution: Update to v1.0.9 and clean build
 
-// CRITICAL: Update to v1.0.9 for Swift 6.1 compatibility
+// Error: "Type 'OnairosError' has no member 'networkError'"
+// Solution: Fixed in v1.0.10 (added missing enum cases)
+
+// Error: "Type 'OnairosError' has no member 'authenticationFailed'"
+// Solution: Fixed in v1.0.10 (added missing enum cases)
+
+// Error: "Type 'OnairosError' has no member 'validationFailed'"
+// Solution: Fixed in v1.0.10 (added missing enum cases)
+
+// Error: "Type 'OnairosError' has no member 'serverError'"
+// Solution: Fixed in v1.0.10 (added missing enum cases)
+
+// CRITICAL: Update to v1.0.10 for complete Swift 6.1 compatibility
 ```
