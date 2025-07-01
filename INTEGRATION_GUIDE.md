@@ -3,6 +3,10 @@
 > **Optimized for LLMs, Coding Assistants, and Cursor**  
 > Complete copy-paste instructions for automated integration
 
+## 🚨 **CRITICAL UPDATE v1.0.6 - Compilation Fixes**
+
+**Previous versions (1.0.1-1.0.5) had compilation bugs that prevented building. v1.0.6 fixes all issues.**
+
 ## 🤖 AI Assistant Quick Setup
 
 ### Step 1: Add Package Dependency
@@ -10,7 +14,7 @@
 **For Package.swift projects:**
 ```swift
 // Add to Package.swift dependencies array
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.6")
 
 // Add to target dependencies
 .product(name: "OnairosSDK", package: "Onairos-Swift")
@@ -19,7 +23,7 @@
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.4` or `Up to Next Major`
+3. Version: `1.0.6` or `Up to Next Major`
 
 ### Step 2: Required Dependencies Setup
 
@@ -28,7 +32,7 @@
 **For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.6")
     // ✅ SocketIO and GoogleSignIn are automatically included!
 ],
 targets: [
@@ -45,7 +49,7 @@ targets: [
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.4` or `Up to Next Major`
+3. Version: `1.0.6` or `Up to Next Major`
 4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
 
 **What gets installed automatically:**
@@ -294,7 +298,7 @@ let package = Package(
         .executable(name: "YourApp", targets: ["YourApp"])
     ],
     dependencies: [
-        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4"),
+        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.6"),
         .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
         .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
     ],
@@ -319,19 +323,31 @@ echo "   3. Update Info.plist with URL schemes"
 
 ## 🔧 Troubleshooting for AI Assistants
 
-### Recent Fixes (v1.0.4)
+### Recent Fixes (v1.0.6)
 
-**✅ Swift Compilation Issues Fixed:**
-- Fixed `protected` keyword errors (Swift doesn't support `protected`)
-- Added `@MainActor` to all UI classes for proper concurrency
-- Fixed import statement ordering issues
-- Resolved frontend compilation failures
+**🚨 CRITICAL COMPILATION FIXES:**
 
-**If upgrading from v1.0.3 or earlier:**
+**v1.0.6 (Latest):**
+- ✅ **Fixed missing UIKit import** - Resolved "Cannot find 'UIDevice' in scope" error
+- ✅ **Fixed Codable conformance** - All structs now properly implement Codable protocol
+- ✅ **Fixed PlatformData Codable issues** - Changed `[String: Any]` to `[String: AnyCodable]`
+- ✅ **Fixed UserRegistrationRequest Codable** - Now properly encodes/decodes
+- ✅ **Fixed OnboardingData Codable** - Resolved all "does not conform to protocol" errors
+
+**v1.0.4-1.0.5:**
+- ✅ Fixed `protected` keyword errors (Swift doesn't support `protected`)
+- ✅ Added `@MainActor` to all UI classes for proper concurrency
+- ✅ Fixed import statement ordering issues
+- ✅ Resolved frontend compilation failures
+
+**⚠️ IMPORTANT: Versions 1.0.1-1.0.5 had compilation bugs. Use v1.0.6 or later.**
+
+**If upgrading from any earlier version:**
 ```bash
 # Clear package cache and rebuild
 rm -rf .build
 rm Package.resolved
+swift package clean
 swift package resolve
 swift build
 ```
@@ -343,11 +359,14 @@ swift build
 # Solution A: Clear package cache
 rm -rf .build
 rm Package.resolved
+swift package clean
+swift package resolve
 # Then rebuild
 
 # Solution B: In Xcode
 # File → Swift Packages → Reset Package Caches
 # Product → Clean Build Folder
+# File → Swift Packages → Update to Latest Package Versions
 # Then rebuild
 ```
 
@@ -355,10 +374,14 @@ rm Package.resolved
 ```swift
 // Ensure repository is public and accessible
 // Check Package.swift has correct dependency:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.6")
 
 // Verify import statement:
 import OnairosSDK  // Correct
+
+// If still failing, force update:
+// swift package update
+// Or in Xcode: File → Swift Packages → Update to Latest Package Versions
 ```
 
 **3. GoogleService-Info.plist not found:**
@@ -380,11 +403,19 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 ```swift
 // Common errors and solutions:
 
+// Error: "Cannot find 'UIDevice' in scope"
+// Solution: Fixed in v1.0.6 (added missing UIKit import)
+
+// Error: "Type 'UserRegistrationRequest' does not conform to protocol 'Decodable'"
+// Solution: Fixed in v1.0.6 (proper Codable implementation)
+
 // Error: "expected 'func' keyword in instance method declaration"
-// Solution: Update to v1.0.4+ (fixed protected keyword issue)
+// Solution: Fixed in v1.0.4+ (removed invalid protected keyword)
 
 // Error: "Failed frontend command"
-// Solution: Clean build and use latest version
+// Solution: Update to v1.0.6 and clean build
+
+// CRITICAL: Update to v1.0.6 to fix all compilation issues
 ```
 
 **6. Build errors:**
@@ -402,7 +433,7 @@ swift build
 **7. Dependency conflicts:**
 ```swift
 // If you get version conflicts, use exact versions:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", exact: "1.0.4")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", exact: "1.0.6")
 ```
 
 ## 📋 Verification Checklist
@@ -449,4 +480,4 @@ For AI assistants encountering issues:
 4. Test in debug mode first before production
 
 **Repository:** https://github.com/zd819/Onairos-Swift  
-**Version:** 1.0.4+
+**Version:** 1.0.6+ (REQUIRED - earlier versions have compilation bugs)
