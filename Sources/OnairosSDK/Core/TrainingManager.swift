@@ -44,8 +44,7 @@ public class TrainingManager {
             .compress,
             .reconnects(true),
             .reconnectAttempts(3),
-            .reconnectWait(2),
-            .connectTimeout(30)
+            .reconnectWait(2)
         ])
         
         socket = manager?.defaultSocket
