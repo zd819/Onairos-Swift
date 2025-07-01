@@ -10,7 +10,7 @@
 **For Package.swift projects:**
 ```swift
 // Add to Package.swift dependencies array
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4")
 
 // Add to target dependencies
 .product(name: "OnairosSDK", package: "Onairos-Swift")
@@ -19,7 +19,7 @@
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.1` or `Up to Next Major`
+3. Version: `1.0.4` or `Up to Next Major`
 
 ### Step 2: Required Dependencies Setup
 
@@ -28,7 +28,7 @@
 **For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4")
     // ✅ SocketIO and GoogleSignIn are automatically included!
 ],
 targets: [
@@ -45,7 +45,7 @@ targets: [
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.1` or `Up to Next Major`
+3. Version: `1.0.4` or `Up to Next Major`
 4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
 
 **What gets installed automatically:**
@@ -294,7 +294,7 @@ let package = Package(
         .executable(name: "YourApp", targets: ["YourApp"])
     ],
     dependencies: [
-        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1"),
+        .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4"),
         .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
         .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
     ],
@@ -319,6 +319,23 @@ echo "   3. Update Info.plist with URL schemes"
 
 ## 🔧 Troubleshooting for AI Assistants
 
+### Recent Fixes (v1.0.4)
+
+**✅ Swift Compilation Issues Fixed:**
+- Fixed `protected` keyword errors (Swift doesn't support `protected`)
+- Added `@MainActor` to all UI classes for proper concurrency
+- Fixed import statement ordering issues
+- Resolved frontend compilation failures
+
+**If upgrading from v1.0.3 or earlier:**
+```bash
+# Clear package cache and rebuild
+rm -rf .build
+rm Package.resolved
+swift package resolve
+swift build
+```
+
 ### Common Issues & Fixes
 
 **1. "Package Resolution Failed" Error:**
@@ -338,7 +355,7 @@ rm Package.resolved
 ```swift
 // Ensure repository is public and accessible
 // Check Package.swift has correct dependency:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.1")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.4")
 
 // Verify import statement:
 import OnairosSDK  // Correct
@@ -359,7 +376,18 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 <string>your-app-scheme</string> <!-- Must match OnairosConfig.urlScheme -->
 ```
 
-**5. Build errors:**
+**5. Swift Compilation Errors:**
+```swift
+// Common errors and solutions:
+
+// Error: "expected 'func' keyword in instance method declaration"
+// Solution: Update to v1.0.4+ (fixed protected keyword issue)
+
+// Error: "Failed frontend command"
+// Solution: Clean build and use latest version
+```
+
+**6. Build errors:**
 ```bash
 # Clean and rebuild
 swift package clean
@@ -371,10 +399,10 @@ swift build
 # File → Swift Packages → Resolve Package Versions
 ```
 
-**6. Dependency conflicts:**
+**7. Dependency conflicts:**
 ```swift
 // If you get version conflicts, use exact versions:
-.package(url: "https://github.com/zd819/Onairos-Swift.git", exact: "1.0.1")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", exact: "1.0.4")
 ```
 
 ## 📋 Verification Checklist
@@ -421,4 +449,4 @@ For AI assistants encountering issues:
 4. Test in debug mode first before production
 
 **Repository:** https://github.com/zd819/Onairos-Swift  
-**Version:** 1.0.1+
+**Version:** 1.0.4+
