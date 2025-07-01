@@ -4,17 +4,21 @@ import Foundation
 public enum OnairosError: Error, LocalizedError {
     case notInitialized
     case networkUnavailable
+    case networkError(String)
     case invalidCredentials
+    case authenticationFailed(String)
     case platformUnavailable(String)
     case opacitySDKRequired
     case googleSignInFailed(String)
     case emailVerificationFailed(String)
     case invalidEmail
     case invalidPIN
+    case validationFailed(String)
     case trainingFailed(String)
     case userCancelled
     case configurationError(String)
     case apiError(String, Int?)
+    case serverError(Int, String)
     case socketConnectionFailed
     case unknownError(String)
     
@@ -25,8 +29,12 @@ public enum OnairosError: Error, LocalizedError {
             return "SDK not initialized. Please call OnairosSDK.shared.initialize() first."
         case .networkUnavailable:
             return "Please check your internet connection and try again."
+        case .networkError(let reason):
+            return "Network error: \(reason)"
         case .invalidCredentials:
             return "Invalid verification code. Please try again."
+        case .authenticationFailed(let reason):
+            return "Authentication failed: \(reason)"
         case .platformUnavailable(let platform):
             return "\(platform) connection is currently unavailable."
         case .opacitySDKRequired:
@@ -39,6 +47,8 @@ public enum OnairosError: Error, LocalizedError {
             return "Please enter a valid email address."
         case .invalidPIN:
             return "PIN must be at least 8 characters with numbers and special characters."
+        case .validationFailed(let reason):
+            return "Validation failed: \(reason)"
         case .trainingFailed(let reason):
             return "AI training failed: \(reason)"
         case .userCancelled:
@@ -51,6 +61,8 @@ public enum OnairosError: Error, LocalizedError {
             } else {
                 return "API error: \(message)"
             }
+        case .serverError(let code, let message):
+            return "Server error (\(code)): \(message)"
         case .socketConnectionFailed:
             return "Failed to connect to training server."
         case .unknownError(let reason):
@@ -63,10 +75,12 @@ public enum OnairosError: Error, LocalizedError {
         switch self {
         case .notInitialized:
             return "Initialize the SDK in your AppDelegate or before using."
-        case .networkUnavailable:
+        case .networkUnavailable, .networkError:
             return "Check your internet connection and try again."
         case .invalidCredentials:
             return "Enter the correct verification code from your email."
+        case .authenticationFailed:
+            return "Try authenticating again or contact support."
         case .platformUnavailable:
             return "Try connecting to other platforms or skip this step."
         case .opacitySDKRequired:
@@ -79,13 +93,15 @@ public enum OnairosError: Error, LocalizedError {
             return "Enter a valid email address format."
         case .invalidPIN:
             return "Create a PIN with at least 8 characters, including numbers and special characters."
+        case .validationFailed:
+            return "Please check your input and try again."
         case .trainingFailed:
             return "Try again or contact support if the problem persists."
         case .userCancelled:
             return "You can restart the onboarding process anytime."
         case .configurationError:
             return "Check your SDK configuration settings."
-        case .apiError:
+        case .apiError, .serverError:
             return "Try again or contact support if the problem persists."
         case .socketConnectionFailed:
             return "Check your internet connection and try again."
@@ -111,17 +127,17 @@ public enum OnairosError: Error, LocalizedError {
         switch self {
         case .notInitialized, .configurationError:
             return .configuration
-        case .networkUnavailable, .socketConnectionFailed:
+        case .networkUnavailable, .networkError, .socketConnectionFailed:
             return .network
-        case .platformUnavailable, .opacitySDKRequired, .googleSignInFailed:
+        case .platformUnavailable, .opacitySDKRequired, .googleSignInFailed, .authenticationFailed:
             return .authentication
-        case .invalidCredentials, .emailVerificationFailed, .invalidEmail, .invalidPIN:
+        case .invalidCredentials, .emailVerificationFailed, .invalidEmail, .invalidPIN, .validationFailed:
             return .validation
         case .trainingFailed:
             return .training
         case .userCancelled:
             return .userAction
-        case .apiError:
+        case .apiError, .serverError:
             return .api
         case .unknownError:
             return .unknown
