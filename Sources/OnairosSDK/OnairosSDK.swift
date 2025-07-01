@@ -29,21 +29,75 @@ public class OnairosSDK: ObservableObject {
     /// Create Onairos connect button
     /// - Parameters:
     ///   - text: Optional custom button text (default: "Connect Data")
-    ///   - target: Target view controller for presentation
+    /// - Returns: Configured UIButton
+    public func createConnectButton(text: String = "Connect Data") -> UIButton {
+        let button = OnairosConnectButton(text: text)
+        
+        button.onTapped = { [weak self] in
+            // Find the current presenting view controller
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first,
+                  let rootViewController = window.rootViewController else {
+                self?.completionCallback?(.failure(.configurationError("No presenting view controller found")))
+                return
+            }
+            
+            let presentingVC = self?.findTopViewController(from: rootViewController) ?? rootViewController
+            self?.presentOnboarding(from: presentingVC) { result in
+                // Handle result if needed
+                self?.completionCallback?(result)
+            }
+        }
+        
+        return button
+    }
+    
+    /// Create Onairos connect button with completion handler
+    /// - Parameters:
+    ///   - text: Optional custom button text (default: "Connect Data")
     ///   - completion: Completion callback with result
     /// - Returns: Configured UIButton
     public func createConnectButton(
         text: String = "Connect Data",
-        target: UIViewController,
         completion: @escaping (Result<OnboardingResult, OnairosError>) -> Void
     ) -> UIButton {
         let button = OnairosConnectButton(text: text)
         
         button.onTapped = { [weak self] in
-            self?.presentOnboarding(from: target, completion: completion)
+            // Find the current presenting view controller
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let window = windowScene.windows.first,
+                  let rootViewController = window.rootViewController else {
+                completion(.failure(.configurationError("No presenting view controller found")))
+                return
+            }
+            
+            let presentingVC = self?.findTopViewController(from: rootViewController) ?? rootViewController
+            self?.presentOnboarding(from: presentingVC, completion: completion)
         }
         
         return button
+    }
+    
+    /// Find the topmost view controller for presentation
+    /// - Parameter viewController: Root view controller to search from
+    /// - Returns: Topmost view controller
+    private func findTopViewController(from viewController: UIViewController) -> UIViewController {
+        if let presentedViewController = viewController.presentedViewController {
+            return findTopViewController(from: presentedViewController)
+        }
+        
+        if let navigationController = viewController as? UINavigationController,
+           let topViewController = navigationController.topViewController {
+            return findTopViewController(from: topViewController)
+        }
+        
+        if let tabBarController = viewController as? UITabBarController,
+           let selectedViewController = tabBarController.selectedViewController {
+            return findTopViewController(from: selectedViewController)
+        }
+        
+        return viewController
     }
     
     /// Present onboarding flow
