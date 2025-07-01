@@ -31,6 +31,18 @@ public class OnairosAPIClient {
     
     // MARK: - Email Verification
     
+    /// Check if user has existing account
+    /// - Returns: True if account exists
+    public func checkExistingAccount() async throws -> Bool {
+        // For demo purposes, simulate API call
+        // In production, this would check against user database
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay
+        
+        // Return false for now - all users go through onboarding
+        // In production: return actual account existence status
+        return false
+    }
+    
     /// Request email verification
     /// - Parameter email: Email address to verify
     /// - Returns: Success status

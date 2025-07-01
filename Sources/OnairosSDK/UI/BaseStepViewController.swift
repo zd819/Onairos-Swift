@@ -363,8 +363,16 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
         }
         
         let keyboardHeight = keyboardFrame.height
-        scrollView.contentInset.bottom = keyboardHeight
-        scrollView.verticalScrollIndicatorInsets.bottom = keyboardHeight
+        let safeAreaBottom = view.safeAreaInsets.bottom
+        let adjustedHeight = keyboardHeight - safeAreaBottom
+        
+        scrollView.contentInset.bottom = adjustedHeight
+        scrollView.verticalScrollIndicatorInsets.bottom = adjustedHeight
+        
+        // Scroll to ensure input fields are visible
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.scrollToActiveInput()
+        }
         
         UIView.animate(withDuration: duration) {
             self.view.layoutIfNeeded()
@@ -384,5 +392,35 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
         UIView.animate(withDuration: duration) {
             self.view.layoutIfNeeded()
         }
+    }
+    
+    /// Scroll to active input field
+    private func scrollToActiveInput() {
+        // Find the first responder (active input field)
+        if let activeField = findFirstResponder(in: contentStackView) {
+            let fieldFrame = activeField.convert(activeField.bounds, to: scrollView)
+            let visibleRect = CGRect(
+                x: 0,
+                y: fieldFrame.origin.y - 20,
+                width: scrollView.bounds.width,
+                height: fieldFrame.height + 40
+            )
+            scrollView.scrollRectToVisible(visibleRect, animated: true)
+        }
+    }
+    
+    /// Find first responder in view hierarchy
+    private func findFirstResponder(in view: UIView) -> UIView? {
+        if view.isFirstResponder {
+            return view
+        }
+        
+        for subview in view.subviews {
+            if let firstResponder = findFirstResponder(in: subview) {
+                return firstResponder
+            }
+        }
+        
+        return nil
     }
 } 

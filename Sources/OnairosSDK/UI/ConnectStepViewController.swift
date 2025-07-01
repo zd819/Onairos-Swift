@@ -312,9 +312,62 @@ private class PlatformConnectionView: UIView {
             state.connectedPlatforms.remove(platform.rawValue)
             updateConnectionState()
         } else {
-            // Connect
-            coordinator?.connectToPlatform(platform)
+            // Connect - show WebView for OAuth platforms
+            if platform.authMethod == .oauth {
+                showOAuthWebView()
+            } else {
+                coordinator?.connectToPlatform(platform)
+            }
         }
+    }
+    
+    /// Show OAuth WebView for platform authentication
+    private func showOAuthWebView() {
+        guard let parentViewController = findParentViewController() else { return }
+        
+        setLoading(true)
+        
+        let oauthController = OAuthWebViewController(
+            platform: platform,
+            config: config
+        ) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.setLoading(false)
+                
+                switch result {
+                case .success(let authCode):
+                    // Handle successful OAuth
+                    self?.handleOAuthSuccess(authCode: authCode)
+                case .failure(let error):
+                    // Handle OAuth failure
+                    print("OAuth failed for \(self?.platform.displayName ?? "platform"): \(error)")
+                }
+            }
+        }
+        
+        parentViewController.present(oauthController, animated: true)
+    }
+    
+    /// Handle successful OAuth authentication
+    private func handleOAuthSuccess(authCode: String) {
+        // Mark platform as connected
+        state.connectedPlatforms.insert(platform.rawValue)
+        updateConnectionState()
+        
+        // Store auth code for later use
+        UserDefaults.standard.set(authCode, forKey: "oauth_\(platform.rawValue)_code")
+    }
+    
+    /// Find parent view controller
+    private func findParentViewController() -> UIViewController? {
+        var responder: UIResponder? = self
+        while let nextResponder = responder?.next {
+            if let viewController = nextResponder as? UIViewController {
+                return viewController
+            }
+            responder = nextResponder
+        }
+        return nil
     }
     
     /// Set loading state

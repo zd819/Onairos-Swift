@@ -216,6 +216,40 @@ public class OnboardingCoordinator {
     
     /// Handle PIN creation step
     private func handlePINStep() {
+        // Send PIN to backend and start training
+        Task {
+            do {
+                let userData = createUserRegistrationData()
+                let result = await apiClient.registerUser(userData)
+                
+                switch result {
+                case .success:
+                    await MainActor.run {
+                        state.currentStep = .training
+                        startAITraining()
+                    }
+                case .failure(let error):
+                    await MainActor.run {
+                        state.errorMessage = error.localizedDescription
+                        state.isLoading = false
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Create user registration data
+    private func createUserRegistrationData() -> UserRegistrationRequest {
+        return UserRegistrationRequest(
+            email: state.email,
+            pin: state.pin,
+            connectedPlatforms: Array(state.connectedPlatforms),
+            platformData: connectedPlatformData
+        )
+    }
+    
+    /// Start AI training (public method for external access)
+    public func startTraining() {
         state.currentStep = .training
         startAITraining()
     }
