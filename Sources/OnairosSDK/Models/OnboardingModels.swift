@@ -66,19 +66,19 @@ public class OnboardingState: ObservableObject {
     @Published public var verificationCode: String = ""
     @Published public var connectedPlatforms: Set<String> = []
     @Published public var pin: String = ""
-    @Published private var _trainingProgress: Double = 0.0
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String?
     @Published public var trainingStatus: String = "Initializing..."
     
     /// Training progress with NaN protection
-    public var trainingProgress: Double {
-        get { _trainingProgress }
-        set { 
-            // Protect against NaN and infinite values that cause CoreGraphics errors
-            let safeValue = newValue.isNaN || newValue.isInfinite ? 0.0 : min(max(newValue, 0.0), 1.0)
-            _trainingProgress = safeValue
-        }
+    @Published public var trainingProgress: Double = 0.0
+    
+    /// Safely set training progress with NaN protection
+    /// - Parameter progress: Progress value to set
+    public func setTrainingProgress(_ progress: Double) {
+        // Protect against NaN and infinite values that cause CoreGraphics errors
+        let safeValue = progress.isNaN || progress.isInfinite ? 0.0 : min(max(progress, 0.0), 1.0)
+        trainingProgress = safeValue
     }
     
     /// Reset state to initial values

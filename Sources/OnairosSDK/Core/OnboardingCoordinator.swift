@@ -494,7 +494,7 @@ public class OnboardingCoordinator {
     
     /// Start AI model training
     private func startAITraining() {
-        state.trainingProgress = 0.0
+        state.setTrainingProgress(0.0)
         state.trainingStatus = "Initializing AI training..."
         
         if config.simulateTraining {
@@ -522,7 +522,7 @@ public class OnboardingCoordinator {
             
             // Safely increment progress with NaN protection
             let newProgress = self.state.trainingProgress + increment
-            self.state.trainingProgress = newProgress.isNaN || newProgress.isInfinite ? 0.0 : min(max(newProgress, 0.0), 1.0)
+            self.state.setTrainingProgress(newProgress)
             
             // Update status messages based on progress
             if self.config.isTestMode {
@@ -549,7 +549,7 @@ public class OnboardingCoordinator {
             
             if self.state.trainingProgress >= 1.0 {
                 timer.invalidate()
-                self.state.trainingProgress = 1.0  // Ensure exactly 1.0, no NaN
+                self.state.setTrainingProgress(1.0)  // Ensure exactly 1.0, no NaN
                 self.state.trainingStatus = self.config.isTestMode ? "🧪 TEST MODE: Training simulation complete!" : "Training complete!"
                 
                 // Longer completion delay in test mode so user can see the completion
@@ -574,15 +574,14 @@ public class OnboardingCoordinator {
         trainingManager?.onProgress = { [weak self] progress in
             Task { @MainActor in
                 // Protect against NaN values from external progress updates
-                let safeProgress = progress.percentage.isNaN || progress.percentage.isInfinite ? 0.0 : min(max(progress.percentage, 0.0), 1.0)
-                self?.state.trainingProgress = safeProgress
+                self?.state.setTrainingProgress(progress.percentage)
                 self?.state.trainingStatus = progress.status
             }
         }
         
         trainingManager?.onComplete = { [weak self] in
             Task { @MainActor in
-                self?.state.trainingProgress = 1.0  // Ensure exactly 1.0, no NaN
+                self?.state.setTrainingProgress(1.0)  // Ensure exactly 1.0, no NaN
                 self?.state.trainingStatus = "Training complete!"
                 
                 // Auto-complete after 1.5 seconds

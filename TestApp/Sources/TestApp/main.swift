@@ -82,7 +82,7 @@ runTest("OnboardingState PIN Validation") {
 
 runTest("OnboardingState Training Progress NaN Protection") {
     let state = OnboardingState()
-    state.trainingProgress = Double.nan
+            state.setTrainingProgress(Double.nan)
     return !state.trainingProgress.isNaN && state.trainingProgress >= 0.0 && state.trainingProgress <= 1.0
 }
 
@@ -205,7 +205,7 @@ runTest("State Reset Functionality") {
     let state = OnboardingState()
     state.email = "test@example.com"
     state.pin = "password123!"
-    state.trainingProgress = 0.5
+            state.setTrainingProgress(0.5)
     state.connectedPlatforms.insert("instagram")
     
     state.reset()
