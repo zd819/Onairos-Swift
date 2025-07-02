@@ -5,6 +5,25 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2024-12-28
+
+### Fixed
+- **OnboardingResult Type Conversion**: Fixed all "Cannot convert value of type 'OnboardingResult' to expected argument type 'Result<OnboardingResult, OnairosError>'" compilation errors
+  - Added proper type conversion from OnboardingResult to Result<OnboardingResult, OnairosError> in completion callbacks
+  - Fixed inconsistent callback types between coordinator and SDK completion handlers
+  - Restored missing modal dismissal in completion handlers
+  - Ensured consistent error handling throughout the onboarding flow
+- **Callback Type Consistency**: Resolved type mismatch between internal OnboardingResult enum and external Result<OnboardingResult, OnairosError> type
+  - OnboardingCoordinator.onCompletion returns OnboardingResult (enum with .success/.failure cases)
+  - SDK completion callbacks expect Result<OnboardingResult, OnairosError> (Swift Result type)
+  - Added proper conversion between these types in all completion handlers
+
+### Technical Details
+- Fixed type conversion in startUniversalOnboarding completion handler
+- Fixed type conversion in startDataCollection completion handler
+- Maintained proper modal dismissal flow while fixing type conversions
+- Ensured backward compatibility with existing completion callback signatures
+
 ## [1.0.12] - 2024-12-28
 
 ### Fixed

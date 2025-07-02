@@ -182,7 +182,13 @@ public class OnairosSDK: ObservableObject {
         coordinator.onCompletion = { [weak self] result in
             DispatchQueue.main.async {
                 self?.modalController?.dismiss(animated: true) {
-                    self?.completionCallback?(result)
+                    // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
+                    switch result {
+                    case .success(let data):
+                        self?.completionCallback?(.success(result))
+                    case .failure(let error):
+                        self?.completionCallback?(.failure(error))
+                    }
                 }
             }
         }
@@ -206,7 +212,13 @@ public class OnairosSDK: ObservableObject {
         
         coordinator.onCompletion = { [weak self] result in
             DispatchQueue.main.async {
-                self?.completionCallback?(result)
+                // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
+                switch result {
+                case .success(let data):
+                    self?.completionCallback?(.success(result))
+                case .failure(let error):
+                    self?.completionCallback?(.failure(error))
+                }
             }
         }
         
