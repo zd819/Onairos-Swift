@@ -106,13 +106,28 @@ public class OnboardingCoordinator {
         case .verify:
             handleVerifyStep()
         case .connect:
-            handleConnectStep()
+            // Manual proceed from connect step
+            handleConnectStepProceed()
         case .success:
             handleSuccessStep()
         case .pin:
             handlePINStep()
         case .training:
             handleTrainingComplete()
+        }
+    }
+    
+    /// Handle manual proceed from connect step
+    private func handleConnectStepProceed() {
+        if config.isTestMode {
+            print("🧪 [TEST MODE] User manually proceeding from connect step")
+        }
+        
+        // User manually chose to proceed (either with or without connections)
+        state.currentStep = .success
+        
+        if config.isTestMode {
+            print("🧪 [TEST MODE] Moving to success step")
         }
     }
     
@@ -228,32 +243,45 @@ public class OnboardingCoordinator {
     /// Handle platform connection step
     private func handleConnectStep() {
         if config.isTestMode {
-            print("🧪 [TEST MODE] Connect step - skipping platform connections")
+            print("🧪 [TEST MODE] Connect step - allowing manual proceed without platform connections")
         }
         
-        // In test mode, debug mode, or if empty connections are allowed, can proceed without connections
-        if config.isTestMode || config.allowEmptyConnections || config.isDebugMode || !state.connectedPlatforms.isEmpty {
-            state.currentStep = .success
-            
-            // Auto-advance after 3 seconds (2 seconds in test mode for visibility)
-            let delay = config.isTestMode ? 2.0 : 3.0
+        // In test mode or if empty connections are allowed, show the connect screen but don't auto-advance
+        // User needs to manually press "Continue" or "Skip" button
+        if config.isTestMode || config.allowEmptyConnections || config.isDebugMode {
+            // Don't auto-advance - let user manually proceed
+            // The UI will show a "Continue" or "Skip" button that calls proceedToNextStep()
             if config.isTestMode {
-                print("🧪 [TEST MODE] Auto-advancing to success step in \(delay) seconds")
+                print("🧪 [TEST MODE] Connect step ready - user can manually proceed")
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.handleSuccessStep()
+        } else if !state.connectedPlatforms.isEmpty {
+            // User has connected platforms, they can proceed manually
+            if config.isDebugMode {
+                print("🐛 [DEBUG] Connect step - user has connected platforms, can proceed")
             }
         } else {
+            // User must connect at least one platform
             state.errorMessage = "Please connect at least one platform to continue."
         }
     }
     
     /// Handle success step (auto-advance)
+    /// NOTE: Success step is a brief "Success!" screen between Connect and PIN steps
     private func handleSuccessStep() {
         if config.isTestMode {
-            print("🧪 [TEST MODE] Success step - moving to PIN step")
+            print("🧪 [TEST MODE] Success step - showing brief success screen then moving to PIN")
         }
         state.currentStep = .pin
+        
+        // Auto-advance after a brief moment to show the success screen
+        let delay = config.isTestMode ? 1.5 : 2.0
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            // Success step auto-advances to PIN - this is intended behavior
+            if self?.config.isTestMode == true {
+                print("🧪 [TEST MODE] Auto-advancing from success to PIN step")
+            }
+            // No need to call handleSuccessStep() again, just let the UI update
+        }
     }
     
     /// Handle PIN creation step
@@ -495,7 +523,7 @@ public class OnboardingCoordinator {
             self.state.trainingProgress += increment
             
             // Update status messages based on progress
-            if config.isTestMode {
+            if self.config.isTestMode {
                 // More obvious test mode messages
                 if self.state.trainingProgress >= 0.2 && self.state.trainingProgress < 0.4 {
                     self.state.trainingStatus = "🧪 TEST MODE: Simulating data analysis..."
@@ -520,15 +548,15 @@ public class OnboardingCoordinator {
             if self.state.trainingProgress >= 1.0 {
                 timer.invalidate()
                 self.state.trainingProgress = 1.0
-                self.state.trainingStatus = config.isTestMode ? "🧪 TEST MODE: Training simulation complete!" : "Training complete!"
+                self.state.trainingStatus = self.config.isTestMode ? "🧪 TEST MODE: Training simulation complete!" : "Training complete!"
                 
                 // Longer completion delay in test mode so user can see the completion
-                let completionDelay = config.isTestMode ? 3.0 : 1.5
-                if config.isTestMode {
+                let completionDelay = self.config.isTestMode ? 3.0 : 1.5
+                if self.config.isTestMode {
                     print("🧪 [TEST MODE] Training complete! Will finish in \(completionDelay) seconds")
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + completionDelay) {
-                    if config.isTestMode {
+                    if self.config.isTestMode {
                         print("🧪 [TEST MODE] Completing onboarding flow with success")
                     }
                     self.handleTrainingComplete()

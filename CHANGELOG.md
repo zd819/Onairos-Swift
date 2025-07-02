@@ -365,4 +365,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Training simulation increment: 0.015 (slower) vs 0.04 (was too fast)
   - Training completion delay: 3.0 seconds vs 0.8 seconds (better visibility)
   - Connect step auto-advance: 2.0 seconds vs 1.0 second (improved visibility)
-  - Overall test flow duration: ~15 seconds vs ~3 seconds (proper demonstration time) 
+  - Overall test flow duration: ~15 seconds vs ~3 seconds (proper demonstration time)
+
+## [1.0.18] - 2024-12-28
+
+### Fixed
+- **CRITICAL: Swift Compilation Errors**: Fixed "Reference to property 'config' in closure requires explicit use of 'self'" errors
+  - Added explicit `self.` to all config references in timer closures
+  - Fixed Swift strict concurrency requirements for closure capture semantics
+  - Resolved all compilation errors preventing builds
+
+### Enhanced
+- **Connect Step User Experience**: Improved connect step to require manual user interaction
+  - Removed confusing auto-advance behavior (was auto-skipping after 2-3 seconds)
+  - Connect step now shows UI and waits for user to press "Continue" or "Skip" button
+  - Added `handleConnectStepProceed()` method for manual progression
+  - Better user control over onboarding flow progression
+
+### Changed
+- **Connect Step Flow**: Updated step navigation behavior
+  - **Before**: Auto-advanced after 2-3 seconds (confusing for users)
+  - **After**: Shows connect screen, user presses button to proceed
+  - **Test Mode**: User can manually proceed without connecting any platforms
+  - **Debug Mode**: User can manually proceed if they have connections or skip if allowed
+  - **Production**: User must connect platforms OR manually skip if `allowEmptyConnections` is enabled
+
+### Clarified
+- **Success Step Purpose**: Documented the success step between Connect and PIN
+  - Success step shows brief "Success!" message after connecting platforms
+  - Provides positive feedback before moving to PIN creation
+  - Auto-advances to PIN step after 1.5-2 seconds (intended behavior)
+  - This step provides visual confirmation of successful platform connections
+
+### Technical
+- **Test Mode Logging**: Enhanced debugging output for connect step flow
+  - `🧪 [TEST MODE] Connect step ready - user can manually proceed`
+  - `🧪 [TEST MODE] User manually proceeding from connect step`
+  - `🧪 [TEST MODE] Moving to success step`
+  - `🧪 [TEST MODE] Auto-advancing from success to PIN step` 
