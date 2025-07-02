@@ -116,6 +116,61 @@ let prodConfig = OnairosConfig(
 )
 ```
 
+### Debugging Production Issues
+
+If you're experiencing issues with API calls in production, enable debug logging:
+
+```swift
+// Enable debug logging for production troubleshooting
+let debugConfig = OnairosConfig(
+    isDebugMode: true,            // Enable debug logging
+    isTestMode: false,            // Keep real API calls
+    allowEmptyConnections: false, // Keep validation
+    simulateTraining: false,      // Use real training
+    apiBaseURL: "https://api2.onairos.uk",
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+
+OnairosSDK.shared.initialize(config: debugConfig)
+
+// This will log:
+// 🐛 [OnairosSDK] Debug mode enabled - Enhanced API logging active
+// 🚀 Starting API request to /email/verification
+// 📤 Outgoing Request: POST https://api2.onairos.uk/email/verification
+// 📥 ✅ Response: Status 200 (or ❌ with error details)
+```
+
+### Logging Levels
+
+The SDK provides different logging levels:
+
+- **Production Mode** (`isDebugMode: false`): Basic info logging only
+- **Debug Mode** (`isDebugMode: true`): Enhanced request/response logging  
+- **Test Mode** (`isTestMode: true`): Verbose logging with request/response bodies
+
+### Common API Issues
+
+If you see these errors in the logs:
+
+```
+❌ [OnairosAPI ERROR] HTTP error 404: API error (404): Not found
+```
+- Check that your `apiBaseURL` is correct
+- Verify the API endpoint is available
+
+```
+❌ [OnairosAPI ERROR] Network request failed: The Internet connection appears to be offline
+```
+- Check device internet connectivity
+- Verify firewall/network restrictions
+
+```
+❌ [OnairosAPI ERROR] Failed to decode response: The data couldn't be read because it isn't in the correct format
+```
+- API response format may have changed
+- Enable detailed logging to see raw response
+
 ## Configuration Options
 
 ```swift

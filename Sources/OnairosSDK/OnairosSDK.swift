@@ -24,6 +24,36 @@ public class OnairosSDK: ObservableObject {
     /// - Parameter config: SDK configuration
     public func initialize(config: OnairosConfig) {
         self.config = config
+        
+        // Configure API client logging based on mode
+        let logLevel: APILogLevel
+        let enableDetailedLogging: Bool
+        
+        if config.isTestMode {
+            logLevel = .verbose
+            enableDetailedLogging = true
+            print("🧪 [OnairosSDK] Test mode enabled - Full API logging active")
+        } else if config.isDebugMode {
+            logLevel = .debug
+            enableDetailedLogging = true
+            print("🐛 [OnairosSDK] Debug mode enabled - Enhanced API logging active")
+        } else {
+            logLevel = .info
+            enableDetailedLogging = false
+            print("ℹ️ [OnairosSDK] Production mode - Basic API logging active")
+        }
+        
+        // Configure shared API client
+        OnairosAPIClient.shared.configure(
+            baseURL: config.apiBaseURL,
+            logLevel: logLevel,
+            enableDetailedLogging: enableDetailedLogging
+        )
+        
+        print("✅ [OnairosSDK] SDK initialized successfully")
+        print("   Mode: \(config.isTestMode ? "Test" : config.isDebugMode ? "Debug" : "Production")")
+        print("   API Base URL: \(config.apiBaseURL)")
+        print("   Logging Level: \(logLevel)")
     }
     
     /// Create Onairos connect button
@@ -134,15 +164,21 @@ public class OnairosSDK: ObservableObject {
             return
         }
         
+        // In test mode, skip API call
+        if config.isTestMode {
+            print("🧪 [OnairosSDK] Test mode - Skipping existing account check")
+            completion(false)
+            return
+        }
+        
         // Check with API if user has existing account
         Task {
             do {
-                let apiClient = OnairosAPIClient()
-                apiClient.configure(baseURL: config.apiBaseURL)
-                let hasAccount = try await apiClient.checkExistingAccount()
+                let hasAccount = try await OnairosAPIClient.shared.checkExistingAccount()
                 completion(hasAccount)
             } catch {
                 // If API call fails, proceed with onboarding
+                print("⚠️ [OnairosSDK] Existing account check failed: \(error.localizedDescription)")
                 completion(false)
             }
         }
@@ -166,11 +202,10 @@ public class OnairosSDK: ObservableObject {
     /// Start universal onboarding flow
     private func startUniversalOnboarding(from presentingViewController: UIViewController) {
         let state = OnboardingState()
-        let apiClient = OnairosAPIClient()
         let coordinator = OnboardingCoordinator(
             state: state,
             config: config!,
-            apiClient: apiClient
+            apiClient: OnairosAPIClient.shared
         )
         
         let modalController = OnairosModalController(
@@ -203,11 +238,10 @@ public class OnairosSDK: ObservableObject {
         let state = OnboardingState()
         state.currentStep = .training
         
-        let apiClient = OnairosAPIClient()
         let coordinator = OnboardingCoordinator(
             state: state,
             config: config!,
-            apiClient: apiClient
+            apiClient: OnairosAPIClient.shared
         )
         
         coordinator.onCompletion = { [weak self] result in

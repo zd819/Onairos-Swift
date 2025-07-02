@@ -1,5 +1,14 @@
 import Foundation
 
+/// API client logging level
+public enum APILogLevel: Int {
+    case none = 0
+    case error = 1
+    case info = 2
+    case debug = 3
+    case verbose = 4
+}
+
 /// Main API client for Onairos backend communication
 public class OnairosAPIClient {
     
@@ -15,6 +24,12 @@ public class OnairosAPIClient {
     /// Request timeout interval
     private let timeoutInterval: TimeInterval = 30.0
     
+    /// Logging level
+    public var logLevel: APILogLevel = .error
+    
+    /// Enable detailed logging (includes request/response bodies)
+    public var enableDetailedLogging: Bool = false
+    
     /// Private initializer
     public init() {
         let config = URLSessionConfiguration.default
@@ -24,9 +39,94 @@ public class OnairosAPIClient {
     }
     
     /// Configure the API client
-    /// - Parameter baseURL: Base URL for API requests
-    public func configure(baseURL: String) {
+    /// - Parameters:
+    ///   - baseURL: Base URL for API requests
+    ///   - logLevel: Logging level for debugging
+    ///   - enableDetailedLogging: Whether to log request/response bodies
+    public func configure(baseURL: String, logLevel: APILogLevel = .error, enableDetailedLogging: Bool = false) {
         self.baseURL = baseURL
+        self.logLevel = logLevel
+        self.enableDetailedLogging = enableDetailedLogging
+        
+        log("🔧 OnairosAPIClient configured:", level: .info)
+        log("   Base URL: \(baseURL)", level: .info)
+        log("   Log Level: \(logLevel)", level: .info)
+        log("   Detailed Logging: \(enableDetailedLogging)", level: .info)
+    }
+    
+    // MARK: - Logging
+    
+    /// Log message with level
+    /// - Parameters:
+    ///   - message: Message to log
+    ///   - level: Log level
+    private func log(_ message: String, level: APILogLevel) {
+        guard level.rawValue <= logLevel.rawValue else { return }
+        
+        let prefix: String
+        switch level {
+        case .none:
+            return
+        case .error:
+            prefix = "❌ [OnairosAPI ERROR]"
+        case .info:
+            prefix = "ℹ️ [OnairosAPI INFO]"
+        case .debug:
+            prefix = "🐛 [OnairosAPI DEBUG]"
+        case .verbose:
+            prefix = "📝 [OnairosAPI VERBOSE]"
+        }
+        
+        print("\(prefix) \(message)")
+    }
+    
+    /// Log request details
+    /// - Parameters:
+    ///   - request: URL request
+    ///   - body: Request body data
+    private func logRequest(_ request: URLRequest, body: Data?) {
+        log("📤 Outgoing Request:", level: .debug)
+        log("   URL: \(request.url?.absoluteString ?? "nil")", level: .debug)
+        log("   Method: \(request.httpMethod ?? "nil")", level: .debug)
+        log("   Headers: \(request.allHTTPHeaderFields ?? [:])", level: .verbose)
+        
+        if enableDetailedLogging, let body = body {
+            if let bodyString = String(data: body, encoding: .utf8) {
+                log("   Body: \(bodyString)", level: .verbose)
+            } else {
+                log("   Body: <binary data \(body.count) bytes>", level: .verbose)
+            }
+        }
+    }
+    
+    /// Log response details
+    /// - Parameters:
+    ///   - response: URL response
+    ///   - data: Response data
+    ///   - error: Error if any
+    private func logResponse(_ response: URLResponse?, data: Data?, error: Error?) {
+        if let error = error {
+            log("📥 Response Error: \(error.localizedDescription)", level: .error)
+            return
+        }
+        
+        guard let httpResponse = response as? HTTPURLResponse else {
+            log("📥 Invalid Response: Not HTTP response", level: .error)
+            return
+        }
+        
+        let statusEmoji = httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 ? "✅" : "❌"
+        log("📥 \(statusEmoji) Response:", level: .debug)
+        log("   Status: \(httpResponse.statusCode)", level: .debug)
+        log("   Headers: \(httpResponse.allHeaderFields)", level: .verbose)
+        
+        if enableDetailedLogging, let data = data {
+            if let responseString = String(data: data, encoding: .utf8) {
+                log("   Body: \(responseString)", level: .verbose)
+            } else {
+                log("   Body: <binary data \(data.count) bytes>", level: .verbose)
+            }
+        }
     }
     
     // MARK: - Email Verification
@@ -231,8 +331,12 @@ public class OnairosAPIClient {
         responseType: U.Type
     ) async -> Result<U, OnairosError> {
         
+        log("🚀 Starting API request to \(endpoint)", level: .info)
+        
         guard let url = URL(string: baseURL + endpoint) else {
-            return .failure(.configurationError("Invalid URL: \(baseURL + endpoint)"))
+            let error = OnairosError.configurationError("Invalid URL: \(baseURL + endpoint)")
+            log("❌ Invalid URL configuration: \(baseURL + endpoint)", level: .error)
+            return .failure(error)
         }
         
         var request = URLRequest(url: url)
@@ -240,37 +344,62 @@ public class OnairosAPIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("OnairosSDK/1.0 iOS", forHTTPHeaderField: "User-Agent")
         
+        var requestBodyData: Data?
+        
         // Add request body if provided
         if let body = body {
             do {
-                request.httpBody = try JSONEncoder().encode(body)
+                requestBodyData = try JSONEncoder().encode(body)
+                request.httpBody = requestBodyData
+                log("✅ Request body encoded successfully", level: .debug)
             } catch {
-                return .failure(.unknownError("Failed to encode request body: \(error.localizedDescription)"))
+                let errorMsg = "Failed to encode request body: \(error.localizedDescription)"
+                log("❌ \(errorMsg)", level: .error)
+                return .failure(.unknownError(errorMsg))
             }
         }
         
+        // Log request details
+        logRequest(request, body: requestBodyData)
+        
         // Perform request
         do {
+            log("⏳ Sending HTTP request...", level: .debug)
             let (data, response) = try await session.data(for: request)
+            
+            // Log response details
+            logResponse(response, data: data, error: nil)
             
             // Check for HTTP errors
             if let httpResponse = response as? HTTPURLResponse {
                 guard 200...299 ~= httpResponse.statusCode else {
-                    return .failure(OnairosError.fromHTTPResponse(data: data, response: response, error: nil))
+                    let error = OnairosError.fromHTTPResponse(data: data, response: response, error: nil)
+                    log("❌ HTTP error \(httpResponse.statusCode): \(error.localizedDescription)", level: .error)
+                    return .failure(error)
                 }
+                log("✅ HTTP request successful (\(httpResponse.statusCode))", level: .info)
             }
             
             // Decode response
             do {
                 let decoder = JSONDecoder()
                 let result = try decoder.decode(responseType, from: data)
+                log("✅ Response decoded successfully", level: .debug)
                 return .success(result)
             } catch {
-                return .failure(.unknownError("Failed to decode response: \(error.localizedDescription)"))
+                let errorMsg = "Failed to decode response: \(error.localizedDescription)"
+                log("❌ \(errorMsg)", level: .error)
+                if enableDetailedLogging, let dataString = String(data: data, encoding: .utf8) {
+                    log("   Raw response: \(dataString)", level: .error)
+                }
+                return .failure(.unknownError(errorMsg))
             }
             
         } catch {
-            return .failure(OnairosError.fromHTTPResponse(data: nil, response: nil, error: error))
+            let onairosError = OnairosError.fromHTTPResponse(data: nil, response: nil, error: error)
+            log("❌ Network request failed: \(error.localizedDescription)", level: .error)
+            logResponse(nil, data: nil, error: error)
+            return .failure(onairosError)
         }
     }
     

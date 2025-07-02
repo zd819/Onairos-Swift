@@ -5,6 +5,46 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.16] - 2024-12-28
+
+### Added
+- **Comprehensive API Logging System**: New logging infrastructure for debugging production issues
+  - Added `APILogLevel` enum with 5 levels: none, error, info, debug, verbose
+  - Visual emoji indicators for different log levels (❌ error, ℹ️ info, 🐛 debug, 📝 verbose)
+  - Request/response logging with configurable detail levels
+  - HTTP status code logging with success/error indicators (✅/❌)
+  - Network error categorization and detailed reporting
+
+### Enhanced
+- **API Client Debugging**: Major improvements to OnairosAPIClient for production troubleshooting
+  - Detailed request logging (URL, method, headers, body)
+  - Comprehensive response logging (status, headers, body)
+  - Enhanced error handling with HTTP response details  
+  - Automatic logging configuration based on SDK mode
+  - Centralized configuration using shared API client instance
+
+### Fixed
+- **Email Button Issues**: Resolved production API call failures
+  - Added proper error logging to identify API call failures
+  - Enhanced error visibility for debugging email verification issues
+  - Improved test mode API call bypassing
+  - Better error context for production debugging
+
+### Documentation
+- **Debugging Guide**: Added comprehensive production debugging section to README
+  - Step-by-step debugging configuration examples
+  - Common API error troubleshooting guide
+  - Logging level explanations and usage scenarios
+  - Production vs debug mode configuration examples
+
+### Technical
+- **SDK Configuration**: Improved initialization with automatic logging setup
+  - Automatic log level configuration based on test/debug/production mode
+  - Test mode: Verbose logging with full request/response bodies
+  - Debug mode: Enhanced request/response logging
+  - Production mode: Basic info logging only
+  - Configurable detailed logging for sensitive data
+
 ## [1.0.15] - 2024-12-28
 
 ### Added
