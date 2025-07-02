@@ -21,11 +21,7 @@ public class YouTubeAuthManager {
     public func initialize(clientID: String) {
         self.clientID = clientID
         
-        guard let configuration = GIDConfiguration(clientID: clientID) else {
-            print("YouTubeAuthManager: Invalid client ID")
-            return
-        }
-        
+        let configuration = GIDConfiguration(clientID: clientID)
         GIDSignIn.sharedInstance.configuration = configuration
         isInitialized = true
     }
@@ -49,10 +45,7 @@ public class YouTubeAuthManager {
             )
             
             let user = result.user
-            
-            guard let accessToken = user.accessToken.tokenString else {
-                throw OnairosError.googleSignInFailed("No access token received")
-            }
+            let accessToken = user.accessToken.tokenString
             
             let credentials = YouTubeCredentials(
                 accessToken: accessToken,
@@ -89,10 +82,11 @@ public class YouTubeAuthManager {
     /// Get current user if signed in
     /// - Returns: Current YouTube credentials or nil
     public func getCurrentUser() -> YouTubeCredentials? {
-        guard let user = GIDSignIn.sharedInstance.currentUser,
-              let accessToken = user.accessToken.tokenString else {
+        guard let user = GIDSignIn.sharedInstance.currentUser else {
             return nil
         }
+        
+        let accessToken = user.accessToken.tokenString
         
         return YouTubeCredentials(
             accessToken: accessToken,
@@ -119,9 +113,7 @@ public class YouTubeAuthManager {
         do {
             try await user.refreshTokensIfNeeded()
             
-            guard let accessToken = user.accessToken.tokenString else {
-                throw OnairosError.googleSignInFailed("No access token after refresh")
-            }
+            let accessToken = user.accessToken.tokenString
             
             return YouTubeCredentials(
                 accessToken: accessToken,

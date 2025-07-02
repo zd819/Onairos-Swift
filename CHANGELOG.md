@@ -5,6 +5,27 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] - 2024-12-28
+
+### Fixed
+- **YouTubeAuthManager Conditional Binding**: Fixed all "Initializer for conditional binding must have Optional type" compilation errors
+  - Fixed "not 'GIDConfiguration'" error in initialize() method (line 24)
+  - Fixed "not 'String'" errors in authenticate() method (line 53)
+  - Fixed "not 'String'" errors in getCurrentUser() method (line 93)
+  - Fixed "not 'String'" errors in refreshTokenIfNeeded() method (line 122)
+  - Removed unnecessary `guard let` statements for non-optional types
+- **Google Sign-In Integration**: Simplified authentication flow while maintaining error handling
+  - `GIDConfiguration(clientID:)` returns non-optional GIDConfiguration
+  - `user.accessToken.tokenString` is non-optional String property
+  - `user.refreshToken.tokenString` is non-optional String property
+  - Proper handling of optional types like `user.idToken?.tokenString`
+
+### Technical Details
+- Changed `guard let configuration = GIDConfiguration(clientID: clientID)` to `let configuration = GIDConfiguration(clientID: clientID)`
+- Changed `guard let accessToken = user.accessToken.tokenString` to `let accessToken = user.accessToken.tokenString`
+- Maintained proper optional handling for genuinely optional properties like `user.idToken?.tokenString`
+- Preserved all error handling logic while fixing type safety issues
+
 ## [1.0.13] - 2024-12-28
 
 ### Fixed
