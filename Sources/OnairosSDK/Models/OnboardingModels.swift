@@ -66,10 +66,20 @@ public class OnboardingState: ObservableObject {
     @Published public var verificationCode: String = ""
     @Published public var connectedPlatforms: Set<String> = []
     @Published public var pin: String = ""
-    @Published public var trainingProgress: Double = 0.0
+    @Published private var _trainingProgress: Double = 0.0
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String?
     @Published public var trainingStatus: String = "Initializing..."
+    
+    /// Training progress with NaN protection
+    public var trainingProgress: Double {
+        get { _trainingProgress }
+        set { 
+            // Protect against NaN and infinite values that cause CoreGraphics errors
+            let safeValue = newValue.isNaN || newValue.isInfinite ? 0.0 : min(max(newValue, 0.0), 1.0)
+            _trainingProgress = safeValue
+        }
+    }
     
     /// Reset state to initial values
     public func reset() {
@@ -261,7 +271,9 @@ public struct TrainingProgress {
     public let isComplete: Bool
     
     public init(percentage: Double, status: String, isComplete: Bool = false) {
-        self.percentage = percentage
+        // Protect against NaN and infinite values that cause CoreGraphics errors
+        let safePercentage = percentage.isNaN || percentage.isInfinite ? 0.0 : min(max(percentage, 0.0), 1.0)
+        self.percentage = safePercentage
         self.status = status
         self.isComplete = isComplete
     }

@@ -402,4 +402,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `🧪 [TEST MODE] Connect step ready - user can manually proceed`
   - `🧪 [TEST MODE] User manually proceeding from connect step`
   - `🧪 [TEST MODE] Moving to success step`
-  - `🧪 [TEST MODE] Auto-advancing from success to PIN step` 
+  - `🧪 [TEST MODE] Auto-advancing from success to PIN step`
+
+## [1.0.19] - 2024-12-28
+
+### Fixed
+- **CRITICAL: CoreGraphics NaN Errors**: Fixed app crashes from "invalid numeric value (NaN, or not-a-number) to CoreGraphics API"
+  - Added comprehensive NaN and infinite value protection throughout training progress system
+  - Prevents app crashes from invalid numeric values in UI rendering components
+  - All progress values now safely clamped to valid range [0.0, 1.0]
+
+### Enhanced
+- **Training Progress Protection**: Added multi-layer NaN validation system
+  - `OnboardingState.trainingProgress`: Added computed property with automatic NaN validation
+  - `OnboardingCoordinator.simulateTraining()`: Protected progress increment calculations
+  - `OnboardingCoordinator.startRealTraining()`: Protected external progress updates
+  - `TrainingProgress` model: Added NaN validation in initializer
+
+### Technical
+- **NaN Protection Implementation**: Comprehensive validation at all progress assignment points
+  - Progress validation: `newValue.isNaN || newValue.isInfinite ? 0.0 : min(max(newValue, 0.0), 1.0)`
+  - External API protection: All incoming progress values validated before state assignment
+  - Training completion: Ensured exactly 1.0 value with no possibility of NaN
+  - Model-level validation: TrainingProgress constructor validates percentage parameter
+
+### Stability
+- **UI Rendering Reliability**: Eliminated CoreGraphics API crashes
+  - Progress bars now receive only valid numeric values
+  - Smooth progress animations without NaN interruptions
+  - Protected against external APIs returning invalid numeric values
+  - Maintained valid progress range for all UI components throughout onboarding flow 
