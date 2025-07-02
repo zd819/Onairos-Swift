@@ -443,9 +443,6 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 // Error: "Argument passed to call that takes no arguments"
 // Solution: Fixed in v1.0.9 (corrected method signatures)
 
-// Error: "Extra arguments at positions #1, #3 in call"
-// Solution: Fixed in v1.0.9 (separated method overloads)
-
 // Error: "expected 'func' keyword in instance method declaration"
 // Solution: Fixed in v1.0.4+ (removed invalid protected keyword)
 
@@ -468,3 +465,166 @@ guard Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != ni
 // Solution: Fixed in v1.0.11 (proper MainActor isolation with Task blocks)
 
 // CRITICAL: Update to v1.0.11 for complete Swift 6.1 compatibility
+```
+
+## 🧪 Testing Your Integration
+
+### Running the Test Suite
+
+The SDK includes a comprehensive test suite to validate your integration:
+
+```bash
+# Run the test suite
+cd TestApp
+swift run TestApp
+```
+
+### Expected Test Output
+
+When all tests pass, you should see:
+
+```
+🚀 Starting Comprehensive Onairos Swift SDK Test Suite...
+============================================================
+
+🧪 Testing: OnairosConfig Creation
+✅ PASSED: OnairosConfig Creation
+
+🧪 Testing: OnairosConfig Test Mode
+✅ PASSED: OnairosConfig Test Mode
+
+... (additional tests)
+
+============================================================
+📊 TEST RESULTS SUMMARY
+============================================================
+✅ Tests Passed: 20
+❌ Tests Failed: 0
+📈 Success Rate: 100%
+
+🎉 ALL TESTS PASSED! 🎉
+✨ Your Onairos Swift SDK is fully functional and ready for integration!
+```
+
+### Manual Testing with Demo App
+
+1. **Build and run the demo app:**
+   ```bash
+   cd Demo/OnairosSDKDemo
+   swift run OnairosSDKDemo
+   ```
+
+2. **Test the onboarding flow:**
+   - Click "Connect Data" button
+   - Enter any email address (test mode accepts all)
+   - Enter any 6-digit code (test mode accepts all)
+   - Skip or connect platforms
+   - Create a PIN (minimum 8 chars, numbers, special chars)
+   - Watch training simulation complete
+
+3. **Verify test mode features:**
+   - Look for "🧪 TEST MODE" indicators
+   - Check console logs for detailed flow tracking
+   - Confirm no real API calls are made
+
+### Integration Validation Checklist
+
+#### ✅ **Basic Setup**
+- [ ] SDK imports without errors
+- [ ] Configuration creates successfully
+- [ ] SDK initializes without crashes
+- [ ] Connect button appears and responds to taps
+
+#### ✅ **Test Mode Validation**
+- [ ] Test mode accepts any email
+- [ ] Test mode accepts any verification code
+- [ ] Full onboarding flow displays (Email → Verify → Connect → PIN → Training)
+- [ ] Training simulation completes successfully
+- [ ] No network requests made in test mode
+
+#### ✅ **Error Handling**
+- [ ] Invalid configurations handled gracefully
+- [ ] Network errors don't crash the app
+- [ ] User cancellation handled properly
+- [ ] UI remains responsive during operations
+
+#### ✅ **Memory Safety**
+- [ ] No force unwraps causing crashes
+- [ ] NaN values protected in progress calculations
+- [ ] State resets properly between sessions
+- [ ] No memory leaks in onboarding flow
+
+### Common Integration Issues
+
+#### **Issue: SDK doesn't initialize**
+```swift
+// ❌ Wrong - missing configuration
+OnairosSDK.shared.createConnectButton { _ in }
+
+// ✅ Correct - initialize first
+let config = OnairosConfig.testMode()
+OnairosSDK.shared.initialize(config: config)
+let button = OnairosSDK.shared.createConnectButton { _ in }
+```
+
+#### **Issue: App crashes with CoreGraphics errors**
+This was fixed in v1.0.19 with comprehensive NaN protection. Update to latest version.
+
+#### **Issue: Onboarding flow doesn't appear**
+```swift
+// ✅ Ensure view controller is presented
+present(onboardingViewController, animated: true)
+
+// ✅ Check configuration
+let config = OnairosConfig.testMode() // Use test mode for development
+```
+
+#### **Issue: Training gets stuck**
+```swift
+// ✅ Use test mode for development
+let config = OnairosConfig.testMode()
+config.simulateTraining = true // Ensures training simulation runs
+```
+
+### Production Deployment
+
+When ready for production:
+
+1. **Switch to production configuration:**
+   ```swift
+   let config = OnairosConfig(
+       isDebugMode: false,
+       platforms: [.instagram, .youtube], // Your supported platforms
+       urlScheme: "your-app-scheme",
+       appName: "Your App Name"
+   )
+   ```
+
+2. **Configure URL schemes in Info.plist:**
+   ```xml
+   <key>CFBundleURLTypes</key>
+   <array>
+       <dict>
+           <key>CFBundleURLName</key>
+           <string>your-app-scheme</string>
+           <key>CFBundleURLSchemes</key>
+           <array>
+               <string>your-app-scheme</string>
+           </array>
+       </dict>
+   </array>
+   ```
+
+3. **Add platform-specific configurations:**
+   - Google Sign-In: Add GoogleService-Info.plist
+   - Instagram: Configure OAuth redirect URLs
+   - Other platforms: Follow platform-specific setup guides
+
+### Support
+
+- **Documentation**: See `DESIGN_OVERVIEW.md` for architecture details
+- **Examples**: Check `Demo/OnairosSDKDemo/` for complete implementation
+- **Testing**: Run `TestApp` for comprehensive validation
+- **Issues**: Report bugs via GitHub issues
+
+## Advanced Configuration

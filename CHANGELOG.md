@@ -431,4 +431,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Progress bars now receive only valid numeric values
   - Smooth progress animations without NaN interruptions
   - Protected against external APIs returning invalid numeric values
-  - Maintained valid progress range for all UI components throughout onboarding flow 
+  - Maintained valid progress range for all UI components throughout onboarding flow
+
+## [1.0.20] - 2024-12-28
+
+### Fixed
+- **CRITICAL: Force Unwrap Safety**: Eliminated all force unwraps that could cause runtime crashes
+  - `OnairosSDK.swift`: Replaced `config!` with safe guard statements and proper error handling
+  - `OAuthWebViewController.swift`: Protected URL construction with safe unwrapping and fallbacks
+  - Enhanced button constraint handling to prevent `titleLabel!` crashes
+  - All configuration access now validated before use
+
+### Added
+- **Comprehensive Test Suite**: 20+ automated tests covering all SDK components
+  - Configuration validation tests (test mode, debug mode, production mode)
+  - Model validation tests (OnboardingState, PIN requirements, email validation)
+  - NaN protection validation for training progress calculations
+  - Error handling and localization tests
+  - Platform and device info testing coverage
+  - Memory safety and state reset functionality tests
+  
+- **Enhanced Integration Guide**: Complete testing and validation documentation
+  - Step-by-step integration validation checklist
+  - Automated test runner with pass/fail reporting and success rate calculation
+  - Manual testing instructions with demo app workflow
+  - Common integration issues and solutions guide
+  - Production deployment guidelines and configuration examples
+
+### Enhanced
+- **Developer Experience**: Comprehensive testing and validation tools
+  - `TestApp/Sources/TestApp/main.swift`: Complete rewrite with 20+ test cases
+  - Automated test execution with detailed feedback and next steps
+  - Integration validation checklist for systematic verification
+  - Clear success/failure reporting with troubleshooting guidance
+
+### Technical
+- **Memory Safety Improvements**: Enhanced error handling throughout the SDK
+  - Guard statements for all configuration access points
+  - Safe URL construction with fallback mechanisms
+  - Protected constraint setup for UI components
+  - Comprehensive validation before state assignments
+
+### Stability
+- **Production Readiness**: Eliminated all potential crash points
+  - No more force unwraps that could cause runtime failures
+  - Safe handling of optional values throughout authentication flows
+  - Protected against malformed URLs in OAuth processes
+  - Enhanced error recovery mechanisms for network and configuration issues
+
+## [1.0.19] - 2024-12-28 

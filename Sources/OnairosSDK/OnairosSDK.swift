@@ -186,8 +186,13 @@ public class OnairosSDK: ObservableObject {
     
     /// Show data request overlay for existing users
     private func showDataRequestOverlay(from presentingViewController: UIViewController) {
+        guard let config = config else {
+            completionCallback?(.failure(.configurationError("SDK not configured")))
+            return
+        }
+        
         let overlayController = DataRequestOverlayController(
-            config: config!,
+            config: config,
             onConfirm: { [weak self] in
                 self?.startDataCollection()
             },
@@ -201,17 +206,22 @@ public class OnairosSDK: ObservableObject {
     
     /// Start universal onboarding flow
     private func startUniversalOnboarding(from presentingViewController: UIViewController) {
+        guard let config = config else {
+            completionCallback?(.failure(.configurationError("SDK not configured")))
+            return
+        }
+        
         let state = OnboardingState()
         let coordinator = OnboardingCoordinator(
             state: state,
-            config: config!,
+            config: config,
             apiClient: OnairosAPIClient.shared
         )
         
         let modalController = OnairosModalController(
             coordinator: coordinator,
             state: state,
-            config: config!
+            config: config
         )
         
         coordinator.onCompletion = { [weak self] result in
@@ -234,13 +244,18 @@ public class OnairosSDK: ObservableObject {
     
     /// Start data collection for existing users
     private func startDataCollection() {
+        guard let config = config else {
+            completionCallback?(.failure(.configurationError("SDK not configured")))
+            return
+        }
+        
         // For existing users, skip to training
         let state = OnboardingState()
         state.currentStep = .training
         
         let coordinator = OnboardingCoordinator(
             state: state,
-            config: config!,
+            config: config,
             apiClient: OnairosAPIClient.shared
         )
         
@@ -343,10 +358,15 @@ public class OnairosConnectButton: UIButton {
             logoView.heightAnchor.constraint(equalToConstant: 24),
             
             logoLabel.centerXAnchor.constraint(equalTo: logoView.centerXAnchor),
-            logoLabel.centerYAnchor.constraint(equalTo: logoView.centerYAnchor),
-            
-            titleLabel!.leadingAnchor.constraint(equalTo: logoView.trailingAnchor, constant: 8)
+            logoLabel.centerYAnchor.constraint(equalTo: logoView.centerYAnchor)
         ])
+        
+        // Add title label constraint if it exists
+        if let titleLabel = titleLabel {
+            NSLayoutConstraint.activate([
+                titleLabel.leadingAnchor.constraint(equalTo: logoView.trailingAnchor, constant: 8)
+            ])
+        }
     }
     
     /// Handle button tap

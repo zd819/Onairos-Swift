@@ -114,7 +114,10 @@ public class OAuthWebViewController: UIViewController {
         let baseURL = config.apiBaseURL
         let redirectURI = "\(config.urlScheme)://oauth/callback"
         
-        var urlComponents = URLComponents(string: "\(baseURL)/\(platform.rawValue)/authorize")!
+        guard var urlComponents = URLComponents(string: "\(baseURL)/\(platform.rawValue)/authorize") else {
+            // Fallback to a basic URL if components creation fails
+            return URL(string: "\(baseURL)/\(platform.rawValue)/authorize")!
+        }
         
         urlComponents.queryItems = [
             URLQueryItem(name: "response_type", value: "code"),
@@ -123,14 +126,14 @@ public class OAuthWebViewController: UIViewController {
             URLQueryItem(name: "state", value: generateStateParameter())
         ]
         
-        return urlComponents.url!
+        return urlComponents.url ?? URL(string: "\(baseURL)/\(platform.rawValue)/authorize")!
     }
     
     /// Generate state parameter for OAuth security
     /// - Returns: Random state string
     private func generateStateParameter() -> String {
         let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        return String((0..<32).map { _ in characters.randomElement()! })
+        return String((0..<32).map { _ in characters.randomElement() ?? "a" })
     }
     
     /// Handle close button tap
