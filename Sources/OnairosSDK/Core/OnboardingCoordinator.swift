@@ -151,9 +151,11 @@ public class OnboardingCoordinator {
         
         // In test mode, accept any email immediately
         if config.isTestMode {
+            print("🧪 [TEST MODE] Email step - accepting any email: \(state.email)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.state.isLoading = false
                 self?.state.currentStep = .verify
+                print("🧪 [TEST MODE] Moving to verification step")
             }
             return
         }
@@ -186,9 +188,11 @@ public class OnboardingCoordinator {
         
         // In test mode, accept any verification code immediately
         if config.isTestMode {
+            print("🧪 [TEST MODE] Verify step - accepting any code: \(state.verificationCode)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.state.isLoading = false
                 self?.state.currentStep = .connect
+                print("🧪 [TEST MODE] Moving to connect step")
             }
             return
         }
@@ -223,12 +227,19 @@ public class OnboardingCoordinator {
     
     /// Handle platform connection step
     private func handleConnectStep() {
+        if config.isTestMode {
+            print("🧪 [TEST MODE] Connect step - skipping platform connections")
+        }
+        
         // In test mode, debug mode, or if empty connections are allowed, can proceed without connections
         if config.isTestMode || config.allowEmptyConnections || config.isDebugMode || !state.connectedPlatforms.isEmpty {
             state.currentStep = .success
             
-            // Auto-advance after 3 seconds (1 second in test mode for faster testing)
-            let delay = config.isTestMode ? 1.0 : 3.0
+            // Auto-advance after 3 seconds (2 seconds in test mode for visibility)
+            let delay = config.isTestMode ? 2.0 : 3.0
+            if config.isTestMode {
+                print("🧪 [TEST MODE] Auto-advancing to success step in \(delay) seconds")
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.handleSuccessStep()
             }
@@ -239,6 +250,9 @@ public class OnboardingCoordinator {
     
     /// Handle success step (auto-advance)
     private func handleSuccessStep() {
+        if config.isTestMode {
+            print("🧪 [TEST MODE] Success step - moving to PIN step")
+        }
         state.currentStep = .pin
     }
     
@@ -246,10 +260,12 @@ public class OnboardingCoordinator {
     private func handlePINStep() {
         // In test mode, skip API call and proceed directly to training
         if config.isTestMode {
+            print("🧪 [TEST MODE] PIN step - accepting any PIN: \(state.pin)")
             state.isLoading = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.state.isLoading = false
                 self?.state.currentStep = .training
+                print("🧪 [TEST MODE] Moving to training step")
                 self?.startAITraining()
             }
             return
@@ -462,9 +478,13 @@ public class OnboardingCoordinator {
     
     /// Simulate training progress for testing
     private func simulateTraining() {
-        // Faster simulation in test mode
-        let interval = config.isTestMode ? 0.05 : 0.1
-        let increment = config.isTestMode ? 0.04 : 0.02
+        // Slower simulation in test mode so user can see the training screen
+        let interval = config.isTestMode ? 0.1 : 0.1
+        let increment = config.isTestMode ? 0.015 : 0.02  // Slower in test mode
+        
+        if config.isTestMode {
+            print("🧪 [TEST MODE] Starting training simulation - will take ~10 seconds to complete")
+        }
         
         let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in
             guard let self = self else {
@@ -502,9 +522,15 @@ public class OnboardingCoordinator {
                 self.state.trainingProgress = 1.0
                 self.state.trainingStatus = config.isTestMode ? "🧪 TEST MODE: Training simulation complete!" : "Training complete!"
                 
-                // Faster completion in test mode
-                let completionDelay = config.isTestMode ? 0.8 : 1.5
+                // Longer completion delay in test mode so user can see the completion
+                let completionDelay = config.isTestMode ? 3.0 : 1.5
+                if config.isTestMode {
+                    print("🧪 [TEST MODE] Training complete! Will finish in \(completionDelay) seconds")
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + completionDelay) {
+                    if config.isTestMode {
+                        print("🧪 [TEST MODE] Completing onboarding flow with success")
+                    }
                     self.handleTrainingComplete()
                 }
             }

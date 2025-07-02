@@ -340,4 +340,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core models and data structures
 - Basic networking layer
 - Authentication manager interfaces
-- UI component foundation 
+- UI component foundation
+
+## [1.0.17] - 2024-12-28
+
+### Fixed
+- **CRITICAL: Test Mode Flow**: Fixed test mode closing immediately after email step instead of showing full onboarding flow
+  - Test mode now properly shows: Email → Verify → Connect → Success → PIN → Training → Completion
+  - Fixed premature dismissal that was happening after email verification
+  - Slowed down training simulation in test mode (10 seconds instead of 0.8 seconds)
+  - Extended completion delay so users can see training completion screen (3 seconds vs 0.8 seconds)
+
+### Enhanced
+- **Test Mode Debugging**: Added comprehensive debug logging for each onboarding step
+  - Email step: Logs accepted email and transition to verify step
+  - Verify step: Logs accepted verification code and transition to connect step
+  - Connect step: Logs platform connection skip and auto-advance timing
+  - Success step: Logs transition to PIN step
+  - PIN step: Logs accepted PIN and transition to training step
+  - Training step: Logs simulation start, progress, and completion timing
+
+### Technical
+- **Timing Improvements**: Optimized test mode timing for better user experience
+  - Training simulation increment: 0.015 (slower) vs 0.04 (was too fast)
+  - Training completion delay: 3.0 seconds vs 0.8 seconds (better visibility)
+  - Connect step auto-advance: 2.0 seconds vs 1.0 second (improved visibility)
+  - Overall test flow duration: ~15 seconds vs ~3 seconds (proper demonstration time) 
