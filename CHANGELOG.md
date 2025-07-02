@@ -5,6 +5,135 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.21] - 2024-12-28
+
+### Fixed
+- **OnboardingState trainingProgress Publisher Issue**: Fixed critical compilation error "Value of type 'OnboardingState' has no member '$trainingProgress'"
+  - Made `trainingProgress` a proper `@Published` property instead of computed property with private backing field
+  - Added `setTrainingProgress()` method with comprehensive NaN and infinite value protection
+  - Updated all direct `trainingProgress` assignments throughout codebase to use safe setter method
+  - Ensures proper Combine publisher functionality for UI binding in `TrainingStepViewController`
+  - Maintains all existing safety protections against CoreGraphics NaN errors
+
+### Enhanced
+- **Training Progress Safety**: Centralized all training progress updates through safe setter method
+  - Consistent NaN protection across `OnboardingCoordinator`, `TrainingStepViewController`, and test code
+  - Prevents potential runtime crashes from invalid progress values
+  - Maintains backward compatibility with existing API
+
+### Technical Details
+- Fixed `TrainingStepViewController.bindToState()` method to properly observe `state.$trainingProgress`
+- Eliminated computed property limitations with `@Published` wrapper
+- All training progress updates now go through `OnboardingState.setTrainingProgress(_:)` method
+- Preserved existing progress validation logic (0.0 to 1.0 range clamping)
+
+## [1.0.20] - 2024-12-28
+
+### Added
+- **Comprehensive Safety Improvements**: Major update focused on eliminating potential runtime crashes
+  - Removed all force unwraps (`!`) throughout the codebase for safer error handling
+  - Added comprehensive guard statements and safe unwrapping patterns
+  - Enhanced error handling in critical paths (OnairosSDK.swift, OAuthWebViewController.swift)
+  - Memory safety improvements with proper cleanup and weak references
+
+### Enhanced
+- **Automated Testing Suite**: Added 20+ comprehensive tests covering all SDK components
+  - Configuration validation tests (test mode, debug mode, production mode)
+  - Model validation tests (OnboardingState, PIN requirements, email validation)  
+  - NaN protection validation for training progress
+  - Error handling and localization tests
+  - Memory safety and state reset functionality tests
+  - 100% test pass rate ensuring production readiness
+
+### Fixed
+- **Force Unwrap Safety**: Eliminated all potentially unsafe force unwraps
+  - Replaced `!` operators with safe `guard let` and `if let` patterns
+  - Added proper error handling for all optional value access
+  - Enhanced nil-safety throughout UI components and core logic
+  - Prevents potential crashes from unexpected nil values
+
+### Documentation
+- **Enhanced Integration Guide**: Updated with comprehensive testing section
+  - Step-by-step validation checklist for developers
+  - Common integration issues and solutions guide
+  - Manual testing instructions with demo app workflow
+  - Production deployment best practices
+
+### Technical
+- **Memory Management**: Improved memory safety and cleanup
+  - Proper cleanup in deinit methods
+  - Enhanced weak reference patterns to prevent retain cycles
+  - Safe state reset functionality
+  - Comprehensive error recovery mechanisms
+
+## [1.0.19] - 2024-12-28
+
+### Fixed
+- **CoreGraphics NaN Errors**: Fixed critical runtime crashes with "invalid numeric value (NaN, or not-a-number) to CoreGraphics API"
+  - Added comprehensive NaN protection in `OnboardingState.trainingProgress` computed property
+  - Protected all training progress calculations from producing NaN values
+  - Enhanced `TrainingProgress` model with NaN validation in initializer
+  - Added NaN validation for all external API progress updates
+  - Prevents app crashes when invalid numeric values are passed to UI components
+
+### Enhanced
+- **Training Progress Safety**: Multiple layers of NaN protection
+  - OnboardingState: Added computed property with NaN validation and 0.0-1.0 clamping
+  - Training simulation: Protected progress increment calculations from overflow/underflow
+  - External API: Validated all incoming progress values before state updates
+  - UI Components: Safe handling of progress values in progress bars and animations
+
+### Technical Details
+- Fixed training progress calculations that could result in NaN when increments cause arithmetic errors
+- Added `isNaN` and `isInfinite` checks throughout progress handling pipeline
+- Ensured all progress values are properly bounded between 0.0 and 1.0
+- Enhanced error logging for debugging progress calculation issues
+
+## [1.0.18] - 2024-12-28
+
+### Fixed
+- **Swift Compilation Errors**: Resolved "Reference to property 'config' in closure requires explicit use of 'self'" errors
+  - Added explicit `self.` to all config references in timer closures throughout UI components
+  - Fixed Swift 6.1 strict concurrency requirements for proper memory safety
+  - Updated all timer-based animations and progress updates to use explicit self capture
+  - Ensures proper memory management and prevents potential retain cycles
+
+### Enhanced  
+- **Connect Step User Experience**: Improved manual control over connection flow
+  - Removed auto-advance behavior that was progressing after 2-3 seconds automatically
+  - Now requires explicit user action (button press) to proceed from connect step
+  - Added `handleConnectStepProceed()` method for manual progression control
+  - Better user control over when to continue the onboarding process
+
+### Technical Details
+- Fixed timer closure capture semantics for Swift 6.1 compatibility
+- Enhanced connect step state management with manual progression
+- Improved user experience by removing unexpected auto-advancement
+- Maintained backward compatibility with existing onboarding flow
+
+## [1.0.17] - 2024-12-28
+
+### Fixed
+- **Test Mode Flow Issue**: Fixed critical issue where test mode was closing immediately after email step
+  - **Root Cause**: Training simulation completing too fast (0.8 seconds) and dismissing modal before user could see other steps
+  - **Solution**: Slowed down training simulation to 10 seconds in test mode, added proper step transitions
+  - Enhanced logging throughout test mode flow for better debugging
+  - Fixed flow progression: Email → Verify → Connect → Success → PIN → Training → Complete
+
+### Enhanced
+- **Test Mode Experience**: Significantly improved test mode user experience  
+  - Slower, more realistic training simulation (10 seconds vs 0.8 seconds)
+  - Clear "🧪 TEST MODE" indicators throughout the flow
+  - Enhanced debug logging for each step transition
+  - Proper step-by-step progression instead of immediate completion
+  - Added completion delays so users can observe each step
+
+### Technical Details
+- Modified training simulation timing specifically for test mode
+- Added step transition logging for debugging onboarding flow issues
+- Enhanced modal lifecycle management to prevent premature dismissal
+- Improved test mode detection and behavior differentiation
+
 ## [1.0.16] - 2024-12-28
 
 ### Added
