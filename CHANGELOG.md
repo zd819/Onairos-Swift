@@ -5,6 +5,31 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2024-12-28
+
+### Fixed
+- **Constructor Argument Mismatches**: Fixed all "argument passed to call that takes no arguments" and "extra arguments at positions" compilation errors
+  - Fixed OnboardingCoordinator constructor to accept `state`, `config`, and `apiClient` parameters
+  - Fixed OnairosAPIClient initialization pattern (removed config parameter from constructor)
+  - Fixed OnairosModalController missing `state` parameter in initialization calls
+  - Added missing `onCompletion` property to OnboardingCoordinator
+  - Fixed dependency injection pattern for proper state and API client management
+- **Architecture Improvements**: Enhanced dependency injection and separation of concerns
+  - OnboardingCoordinator now properly receives injected dependencies
+  - Improved state management with explicit state parameter passing
+  - Better error handling with proper completion callback chaining
+- **Swift Compilation**: Resolved all remaining argument mismatch compilation errors
+  - All constructor calls now match their respective method signatures
+  - Proper parameter order and types for all initializations
+  - Consistent initialization patterns across the SDK
+
+### Technical Details
+- Updated OnboardingCoordinator.init to accept (state: OnboardingState, config: OnairosConfig, apiClient: OnairosAPIClient)
+- Changed OnairosAPIClient initialization from OnairosAPIClient(config:) to OnairosAPIClient() + configure(baseURL:)
+- Added public var onCompletion: ((OnboardingResult) -> Void)? to OnboardingCoordinator
+- Fixed all SDK initialization calls to use proper dependency injection pattern
+- Ensured proper memory management with weak references and cleanup
+
 ## [1.0.11] - 2024-12-28
 
 ### Fixed

@@ -9,7 +9,7 @@ public class OnboardingCoordinator {
     private let config: OnairosConfig
     
     /// Current onboarding state
-    private let state = OnboardingState()
+    private let state: OnboardingState
     
     /// Modal presentation controller
     private var modalController: OnairosModalController?
@@ -17,19 +17,27 @@ public class OnboardingCoordinator {
     /// Completion handler
     private var completion: OnboardingCompletion?
     
+    /// Completion callback for external access
+    public var onCompletion: ((OnboardingResult) -> Void)?
+    
     /// Connected platform data
     private var connectedPlatformData: [String: PlatformData] = [:]
     
     /// API client
-    private let apiClient = OnairosAPIClient.shared
+    private let apiClient: OnairosAPIClient
     
     /// Training manager
     private var trainingManager: TrainingManager?
     
     /// Initialize coordinator
-    /// - Parameter config: SDK configuration
-    public init(config: OnairosConfig) {
+    /// - Parameters:
+    ///   - state: Onboarding state
+    ///   - config: SDK configuration
+    ///   - apiClient: API client instance
+    public init(state: OnboardingState, config: OnairosConfig, apiClient: OnairosAPIClient) {
+        self.state = state
         self.config = config
+        self.apiClient = apiClient
         
         // Configure API client
         apiClient.configure(baseURL: config.apiBaseURL)
@@ -69,6 +77,7 @@ public class OnboardingCoordinator {
     private func dismiss(with result: OnboardingResult) {
         modalController?.dismiss(animated: true) { [weak self] in
             self?.completion?(result)
+            self?.onCompletion?(result)
             self?.cleanup()
         }
     }

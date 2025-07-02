@@ -137,7 +137,8 @@ public class OnairosSDK: ObservableObject {
         // Check with API if user has existing account
         Task {
             do {
-                let apiClient = OnairosAPIClient(config: config)
+                let apiClient = OnairosAPIClient()
+                apiClient.configure(baseURL: config.apiBaseURL)
                 let hasAccount = try await apiClient.checkExistingAccount()
                 completion(hasAccount)
             } catch {
@@ -165,14 +166,16 @@ public class OnairosSDK: ObservableObject {
     /// Start universal onboarding flow
     private func startUniversalOnboarding(from presentingViewController: UIViewController) {
         let state = OnboardingState()
+        let apiClient = OnairosAPIClient()
         let coordinator = OnboardingCoordinator(
             state: state,
             config: config!,
-            apiClient: OnairosAPIClient(config: config!)
+            apiClient: apiClient
         )
         
         let modalController = OnairosModalController(
             coordinator: coordinator,
+            state: state,
             config: config!
         )
         
@@ -194,10 +197,11 @@ public class OnairosSDK: ObservableObject {
         let state = OnboardingState()
         state.currentStep = .training
         
+        let apiClient = OnairosAPIClient()
         let coordinator = OnboardingCoordinator(
             state: state,
             config: config!,
-            apiClient: OnairosAPIClient(config: config!)
+            apiClient: apiClient
         )
         
         coordinator.onCompletion = { [weak self] result in
