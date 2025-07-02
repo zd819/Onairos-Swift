@@ -218,28 +218,37 @@ public class OnairosSDK: ObservableObject {
             apiClient: OnairosAPIClient.shared
         )
         
-        let modalController = OnairosModalController(
-            coordinator: coordinator,
-            state: state,
-            config: config
-        )
-        
+        // Set up completion handler BEFORE starting the coordinator
         coordinator.onCompletion = { [weak self] result in
             DispatchQueue.main.async {
-                self?.modalController?.dismiss(animated: true) {
-                    // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
-                    switch result {
-                    case .success(let data):
-                        self?.completionCallback?(.success(result))
-                    case .failure(let error):
-                        self?.completionCallback?(.failure(error))
-                    }
+                // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
+                switch result {
+                case .success(let data):
+                    self?.completionCallback?(.success(result))
+                case .failure(let error):
+                    self?.completionCallback?(.failure(error))
                 }
+                
+                // Clear the modal controller reference
+                self?.modalController = nil
             }
         }
         
-        self.modalController = modalController
-        presentingViewController.present(modalController, animated: true)
+        // Start the coordinator flow (this will create and present the modal)
+        coordinator.start(from: presentingViewController) { [weak self] result in
+            DispatchQueue.main.async {
+                // Handle coordinator completion
+                switch result {
+                case .success(let data):
+                    self?.completionCallback?(.success(.success(data)))
+                case .failure(let error):
+                    self?.completionCallback?(.failure(error))
+                }
+                
+                // Clear the modal controller reference
+                self?.modalController = nil
+            }
+        }
     }
     
     /// Start data collection for existing users
@@ -522,6 +531,17 @@ public struct OnairosConfig {
     /// App name to display in UI
     public let appName: String
     
+    /// Computed log level based on mode
+    public var logLevel: APILogLevel {
+        if isTestMode {
+            return .verbose
+        } else if isDebugMode {
+            return .debug
+        } else {
+            return .info
+        }
+    }
+    
     public init(
         isDebugMode: Bool = false,
         isTestMode: Bool = false,
@@ -545,6 +565,34 @@ public struct OnairosConfig {
         self.googleClientID = googleClientID
         self.urlScheme = urlScheme
         self.appName = appName
+    }
+    
+    /// Create a test configuration for development with default values
+    /// - Returns: Test configuration that bypasses all API calls
+    public static func testMode() -> OnairosConfig {
+        return OnairosConfig(
+            isDebugMode: true,
+            isTestMode: true,
+            allowEmptyConnections: true,
+            simulateTraining: true,
+            apiBaseURL: "https://test.api.onairos.uk", // Test API endpoint
+            urlScheme: "onairos-test",
+            appName: "Test App"
+        )
+    }
+    
+    /// Create a debug configuration for development
+    /// - Returns: Debug configuration with enhanced logging
+    public static func debugMode() -> OnairosConfig {
+        return OnairosConfig(
+            isDebugMode: true,
+            isTestMode: false,
+            allowEmptyConnections: true,
+            simulateTraining: true,
+            apiBaseURL: "https://api2.onairos.uk",
+            urlScheme: "onairos-debug",
+            appName: "Debug App"
+        )
     }
     
     /// Create a test configuration for development

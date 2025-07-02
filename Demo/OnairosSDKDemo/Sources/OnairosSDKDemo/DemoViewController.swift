@@ -97,11 +97,8 @@ class DemoViewController: UIViewController {
     
     /// Configure Onairos SDK
     private func configureSDK() {
-        let config = OnairosConfig(
-            isDebugMode: true,
-            allowEmptyConnections: true,
-            simulateTraining: true,
-            platforms: [.instagram, .youtube, .reddit, .pinterest, .gmail],
+        // Use test mode for demo app - bypasses all API calls and accepts any input
+        let config = OnairosConfig.testMode(
             urlScheme: "onairos-demo",
             appName: "Onairos Demo App"
         )

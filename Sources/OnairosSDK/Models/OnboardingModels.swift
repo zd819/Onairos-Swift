@@ -49,6 +49,17 @@ public enum Platform: String, CaseIterable, Hashable {
         case .gmail: return "\(baseURL)/gmail/authorize"
         }
     }
+    
+    /// OAuth scopes for the platform
+    public var oauthScopes: String {
+        switch self {
+        case .instagram: return "user_profile,user_media"
+        case .youtube: return "https://www.googleapis.com/auth/youtube.readonly"
+        case .reddit: return "identity,read"
+        case .pinterest: return "read_public,read_relationships"
+        case .gmail: return "https://www.googleapis.com/auth/gmail.readonly"
+        }
+    }
 }
 
 /// Authentication method enumeration
