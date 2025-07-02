@@ -5,6 +5,37 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] - 2024-12-28
+
+### Added
+- **Comprehensive Test Mode**: New `isTestMode` flag for complete development testing
+  - Added `OnairosConfig.testMode()` static method for easy test configuration
+  - Test mode bypasses all API calls and accepts any email/verification code
+  - Fast training simulation with clear "🧪 TEST MODE" indicators
+  - Automatic enabling of `allowEmptyConnections` and `simulateTraining` in test mode
+  - Faster animations and reduced delays for quick testing cycles
+
+### Enhanced
+- **Training Simulation**: Improved with mode-specific messaging and timing
+  - Test mode: 2x faster simulation with obvious test indicators
+  - Production mode: Maintains original timing and professional messaging
+  - Clear visual distinction between test and production modes
+
+### Documentation
+- **README Updates**: Added comprehensive test mode examples
+  - Basic integration example with production configuration
+  - Test mode setup with feature explanations
+  - Production configuration best practices
+  - Clear distinction between development and production usage
+
+### Technical
+- **Step Handler Improvements**: Enhanced all onboarding steps to properly handle test mode
+  - Email step: Accepts any email immediately in test mode
+  - Verification step: Accepts any code immediately in test mode  
+  - Connection step: Faster auto-advance in test mode
+  - PIN step: Bypasses API registration in test mode
+  - Training step: Fast simulation with test mode branding
+
 ## [1.0.14] - 2024-12-28
 
 ### Fixed

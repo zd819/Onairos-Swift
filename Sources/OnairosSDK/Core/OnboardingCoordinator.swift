@@ -149,6 +149,15 @@ public class OnboardingCoordinator {
         state.isLoading = true
         state.errorMessage = nil
         
+        // In test mode, accept any email immediately
+        if config.isTestMode {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.state.isLoading = false
+                self?.state.currentStep = .verify
+            }
+            return
+        }
+        
         Task {
             let result = await apiClient.requestEmailVerification(email: state.email)
             
@@ -174,6 +183,15 @@ public class OnboardingCoordinator {
     private func handleVerifyStep() {
         state.isLoading = true
         state.errorMessage = nil
+        
+        // In test mode, accept any verification code immediately
+        if config.isTestMode {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.state.isLoading = false
+                self?.state.currentStep = .connect
+            }
+            return
+        }
         
         Task {
             let result = await apiClient.verifyEmailCode(
@@ -205,12 +223,13 @@ public class OnboardingCoordinator {
     
     /// Handle platform connection step
     private func handleConnectStep() {
-        // In debug mode or if empty connections are allowed, can proceed without connections
-        if config.allowEmptyConnections || config.isDebugMode || !state.connectedPlatforms.isEmpty {
+        // In test mode, debug mode, or if empty connections are allowed, can proceed without connections
+        if config.isTestMode || config.allowEmptyConnections || config.isDebugMode || !state.connectedPlatforms.isEmpty {
             state.currentStep = .success
             
-            // Auto-advance after 3 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            // Auto-advance after 3 seconds (1 second in test mode for faster testing)
+            let delay = config.isTestMode ? 1.0 : 3.0
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.handleSuccessStep()
             }
         } else {
@@ -225,6 +244,17 @@ public class OnboardingCoordinator {
     
     /// Handle PIN creation step
     private func handlePINStep() {
+        // In test mode, skip API call and proceed directly to training
+        if config.isTestMode {
+            state.isLoading = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.state.isLoading = false
+                self?.state.currentStep = .training
+                self?.startAITraining()
+            }
+            return
+        }
+        
         // Send PIN to backend and start training
         Task {
             do {
@@ -239,8 +269,14 @@ public class OnboardingCoordinator {
                     }
                 case .failure(let error):
                     await MainActor.run {
-                        state.errorMessage = error.localizedDescription
-                        state.isLoading = false
+                        if config.isDebugMode {
+                            // In debug mode, proceed even if registration fails
+                            state.currentStep = .training
+                            startAITraining()
+                        } else {
+                            state.errorMessage = error.localizedDescription
+                            state.isLoading = false
+                        }
                     }
                 }
             }
@@ -426,29 +462,49 @@ public class OnboardingCoordinator {
     
     /// Simulate training progress for testing
     private func simulateTraining() {
-        let timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+        // Faster simulation in test mode
+        let interval = config.isTestMode ? 0.05 : 0.1
+        let increment = config.isTestMode ? 0.04 : 0.02
+        
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in
             guard let self = self else {
                 timer.invalidate()
                 return
             }
             
-            self.state.trainingProgress += 0.02
+            self.state.trainingProgress += increment
             
-            if self.state.trainingProgress >= 0.3 && self.state.trainingProgress < 0.4 {
-                self.state.trainingStatus = "Analyzing your data..."
-            } else if self.state.trainingProgress >= 0.6 && self.state.trainingProgress < 0.7 {
-                self.state.trainingStatus = "Building your AI model..."
-            } else if self.state.trainingProgress >= 0.9 && self.state.trainingProgress < 1.0 {
-                self.state.trainingStatus = "Finalizing training..."
+            // Update status messages based on progress
+            if config.isTestMode {
+                // More obvious test mode messages
+                if self.state.trainingProgress >= 0.2 && self.state.trainingProgress < 0.4 {
+                    self.state.trainingStatus = "🧪 TEST MODE: Simulating data analysis..."
+                } else if self.state.trainingProgress >= 0.4 && self.state.trainingProgress < 0.7 {
+                    self.state.trainingStatus = "🧪 TEST MODE: Building mock AI model..."
+                } else if self.state.trainingProgress >= 0.7 && self.state.trainingProgress < 0.9 {
+                    self.state.trainingStatus = "🧪 TEST MODE: Finalizing simulation..."
+                } else if self.state.trainingProgress < 0.2 {
+                    self.state.trainingStatus = "🧪 TEST MODE: Initializing test training..."
+                }
+            } else {
+                // Normal simulation messages
+                if self.state.trainingProgress >= 0.3 && self.state.trainingProgress < 0.4 {
+                    self.state.trainingStatus = "Analyzing your data..."
+                } else if self.state.trainingProgress >= 0.6 && self.state.trainingProgress < 0.7 {
+                    self.state.trainingStatus = "Building your AI model..."
+                } else if self.state.trainingProgress >= 0.9 && self.state.trainingProgress < 1.0 {
+                    self.state.trainingStatus = "Finalizing training..."
+                }
             }
             
             if self.state.trainingProgress >= 1.0 {
                 timer.invalidate()
                 self.state.trainingProgress = 1.0
-                self.state.trainingStatus = "Training complete!"
+                self.state.trainingStatus = config.isTestMode ? "🧪 TEST MODE: Training simulation complete!" : "Training complete!"
                 
-                // Auto-complete after 1.5 seconds
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                // Faster completion in test mode
+                let completionDelay = config.isTestMode ? 0.8 : 1.5
+                DispatchQueue.main.asyncAfter(deadline: .now() + completionDelay) {
                     self.handleTrainingComplete()
                 }
             }

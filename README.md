@@ -39,49 +39,81 @@ Or add it through Xcode:
 
 ## Quick Start
 
-### 1. Basic Setup
+### Basic Integration
 
 ```swift
 import OnairosSDK
 
-class AppDelegate: UIResponder, UIApplicationDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        
-        // Configure Onairos SDK
-        let config = OnairosConfig(
-            isDebugMode: true, // Enable for testing
-            urlScheme: "your-app-scheme",
-            appName: "Your App Name"
-        )
-        
-        OnairosSDK.shared.initialize(config: config)
-        
-        return true
+// Initialize the SDK
+let config = OnairosConfig(
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+
+OnairosSDK.shared.initialize(config: config)
+
+// Create and add the connect button
+let connectButton = OnairosSDK.shared.createConnectButton { result in
+    switch result {
+    case .success(let data):
+        print("Onboarding completed successfully!")
+        print("Connected platforms: \(data.connectedPlatforms)")
+    case .failure(let error):
+        print("Onboarding failed: \(error)")
+    }
+}
+
+// Add button to your view
+view.addSubview(connectButton)
+```
+
+### Test Mode (Recommended for Development)
+
+For development and testing, use the built-in test mode that bypasses all API calls and accepts any input:
+
+```swift
+import OnairosSDK
+
+// Create test configuration - no API calls, accepts any email/code
+let testConfig = OnairosConfig.testMode(
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+
+OnairosSDK.shared.initialize(config: testConfig)
+
+// Test mode features:
+// ✅ Accepts any email address
+// ✅ Accepts any verification code  
+// ✅ Can skip platform connections
+// ✅ Fast training simulation with test indicators
+// ✅ No real API calls made
+// ✅ Faster animations for quick testing
+
+let connectButton = OnairosSDK.shared.createConnectButton { result in
+    switch result {
+    case .success(let data):
+        print("🧪 TEST MODE: Onboarding simulation completed!")
+    case .failure(let error):
+        print("🧪 TEST MODE: Error - \(error)")
     }
 }
 ```
 
-### 2. Present Onboarding
+### Production Configuration
+
+For production use with real API calls:
 
 ```swift
-import OnairosSDK
-
-class ViewController: UIViewController {
-    
-    @IBAction func startOnboarding(_ sender: UIButton) {
-        OnairosSDK.shared.presentOnboarding(from: self) { result in
-            switch result {
-            case .success(let data):
-                print("Onboarding completed!")
-                print("Connected platforms: \(data.connectedPlatforms)")
-                print("Session saved: \(data.sessionSaved)")
-                
-            case .failure(let error):
-                print("Onboarding failed: \(error.localizedDescription)")
-            }
-        }
-    }
-}
+let prodConfig = OnairosConfig(
+    isDebugMode: false,           // Disable debug features
+    isTestMode: false,            // Disable test mode
+    allowEmptyConnections: false, // Require platform connections
+    simulateTraining: false,      // Use real AI training
+    apiBaseURL: "https://api2.onairos.uk", // Production API
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
 ```
 
 ## Configuration Options

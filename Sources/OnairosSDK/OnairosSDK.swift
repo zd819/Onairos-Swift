@@ -441,6 +441,9 @@ public struct OnairosConfig {
     /// Debug mode enables testing features
     public let isDebugMode: Bool
     
+    /// Test mode bypasses all API calls and accepts any input
+    public let isTestMode: Bool
+    
     /// Allow proceeding without platform connections
     public let allowEmptyConnections: Bool
     
@@ -467,6 +470,7 @@ public struct OnairosConfig {
     
     public init(
         isDebugMode: Bool = false,
+        isTestMode: Bool = false,
         allowEmptyConnections: Bool = false,
         simulateTraining: Bool = false,
         apiBaseURL: String = "https://api2.onairos.uk",
@@ -477,14 +481,33 @@ public struct OnairosConfig {
         appName: String
     ) {
         self.isDebugMode = isDebugMode
-        self.allowEmptyConnections = allowEmptyConnections
-        self.simulateTraining = simulateTraining
+        self.isTestMode = isTestMode
+        // In test mode, automatically enable these features
+        self.allowEmptyConnections = isTestMode ? true : allowEmptyConnections
+        self.simulateTraining = isTestMode ? true : simulateTraining
         self.apiBaseURL = apiBaseURL
         self.platforms = platforms
         self.opacityAPIKey = opacityAPIKey
         self.googleClientID = googleClientID
         self.urlScheme = urlScheme
         self.appName = appName
+    }
+    
+    /// Create a test configuration for development
+    /// - Parameters:
+    ///   - urlScheme: Your app's URL scheme
+    ///   - appName: Your app's name
+    /// - Returns: Test configuration that bypasses all API calls
+    public static func testMode(urlScheme: String, appName: String) -> OnairosConfig {
+        return OnairosConfig(
+            isDebugMode: true,
+            isTestMode: true,
+            allowEmptyConnections: true,
+            simulateTraining: true,
+            apiBaseURL: "https://test.api.onairos.uk", // Test API endpoint
+            urlScheme: urlScheme,
+            appName: appName
+        )
     }
 }
 
