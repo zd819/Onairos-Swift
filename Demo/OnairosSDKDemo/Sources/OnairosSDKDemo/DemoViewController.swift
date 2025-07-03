@@ -59,14 +59,12 @@ class DemoViewController: UIViewController {
     private func createConnectButtons() {
         // Default button
         connectButton = OnairosSDK.shared.createConnectButton(
-            target: self,
             completion: handleOnboardingResult
         )
         
         // Custom text button
         customButton = OnairosSDK.shared.createConnectButton(
             text: "Start Onboarding",
-            target: self,
             completion: handleOnboardingResult
         )
     }
@@ -131,22 +129,32 @@ class DemoViewController: UIViewController {
         statusLabel.text = "Onboarding completed successfully! 🎉"
         statusLabel.textColor = .systemGreen
         
-        let resultText = """
-        ✅ ONBOARDING COMPLETED
-        
-        📧 Email: \(data.email ?? "N/A")
-        🔗 Connected Platforms: \(data.connectedPlatforms.joined(separator: ", "))
-        💾 Session Saved: \(data.sessionSaved ? "Yes" : "No")
-        🤖 AI Training: \(data.trainingCompleted ? "Completed" : "Pending")
-        
-        📊 User Data:
-        \(formatUserData(data.userData))
-        
-        🔗 Platform Data:
-        \(formatPlatformData(data.platformData))
-        """
-        
-        resultTextView.text = resultText
+        switch data {
+        case .success(let onboardingData):
+            let resultText = """
+            ✅ ONBOARDING COMPLETED
+            
+            📧 Email: \(onboardingData.userData["email"]?.value as? String ?? "N/A")
+            🔗 Connected Platforms: \(onboardingData.connectedPlatforms.keys.joined(separator: ", "))
+            💾 Session Saved: \(onboardingData.sessionSaved ? "Yes" : "No")
+            🤖 AI Training: Completed
+            
+            📊 User Data:
+            \(formatUserData(onboardingData.userData.mapValues { $0.value }))
+            
+            🔗 Platform Data:
+            \(formatPlatformData(onboardingData.connectedPlatforms.mapValues { $0.platform }))
+            
+            🔗 API URL: \(onboardingData.apiURL)
+            🔑 Token: \(onboardingData.token.prefix(20))...
+            """
+            
+            resultTextView.text = resultText
+            
+        case .failure(let error):
+            // This shouldn't happen since we're in handleSuccess, but handle it anyway
+            handleError(error)
+        }
     }
     
     /// Handle onboarding error
