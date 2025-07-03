@@ -95,19 +95,104 @@ class DemoViewController: UIViewController {
     
     /// Configure Onairos SDK
     private func configureSDK() {
-        // Use test mode for demo app - bypasses all API calls and accepts any input
+        // ✅ CORRECT CONFIGURATION FOR DEVELOPMENT:
+        // Use testMode() to prevent modal dismissal issues and API failures
         let config = OnairosConfig.testMode(
             urlScheme: "onairos-demo",
             appName: "Onairos Demo App"
         )
         
+        // 🚨 INCORRECT CONFIGURATIONS (commented out to show what NOT to use):
+        /*
+        // ❌ DON'T USE: Debug mode with production API - may cause modal dismissal
+        let badConfig1 = OnairosConfig(
+            isDebugMode: true,
+            urlScheme: "onairos-demo",
+            appName: "Onairos Demo App"
+        )
+        
+        // ❌ DON'T USE: Production mode during development - requires real platform connections
+        let badConfig2 = OnairosConfig(
+            isDebugMode: false,
+            isTestMode: false,
+            urlScheme: "onairos-demo",
+            appName: "Onairos Demo App"
+        )
+        */
+        
+        print("🔧 [DEMO] Initializing SDK with test mode configuration...")
         OnairosSDK.shared.initialize(config: config)
+        print("✅ [DEMO] SDK initialized - this configuration prevents modal dismissal issues")
         
         // Check for existing session
         if OnairosSDK.shared.hasExistingSession() {
             statusLabel.text = "Welcome back! Session found."
             statusLabel.textColor = .systemGreen
+            
+            // Add reset session button for demo purposes
+            addResetSessionButton()
+        } else {
+            statusLabel.text = "Ready to connect data"
+            statusLabel.textColor = .label
         }
+        
+        // Add configuration info to result view
+        let configInfo = """
+        ✅ DEMO CONFIGURATION:
+        
+        🧪 Test Mode: Enabled
+        🔄 Simulates all API calls locally
+        📧 Accepts any email address
+        🔐 Accepts any verification code
+        🚀 Prevents modal dismissal issues
+        
+        🔧 For your app, use:
+        OnairosConfig.testMode(
+            urlScheme: "your-app-scheme",
+            appName: "Your App Name"
+        )
+        
+        📚 See integration guide for production setup
+        """
+        
+        resultTextView.text = configInfo
+    }
+    
+    /// Add reset session button for demo purposes
+    private func addResetSessionButton() {
+        let resetButton = UIButton(type: .system)
+        resetButton.setTitle("Clear Saved Session", for: .normal)
+        resetButton.backgroundColor = .systemRed.withAlphaComponent(0.1)
+        resetButton.setTitleColor(.systemRed, for: .normal)
+        resetButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
+        resetButton.layer.cornerRadius = 8
+        resetButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        resetButton.addTarget(self, action: #selector(resetSessionTapped), for: .touchUpInside)
+        
+        view.addSubview(resetButton)
+        
+        NSLayoutConstraint.activate([
+            resetButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
+            resetButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            resetButton.heightAnchor.constraint(equalToConstant: 32),
+            resetButton.widthAnchor.constraint(equalToConstant: 160)
+        ])
+        
+        // Update other constraints to account for the new button
+        connectButton.topAnchor.constraint(equalTo: resetButton.bottomAnchor, constant: 30).isActive = true
+    }
+    
+    /// Handle reset session button tap
+    @objc private func resetSessionTapped() {
+        OnairosSDK.shared.clearSession()
+        
+        // Update UI
+        statusLabel.text = "Session cleared. Ready to connect data."
+        statusLabel.textColor = .label
+        
+        // Remove the reset button
+        view.subviews.first { $0 is UIButton && ($0 as? UIButton)?.titleLabel?.text == "Clear Saved Session" }?.removeFromSuperview()
     }
     
     /// Handle onboarding completion result

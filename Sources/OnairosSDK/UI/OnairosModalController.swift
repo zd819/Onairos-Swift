@@ -271,11 +271,35 @@ public class OnairosModalController: UIViewController {
     
     /// Handle background tap
     @objc private func backgroundTapped() {
-        coordinator?.cancelOnboarding()
+        // Only allow dismissal if not currently loading
+        guard !state.isLoading else {
+            print("🔍 [DEBUG] Ignoring background tap - currently loading")
+            return
+        }
+        
+        // Show confirmation before dismissing to prevent accidental cancellation
+        let alert = UIAlertController(
+            title: "Cancel Onboarding?",
+            message: "Are you sure you want to cancel the onboarding process?",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Continue Onboarding", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Cancel Onboarding", style: .destructive) { _ in
+            self.coordinator?.cancelOnboarding()
+        })
+        
+        present(alert, animated: true)
     }
     
     /// Handle pan gesture for swipe down to dismiss
     @objc private func panGesture(_ gesture: UIPanGestureRecognizer) {
+        // Only allow swipe dismiss if not currently loading
+        guard !state.isLoading else {
+            print("🔍 [DEBUG] Ignoring swipe gesture - currently loading")
+            return
+        }
+        
         let translation = gesture.translation(in: view)
         let velocity = gesture.velocity(in: view)
         
@@ -292,10 +316,50 @@ public class OnairosModalController: UIViewController {
             
         case .ended, .cancelled:
             // Determine if should dismiss based on translation and velocity
-            let shouldDismiss = translation.y > 100 || velocity.y > 500
+            let shouldDismiss = translation.y > 150 || velocity.y > 800  // Higher threshold
             
             if shouldDismiss {
-                coordinator?.cancelOnboarding()
+                // Show confirmation before dismissing to prevent accidental cancellation
+                let alert = UIAlertController(
+                    title: "Cancel Onboarding?",
+                    message: "Are you sure you want to cancel the onboarding process?",
+                    preferredStyle: .alert
+                )
+                
+                alert.addAction(UIAlertAction(title: "Continue Onboarding", style: .cancel) { _ in
+                    // Snap back to original position
+                    UIView.animate(
+                        withDuration: 0.3,
+                        delay: 0,
+                        usingSpringWithDamping: 0.8,
+                        initialSpringVelocity: 0,
+                        options: [.curveEaseOut],
+                        animations: {
+                            self.containerView.transform = .identity
+                            self.backgroundOverlay.alpha = 1.0
+                        }
+                    )
+                })
+                
+                alert.addAction(UIAlertAction(title: "Cancel Onboarding", style: .destructive) { _ in
+                    self.coordinator?.cancelOnboarding()
+                })
+                
+                // Reset position first, then show alert
+                UIView.animate(
+                    withDuration: 0.3,
+                    delay: 0,
+                    usingSpringWithDamping: 0.8,
+                    initialSpringVelocity: 0,
+                    options: [.curveEaseOut],
+                    animations: {
+                        self.containerView.transform = .identity
+                        self.backgroundOverlay.alpha = 1.0
+                    },
+                    completion: { _ in
+                        self.present(alert, animated: true)
+                    }
+                )
             } else {
                 // Snap back to original position
                 UIView.animate(

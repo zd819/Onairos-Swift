@@ -210,17 +210,58 @@ public class OnboardingCoordinator {
                     state.currentStep = .verify
                 case .failure(let error):
                     print("🔍 [DEBUG] Email verification failed: \(error)")
+                    
+                    // CRITICAL FIX: Always show error message first, never dismiss modal on API failure
+                    let userFriendlyMessage = getUserFriendlyErrorMessage(for: error)
+                    state.errorMessage = userFriendlyMessage
+                    
                     if config.isDebugMode {
-                        // In debug mode, allow proceeding even if email verification fails
-                        print("🔍 [DEBUG] Debug mode - proceeding anyway")
-                        state.currentStep = .verify
+                        // In debug mode, show error but allow proceeding after delay
+                        print("🔍 [DEBUG] Debug mode - showing error but will allow proceeding")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                            print("🔍 [DEBUG] Debug mode - proceeding to verify step despite API failure")
+                            self?.state.errorMessage = nil
+                            self?.state.currentStep = .verify
+                        }
                     } else {
-                        print("🔍 [DEBUG] Setting error message: \(error.localizedDescription)")
-                        state.errorMessage = error.localizedDescription
+                        // In production mode, stay on email step and show error
+                        print("🔍 [DEBUG] Production mode - staying on email step with error message")
+                        // DO NOT dismiss modal or proceed - let user retry or cancel manually
                     }
                 }
                 print("🔍 [DEBUG] Final step after API call: \(state.currentStep)")
             }
+        }
+    }
+    
+    /// Get user-friendly error message for API failures
+    /// - Parameter error: OnairosError to convert
+    /// - Returns: User-friendly error message
+    private func getUserFriendlyErrorMessage(for error: OnairosError) -> String {
+        switch error {
+        case .networkUnavailable:
+            return "Please check your internet connection and try again."
+        case .networkError(let reason):
+            return "Network error: \(reason). Please try again."
+        case .apiError(let message, let statusCode):
+            if let statusCode = statusCode {
+                switch statusCode {
+                case 404:
+                    return "Email verification service is temporarily unavailable. Please try again later."
+                case 429:
+                    return "Too many requests. Please wait a moment and try again."
+                case 500...599:
+                    return "Server error. Please try again later."
+                default:
+                    return "Unable to verify email: \(message). Please try again."
+                }
+            } else {
+                return "Unable to verify email: \(message). Please try again."
+            }
+        case .emailVerificationFailed(let reason):
+            return "Email verification failed: \(reason). Please try again."
+        default:
+            return "Unable to verify email. Please check your internet connection and try again."
         }
     }
     
@@ -251,20 +292,78 @@ public class OnboardingCoordinator {
                 
                 switch result {
                 case .success(let verified):
-                    if verified || config.isDebugMode {
+                    if verified {
+                        print("🔍 [DEBUG] Email verification code validated successfully")
                         state.currentStep = .connect
                     } else {
-                        state.errorMessage = "Invalid verification code. Please try again."
+                        print("🔍 [DEBUG] Email verification code invalid")
+                        if config.isDebugMode {
+                            // In debug mode, show error but allow proceeding after delay
+                            state.errorMessage = "Invalid verification code, but debug mode allows proceeding..."
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                                print("🔍 [DEBUG] Debug mode - proceeding to connect step despite invalid code")
+                                self?.state.errorMessage = nil
+                                self?.state.currentStep = .connect
+                            }
+                        } else {
+                            state.errorMessage = "Invalid verification code. Please check your email and try again."
+                        }
                     }
                 case .failure(let error):
+                    print("🔍 [DEBUG] Email verification API call failed: \(error)")
+                    
+                    // CRITICAL FIX: Always show error message first, never dismiss modal on API failure
+                    let userFriendlyMessage = getUserFriendlyVerificationErrorMessage(for: error)
+                    state.errorMessage = userFriendlyMessage
+                    
                     if config.isDebugMode {
-                        // In debug mode, allow proceeding with any code
-                        state.currentStep = .connect
+                        // In debug mode, show error but allow proceeding after delay
+                        print("🔍 [DEBUG] Debug mode - showing verification error but will allow proceeding")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                            print("🔍 [DEBUG] Debug mode - proceeding to connect step despite verification API failure")
+                            self?.state.errorMessage = nil
+                            self?.state.currentStep = .connect
+                        }
                     } else {
-                        state.errorMessage = error.localizedDescription
+                        // In production mode, stay on verification step and show error
+                        print("🔍 [DEBUG] Production mode - staying on verification step with error message")
+                        // DO NOT dismiss modal or proceed - let user retry or cancel manually
                     }
                 }
             }
+        }
+    }
+    
+    /// Get user-friendly error message for verification API failures
+    /// - Parameter error: OnairosError to convert
+    /// - Returns: User-friendly error message
+    private func getUserFriendlyVerificationErrorMessage(for error: OnairosError) -> String {
+        switch error {
+        case .networkUnavailable:
+            return "Please check your internet connection and try again."
+        case .networkError(let reason):
+            return "Network error: \(reason). Please try again."
+        case .apiError(let message, let statusCode):
+            if let statusCode = statusCode {
+                switch statusCode {
+                case 400:
+                    return "Invalid verification code format. Please enter the 6-digit code from your email."
+                case 404:
+                    return "Verification service is temporarily unavailable. Please try again later."
+                case 429:
+                    return "Too many verification attempts. Please wait a moment and try again."
+                case 500...599:
+                    return "Server error during verification. Please try again later."
+                default:
+                    return "Unable to verify code: \(message). Please try again."
+                }
+            } else {
+                return "Unable to verify code: \(message). Please try again."
+            }
+        case .invalidCredentials:
+            return "Invalid verification code. Please check your email and enter the correct 6-digit code."
+        default:
+            return "Unable to verify code. Please check your internet connection and try again."
         }
     }
     

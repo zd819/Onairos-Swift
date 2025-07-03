@@ -28,6 +28,9 @@ public class OnairosSDK: ObservableObject {
     public func initialize(config: OnairosConfig) {
         self.config = config
         
+        // Validate configuration and provide guidance
+        validateConfiguration(config)
+        
         // Configure API client logging based on mode
         let logLevel: APILogLevel
         let enableDetailedLogging: Bool
@@ -36,10 +39,14 @@ public class OnairosSDK: ObservableObject {
             logLevel = .verbose
             enableDetailedLogging = true
             print("🧪 [OnairosSDK] Test mode enabled - Full API logging active")
+            print("🧪 [OnairosSDK] ⚠️  WARNING: Test mode bypasses all real API calls!")
+            print("🧪 [OnairosSDK] ✅ This configuration prevents modal dismissal issues during development")
         } else if config.isDebugMode {
             logLevel = .debug
             enableDetailedLogging = true
             print("🐛 [OnairosSDK] Debug mode enabled - Enhanced API logging active")
+            print("🐛 [OnairosSDK] ⚠️  WARNING: Debug mode makes real API calls but bypasses failures")
+            print("🐛 [OnairosSDK] 🔧 For development without API calls, use OnairosConfig.testMode() instead")
         } else {
             logLevel = .info
             enableDetailedLogging = false
@@ -57,6 +64,60 @@ public class OnairosSDK: ObservableObject {
         print("   Mode: \(config.isTestMode ? "Test" : config.isDebugMode ? "Debug" : "Production")")
         print("   API Base URL: \(config.apiBaseURL)")
         print("   Logging Level: \(logLevel)")
+    }
+    
+    /// Validate configuration and provide helpful guidance
+    /// - Parameter config: Configuration to validate
+    private func validateConfiguration(_ config: OnairosConfig) {
+        var warnings: [String] = []
+        var recommendations: [String] = []
+        
+        // Check for common misconfiguration patterns
+        if config.isDebugMode && !config.isTestMode && config.apiBaseURL.contains("api2.onairos.uk") {
+            warnings.append("🚨 POTENTIAL ISSUE: Debug mode with production API may cause modal dismissal on API failures")
+            recommendations.append("💡 RECOMMENDED: Use OnairosConfig.testMode() for development to avoid API call issues")
+        }
+        
+        if !config.isTestMode && !config.isDebugMode && !config.allowEmptyConnections {
+            recommendations.append("💡 INFO: Production mode requires platform connections for users to proceed")
+        }
+        
+        if config.isTestMode && config.apiBaseURL.contains("api2.onairos.uk") {
+            recommendations.append("💡 INFO: Test mode ignores API base URL and simulates all API calls locally")
+        }
+        
+        // URL scheme validation
+        if config.urlScheme.isEmpty {
+            warnings.append("🚨 WARNING: Empty URL scheme may prevent OAuth platform authentication")
+        }
+        
+        // Print warnings and recommendations
+        if !warnings.isEmpty {
+            print("\n⚠️  [OnairosSDK] CONFIGURATION WARNINGS:")
+            warnings.forEach { print("   \($0)") }
+        }
+        
+        if !recommendations.isEmpty {
+            print("\n💡 [OnairosSDK] CONFIGURATION RECOMMENDATIONS:")
+            recommendations.forEach { print("   \($0)") }
+        }
+        
+        // Print usage examples for common scenarios
+        if config.isDebugMode && !config.isTestMode {
+            print("\n🔧 [OnairosSDK] DEBUG MODE GUIDANCE:")
+            print("   Current: Debug mode with real API calls")
+            print("   Alternative: Use OnairosConfig.testMode() to avoid API issues")
+            print("   Example:")
+            print("     let config = OnairosConfig.testMode(")
+            print("         urlScheme: \"\(config.urlScheme)\",")
+            print("         appName: \"\(config.appName)\"")
+            print("     )")
+        }
+        
+        if !warnings.isEmpty || !recommendations.isEmpty {
+            print("\n📚 [OnairosSDK] For more information, see the integration guide")
+            print("")
+        }
     }
     
     /// Create Onairos connect button

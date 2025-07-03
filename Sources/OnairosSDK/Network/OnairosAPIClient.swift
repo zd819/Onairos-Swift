@@ -147,15 +147,27 @@ public class OnairosAPIClient {
     /// - Parameter email: Email address to verify
     /// - Returns: Success status
     public func requestEmailVerification(email: String) async -> Result<Bool, OnairosError> {
+        log("🚀 Requesting email verification for: \(email)", level: .info)
+        
         let request = EmailVerificationRequest(email: email)
         
-        return await performRequest(
+        let result = await performRequest(
             endpoint: "/email/verification",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
-        ).map { response in
-            response.success
+        )
+        
+        switch result {
+        case .success(let response):
+            log("✅ Email verification request successful: \(response.success)", level: .info)
+            return .success(response.success)
+        case .failure(let error):
+            log("❌ Email verification request failed: \(error.localizedDescription)", level: .error)
+            
+            // Provide more specific error context for debugging
+            let contextualError = enhanceEmailVerificationError(error, operation: "request")
+            return .failure(contextualError)
         }
     }
     
@@ -165,15 +177,28 @@ public class OnairosAPIClient {
     ///   - code: Verification code
     /// - Returns: Verification success status
     public func verifyEmailCode(email: String, code: String) async -> Result<Bool, OnairosError> {
+        log("🚀 Verifying email code for: \(email) with code: \(code)", level: .info)
+        
         let request = EmailVerificationRequest(email: email, action: "verify", code: code)
         
-        return await performRequest(
+        let result = await performRequest(
             endpoint: "/email/verification",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
-        ).map { response in
-            response.verified ?? false
+        )
+        
+        switch result {
+        case .success(let response):
+            let verified = response.verified ?? false
+            log("✅ Email verification code check completed: \(verified)", level: .info)
+            return .success(verified)
+        case .failure(let error):
+            log("❌ Email verification code check failed: \(error.localizedDescription)", level: .error)
+            
+            // Provide more specific error context for debugging
+            let contextualError = enhanceEmailVerificationError(error, operation: "verify")
+            return .failure(contextualError)
         }
     }
     
@@ -187,6 +212,37 @@ public class OnairosAPIClient {
             responseType: EmailVerificationResponse.self
         ).map { response in
             response.verified ?? false
+        }
+    }
+    
+    /// Enhance email verification errors with more context
+    /// - Parameters:
+    ///   - error: Original error
+    ///   - operation: The operation that failed (request/verify)
+    /// - Returns: Enhanced error with more context
+    private func enhanceEmailVerificationError(_ error: OnairosError, operation: String) -> OnairosError {
+        switch error {
+        case .networkUnavailable:
+            return .emailVerificationFailed("Network connection unavailable. The email \(operation) service cannot be reached.")
+        case .apiError(let message, let statusCode):
+            if let statusCode = statusCode {
+                switch statusCode {
+                case 404:
+                    return .emailVerificationFailed("Email \(operation) service is temporarily unavailable. Please try again later.")
+                case 429:
+                    return .emailVerificationFailed("Too many email \(operation) attempts. Please wait a moment before trying again.")
+                case 500...599:
+                    return .emailVerificationFailed("Email \(operation) service is experiencing issues. Please try again later.")
+                default:
+                    return .emailVerificationFailed("Email \(operation) failed: \(message)")
+                }
+            } else {
+                return .emailVerificationFailed("Email \(operation) failed: \(message)")
+            }
+        case .networkError(let reason):
+            return .emailVerificationFailed("Network error during email \(operation): \(reason)")
+        default:
+            return .emailVerificationFailed("Email \(operation) failed due to an unexpected error. Please check your internet connection and try again.")
         }
     }
     

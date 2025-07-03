@@ -12,6 +12,54 @@
 - ✅ All constructor mismatches fixed
 - ✅ Memory leaks prevented with proper coordinator lifecycle
 
+## 🚨 CRITICAL: Fix for Modal Dismissal Issues
+
+**If your modal closes immediately after entering an email, follow this fix:**
+
+### The Problem
+Three main issues can cause unexpected modal dismissal:
+1. **API Failure**: Email verification API calls fail and dismiss the modal
+2. **Wrong Configuration**: Using debug mode with production API causes failures
+3. **Missing Error Handling**: API errors aren't handled gracefully
+
+### The Solution ✅
+
+**Use `OnairosConfig.testMode()` for development:**
+
+```swift
+import OnairosSDK
+
+// ✅ CORRECT - Prevents modal dismissal issues
+let config = OnairosConfig.testMode(
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+
+OnairosSDK.shared.initialize(config: config)
+
+// ❌ WRONG - May cause modal dismissal on API failures
+let badConfig = OnairosConfig(
+    isDebugMode: true,  // Makes real API calls that can fail
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+```
+
+### Why Test Mode Works
+- ✅ **No real API calls** - Eliminates network failure points
+- ✅ **Accepts any email** - No validation failures
+- ✅ **Accepts any verification code** - No authentication issues
+- ✅ **Complete flow simulation** - Email → Verify → Connect → PIN → Training
+- ✅ **Prevents modal dismissal** - No error conditions that trigger dismissal
+
+### Configuration Comparison
+
+| Mode | API Calls | Modal Stability | Use Case |
+|------|-----------|-----------------|----------|
+| `testMode()` | ❌ Simulated | ✅ Stable | Development & Testing |
+| `isDebugMode: true` | ✅ Real | ⚠️ May dismiss on failure | API debugging only |
+| Production | ✅ Real | ✅ Stable (when working) | Live app |
+
 ## 🤖 AI Assistant Quick Setup
 
 ### Step 1: Add Package Dependency
