@@ -406,13 +406,30 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
     private func scrollToActiveInput() {
         // Find the first responder (active input field)
         if let activeField = findFirstResponder(in: contentStackView) {
-            let fieldFrame = activeField.convert(activeField.bounds, to: scrollView)
+            var fieldFrame = activeField.convert(activeField.bounds, to: scrollView)
+
+            // PROTECT: Guard against NaN / infinite values that would crash CoreGraphics
+            if fieldFrame.origin.y.isNaN || fieldFrame.origin.y.isInfinite ||
+                fieldFrame.size.height.isNaN || fieldFrame.size.height.isInfinite {
+                print("🚨 [ERROR] scrollToActiveInput detected invalid frame values: \(fieldFrame)")
+                return
+            }
+
+            // Clamp Y position to non-negative values to avoid negative scroll offsets
+            let targetY = max(fieldFrame.origin.y - 20, 0)
             let visibleRect = CGRect(
                 x: 0,
-                y: fieldFrame.origin.y - 20,
+                y: targetY,
                 width: scrollView.bounds.width,
                 height: fieldFrame.height + 40
             )
+
+            // Ensure visibleRect does not contain NaN before scrolling
+            guard !visibleRect.origin.y.isNaN && !visibleRect.size.height.isNaN else {
+                print("🚨 [ERROR] scrollToActiveInput generated NaN visibleRect: \(visibleRect)")
+                return
+            }
+
             scrollView.scrollRectToVisible(visibleRect, animated: true)
         }
     }
