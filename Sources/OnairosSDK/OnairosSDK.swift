@@ -371,41 +371,37 @@ public class OnairosConnectButton: UIButton {
     
     /// Setup button content with logo and text
     private func setupButtonContent(text: String) {
-        // Create logo view (placeholder - replace with actual logo)
-        let logoView = UIView()
-        logoView.backgroundColor = .white
-        logoView.layer.cornerRadius = 12
-        logoView.translatesAutoresizingMaskIntoConstraints = false
+        // Create logo image view with actual Onairos logo
+        let logoImageView = UIImageView()
+        logoImageView.contentMode = .scaleAspectFit
+        logoImageView.translatesAutoresizingMaskIntoConstraints = false
         
-        // Add "O" text as logo placeholder
-        let logoLabel = UILabel()
-        logoLabel.text = "O"
-        logoLabel.font = .systemFont(ofSize: 16, weight: .bold)
-        logoLabel.textColor = .systemBlue
-        logoLabel.textAlignment = .center
-        logoLabel.translatesAutoresizingMaskIntoConstraints = false
+        // Load Onairos logo from bundle
+        if let logoImage = UIImage(named: "OnairosWhiteNoBG", in: Bundle.module, compatibleWith: nil) {
+            logoImageView.image = logoImage
+        } else {
+            // Fallback to system icon if logo not found
+            logoImageView.image = UIImage(systemName: "link.circle.fill")
+            logoImageView.tintColor = .white
+        }
         
-        logoView.addSubview(logoLabel)
-        addSubview(logoView)
+        addSubview(logoImageView)
         
         // Set button title
         setTitle(text, for: .normal)
         
         // Setup constraints
         NSLayoutConstraint.activate([
-            logoView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            logoView.centerYAnchor.constraint(equalTo: centerYAnchor),
-            logoView.widthAnchor.constraint(equalToConstant: 24),
-            logoView.heightAnchor.constraint(equalToConstant: 24),
-            
-            logoLabel.centerXAnchor.constraint(equalTo: logoView.centerXAnchor),
-            logoLabel.centerYAnchor.constraint(equalTo: logoView.centerYAnchor)
+            logoImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+            logoImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            logoImageView.widthAnchor.constraint(equalToConstant: 24),
+            logoImageView.heightAnchor.constraint(equalToConstant: 24)
         ])
         
         // Add title label constraint if it exists
         if let titleLabel = titleLabel {
             NSLayoutConstraint.activate([
-                titleLabel.leadingAnchor.constraint(equalTo: logoView.trailingAnchor, constant: 8)
+                titleLabel.leadingAnchor.constraint(equalTo: logoImageView.trailingAnchor, constant: 8)
             ])
         }
     }

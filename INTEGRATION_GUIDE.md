@@ -3,9 +3,14 @@
 > **Optimized for LLMs, Coding Assistants, and Cursor**  
 > Complete copy-paste instructions for automated integration
 
-## 🚨 **CRITICAL UPDATE v1.0.9 - Swift 6.1 Compatibility**
+## 🚨 **LATEST UPDATE v1.0.28 - Complete Flow Fixed**
 
-**Previous versions (1.0.1-1.0.8) had compilation issues with Swift 6.1. v1.0.9 fixes ALL issues.**
+**All modal dismissal issues RESOLVED! Complete onboarding flow now works perfectly:**
+- ✅ Modal stays open through all steps (email → verify → connect → PIN → training)
+- ✅ Beautiful UI with official Onairos branding
+- ✅ Comprehensive debug logging for troubleshooting
+- ✅ All constructor mismatches fixed
+- ✅ Memory leaks prevented with proper coordinator lifecycle
 
 ## 🤖 AI Assistant Quick Setup
 
@@ -14,7 +19,7 @@
 **For Package.swift projects:**
 ```swift
 // Add to Package.swift dependencies array
-.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.9")
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.28")
 
 // Add to target dependencies
 .product(name: "OnairosSDK", package: "Onairos-Swift")
@@ -23,7 +28,7 @@
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.9` or `Up to Next Major`
+3. Version: `1.0.28` or `Up to Next Major`
 
 ### Step 2: Required Dependencies Setup
 
@@ -32,7 +37,7 @@
 **For Package.swift projects (RECOMMENDED):**
 ```swift
 dependencies: [
-    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.11")
+    .package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.28")
     // ✅ SocketIO and GoogleSignIn are automatically included!
 ],
 targets: [
@@ -49,7 +54,7 @@ targets: [
 **For Xcode projects:**
 1. File → Add Package Dependencies
 2. Enter URL: `https://github.com/zd819/Onairos-Swift.git`
-3. Version: `1.0.11` or `Up to Next Major`
+3. Version: `1.0.28` or `Up to Next Major`
 4. ✅ **All dependencies (SocketIO, GoogleSignIn) are automatically resolved!**
 
 **What gets installed automatically:**
@@ -195,9 +200,50 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 ```
 
-### Step 5: Critical Configuration Fix
+### Step 5: Complete Onboarding Flow Documentation
 
-**🚨 IMPORTANT: Modal Closing Immediately After Email Entry?**
+**🎯 The Complete 6-Step Onboarding Journey:**
+
+1. **📧 Email Step**: User enters their email address
+   - Validates email format in real-time
+   - In test mode: accepts any valid email format
+   - In production: sends verification email via API
+
+2. **✅ Verification Step**: User enters 6-digit verification code
+   - Validates code format (6 digits)
+   - In test mode: accepts any 6-digit code
+   - In production: validates against sent code
+
+3. **🔗 Connect Step**: User connects social media platforms
+   - Instagram (via Opacity SDK)
+   - YouTube (via Google Sign-In)
+   - Reddit, Pinterest, Gmail (via OAuth)
+   - Can proceed with or without connections in debug/test mode
+
+4. **🎉 Success Step**: Brief success confirmation screen
+   - Auto-advances after 1.5-2 seconds
+   - Shows "Success!" message
+
+5. **🔐 PIN Step**: User creates secure PIN
+   - Minimum 8 characters
+   - Must include numbers and special characters
+   - Real-time validation with visual feedback
+
+6. **🤖 Training Step**: AI model training
+   - Real-time progress updates via WebSocket
+   - Progress bar with status messages
+   - Completes when training reaches 100%
+
+**🎨 Beautiful UI Features:**
+- ✅ Official Onairos logo throughout the flow
+- ✅ Smooth animations and transitions
+- ✅ Loading states and progress indicators
+- ✅ Error handling with helpful messages
+- ✅ Responsive design for all screen sizes
+
+### Step 6: Critical Configuration Fix
+
+**🚨 IMPORTANT: Using v1.0.28 - All Issues Fixed!**
 
 If your modal closes immediately after entering an email, you're likely using the wrong configuration. **You MUST use `testMode()` during development:**
 

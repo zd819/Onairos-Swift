@@ -129,11 +129,18 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
     
     /// Setup header view components
     private func setupHeaderView() {
-        // Logo image view
+        // Logo image view with actual Onairos logo
         logoImageView.contentMode = .scaleAspectFit
-        logoImageView.image = UIImage(named: "onairos-logo") // Placeholder
-        logoImageView.backgroundColor = .systemBlue // Placeholder color
-        logoImageView.layer.cornerRadius = 25
+        
+        // Load Onairos logo from bundle
+        if let logoImage = UIImage(named: "OnairosWhiteNoBG", in: Bundle.module, compatibleWith: nil) {
+            logoImageView.image = logoImage
+        } else {
+            // Fallback to system icon if logo not found
+            logoImageView.image = UIImage(systemName: "brain.head.profile")
+            logoImageView.tintColor = .systemBlue
+        }
+        
         headerView.addSubview(logoImageView)
         
         // Title label
