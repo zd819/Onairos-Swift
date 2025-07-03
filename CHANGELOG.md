@@ -608,7 +608,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Protected against malformed URLs in OAuth processes
   - Enhanced error recovery mechanisms for network and configuration issues
 
-## [1.0.22] - 2025-07-03
+## [1.0.33] - 2025-07-03
 
 ### Fixed
 - **CoreGraphics NaN Crash**: Added defensive checks in `BaseStepViewController.scrollToActiveInput()` to prevent NaN / infinite values from being passed to `scrollRectToVisible`. This eliminates repeated console warnings `invalid numeric value (NaN, or not-a-number) to CoreGraphics API` and stops the modal from unexpectedly dismissing after the email step.
