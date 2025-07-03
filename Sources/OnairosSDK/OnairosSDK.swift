@@ -221,8 +221,16 @@ public class OnairosSDK: ObservableObject {
         // Set up completion handler ONLY once - this will be called when the full flow completes
         coordinator.onCompletion = { [weak self] result in
             DispatchQueue.main.async {
-                // Pass the result directly to the completion callback
-                self?.completionCallback?(result)
+                // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
+                let convertedResult: Result<OnboardingResult, OnairosError>
+                switch result {
+                case .success(let data):
+                    convertedResult = .success(.success(data))
+                case .failure(let error):
+                    convertedResult = .failure(error)
+                }
+                
+                self?.completionCallback?(convertedResult)
                 
                 // Clear the modal controller reference
                 self?.modalController = nil
@@ -263,8 +271,16 @@ public class OnairosSDK: ObservableObject {
         
         coordinator.onCompletion = { [weak self] result in
             DispatchQueue.main.async {
-                // Pass the result directly to the completion callback
-                self?.completionCallback?(result)
+                // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
+                let convertedResult: Result<OnboardingResult, OnairosError>
+                switch result {
+                case .success(let data):
+                    convertedResult = .success(.success(data))
+                case .failure(let error):
+                    convertedResult = .failure(error)
+                }
+                
+                self?.completionCallback?(convertedResult)
             }
         }
         
