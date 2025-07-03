@@ -129,11 +129,19 @@ struct YourApp: App {
     }
     
     private func configureOnairosSDK() {
-        let config = OnairosConfig(
-            isDebugMode: true, // Set false for production
+        // CRITICAL: Use testMode() for development to avoid premature modal dismissal
+        let config = OnairosConfig.testMode(
             urlScheme: "YOUR-APP-SCHEME", // Replace with your scheme
             appName: "Your App Name"
         )
+        
+        // Alternative production config:
+        // let config = OnairosConfig(
+        //     isDebugMode: false,
+        //     urlScheme: "YOUR-APP-SCHEME",
+        //     appName: "Your App Name"
+        // )
+        
         OnairosSDK.shared.initialize(config: config)
     }
     
@@ -163,11 +171,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientId)
         
         // Configure Onairos SDK
-        let config = OnairosConfig(
-            isDebugMode: true, // Set false for production
+        // CRITICAL: Use testMode() for development to avoid premature modal dismissal
+        let config = OnairosConfig.testMode(
             urlScheme: "YOUR-APP-SCHEME", // Replace with your scheme
             appName: "Your App Name"
         )
+        
+        // Alternative production config:
+        // let config = OnairosConfig(
+        //     isDebugMode: false,
+        //     urlScheme: "YOUR-APP-SCHEME",
+        //     appName: "Your App Name"
+        // )
+        
         OnairosSDK.shared.initialize(config: config)
         
         return true
@@ -179,7 +195,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 ```
 
-### Step 5: Implementation Code
+### Step 5: Critical Configuration Fix
+
+**🚨 IMPORTANT: Modal Closing Immediately After Email Entry?**
+
+If your modal closes immediately after entering an email, you're likely using the wrong configuration. **You MUST use `testMode()` during development:**
+
+```swift
+// ✅ CORRECT - Use this for development/testing
+let config = OnairosConfig.testMode(
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+
+// ❌ WRONG - This may cause premature modal dismissal
+let config = OnairosConfig(
+    isDebugMode: true,
+    urlScheme: "your-app-scheme", 
+    appName: "Your App Name"
+)
+```
+
+**Why testMode() is required:**
+- ✅ Bypasses all API calls that might fail during development
+- ✅ Accepts any email/verification code for testing
+- ✅ Ensures the full flow: Email → Verify → Connect → PIN → Training
+- ✅ Prevents premature modal dismissal
+
+### Step 6: Implementation Code
 
 **SwiftUI Implementation:**
 ```swift
@@ -619,6 +662,78 @@ When ready for production:
    - Google Sign-In: Add GoogleService-Info.plist
    - Instagram: Configure OAuth redirect URLs
    - Other platforms: Follow platform-specific setup guides
+
+## 🚨 Critical Troubleshooting
+
+### **Issue: Modal Closes Immediately After Email Entry**
+
+**This is the most common issue. Here's the fix:**
+
+```swift
+// ❌ WRONG - Causes premature modal dismissal
+let config = OnairosConfig(
+    isDebugMode: true,
+    urlScheme: "your-scheme",
+    appName: "Your App"
+)
+
+// ✅ CORRECT - Use testMode() for development
+let config = OnairosConfig.testMode(
+    urlScheme: "your-scheme", 
+    appName: "Your App"
+)
+```
+
+**Root Cause:** The regular config tries to make API calls that fail during development, triggering error handlers that dismiss the modal.
+
+**Solution:** `testMode()` bypasses all API calls and accepts any input, ensuring the full flow works.
+
+### **Issue: Flow Doesn't Follow Expected Sequence**
+
+**Expected Flow:**
+1. Email Input
+2. Email Verification (6-digit code)
+3. Platform Connection (Instagram, YouTube, etc.)
+4. PIN Creation
+5. AI Training
+
+**If flow skips steps or behaves unexpectedly:**
+
+```swift
+// ✅ Ensure you're using testMode() for development
+let config = OnairosConfig.testMode()
+
+// ✅ Check that you're not mixing test and production configs
+// Don't use isTestMode: false with isDebugMode: true
+```
+
+### **Issue: "Invalid redeclaration" Compile Errors**
+
+**Fixed in v1.0.23**. Update to latest version:
+
+```swift
+.package(url: "https://github.com/zd819/Onairos-Swift.git", from: "1.0.23")
+```
+
+### **Issue: App Crashes During Training**
+
+**Fixed in v1.0.19 with NaN protection**. Update to latest version.
+
+### **Issue: SDK Not Initializing**
+
+```swift
+// ❌ Wrong - calling methods before initialization
+OnairosSDK.shared.presentOnboarding(from: self) { _ in }
+
+// ✅ Correct - initialize first
+let config = OnairosConfig.testMode()
+OnairosSDK.shared.initialize(config: config)
+OnairosSDK.shared.presentOnboarding(from: self) { _ in }
+```
+
+### **Issue: Missing GoogleService-Info.plist**
+
+Only required for production YouTube integration. For development with `testMode()`, this file is not needed.
 
 ### Support
 
