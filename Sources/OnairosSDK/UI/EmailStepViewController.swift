@@ -106,16 +106,24 @@ public class EmailStepViewController: BaseStepViewController {
     }
     
     public override func primaryButtonTapped() {
+        print("🔍 [DEBUG] EmailStepViewController.primaryButtonTapped() called")
+        print("🔍 [DEBUG] Current email: '\(state.email)'")
+        print("🔍 [DEBUG] Email validation: \(state.validateCurrentStep())")
+        
         // Validate email before proceeding
         guard state.validateCurrentStep() else {
+            print("🔍 [DEBUG] Email validation failed in primaryButtonTapped")
             state.errorMessage = "Please enter a valid email address"
             return
         }
+        
+        print("🔍 [DEBUG] Email validation passed - clearing error and proceeding")
         
         // Clear any existing error
         state.errorMessage = nil
         
         // Proceed to next step
+        print("🔍 [DEBUG] Calling super.primaryButtonTapped()")
         super.primaryButtonTapped()
     }
 }

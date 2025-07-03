@@ -95,24 +95,38 @@ public class OnboardingCoordinator {
     
     /// Proceed to next step
     public func proceedToNextStep() {
+        print("🔍 [DEBUG] proceedToNextStep called")
+        print("🔍 [DEBUG] Current step: \(state.currentStep)")
+        print("🔍 [DEBUG] State email: '\(state.email)'")
+        print("🔍 [DEBUG] Email validation result: \(state.validateCurrentStep())")
+        
         guard state.validateCurrentStep() else {
+            print("🔍 [DEBUG] Step validation failed - showing error")
             state.errorMessage = "Please complete the current step before proceeding."
             return
         }
         
+        print("🔍 [DEBUG] Step validation passed - proceeding with step: \(state.currentStep)")
+        
         switch state.currentStep {
         case .email:
+            print("🔍 [DEBUG] Calling handleEmailStep()")
             handleEmailStep()
         case .verify:
+            print("🔍 [DEBUG] Calling handleVerifyStep()")
             handleVerifyStep()
         case .connect:
             // Manual proceed from connect step
+            print("🔍 [DEBUG] Calling handleConnectStepProceed()")
             handleConnectStepProceed()
         case .success:
+            print("🔍 [DEBUG] Calling handleSuccessStep()")
             handleSuccessStep()
         case .pin:
+            print("🔍 [DEBUG] Calling handlePINStep()")
             handlePINStep()
         case .training:
+            print("🔍 [DEBUG] Calling handleTrainingComplete()")
             handleTrainingComplete()
         }
     }
@@ -161,6 +175,10 @@ public class OnboardingCoordinator {
     
     /// Handle email input step
     private func handleEmailStep() {
+        print("🔍 [DEBUG] handleEmailStep called with email: '\(state.email)'")
+        print("🔍 [DEBUG] Current step: \(state.currentStep)")
+        print("🔍 [DEBUG] Config - isTestMode: \(config.isTestMode), isDebugMode: \(config.isDebugMode)")
+        
         state.isLoading = true
         state.errorMessage = nil
         
@@ -168,30 +186,38 @@ public class OnboardingCoordinator {
         if config.isTestMode {
             print("🧪 [TEST MODE] Email step - accepting any email: \(state.email)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                print("🧪 [TEST MODE] Setting isLoading to false and moving to verify step")
                 self?.state.isLoading = false
                 self?.state.currentStep = .verify
-                print("🧪 [TEST MODE] Moving to verification step")
+                print("🧪 [TEST MODE] Moving to verification step - new step: \(self?.state.currentStep ?? .email)")
             }
             return
         }
         
+        print("🔍 [DEBUG] Making API call for email verification...")
         Task {
             let result = await apiClient.requestEmailVerification(email: state.email)
+            print("🔍 [DEBUG] API call completed with result: \(result)")
             
             await MainActor.run {
                 state.isLoading = false
                 
                 switch result {
                 case .success:
+                    print("🔍 [DEBUG] Email verification success - moving to verify step")
                     state.currentStep = .verify
                 case .failure(let error):
+                    print("🔍 [DEBUG] Email verification failed: \(error)")
                     if config.isDebugMode {
                         // In debug mode, allow proceeding even if email verification fails
+                        print("🔍 [DEBUG] Debug mode - proceeding anyway")
                         state.currentStep = .verify
                     } else {
+                        print("🔍 [DEBUG] Setting error message: \(error.localizedDescription)")
                         state.errorMessage = error.localizedDescription
                     }
                 }
+                print("🔍 [DEBUG] Final step after API call: \(state.currentStep)")
             }
         }
     }

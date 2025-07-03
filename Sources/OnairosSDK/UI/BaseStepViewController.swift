@@ -298,6 +298,7 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
     
     /// Primary button action (override in subclasses)
     @objc open func primaryButtonTapped() {
+        print("🔍 [DEBUG] BaseStepViewController.primaryButtonTapped() called")
         coordinator?.proceedToNextStep()
     }
     
