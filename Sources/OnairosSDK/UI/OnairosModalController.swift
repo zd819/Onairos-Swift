@@ -143,8 +143,11 @@ public class OnairosModalController: UIViewController {
     
     /// Show current step view controller
     private func showCurrentStep() {
+        print("🔍 [DEBUG] OnairosModalController.showCurrentStep called for step: \(state.currentStep)")
+        
         // Remove current step view controller
         if let currentStepViewController = currentStepViewController {
+            print("🔍 [DEBUG] Removing previous step view controller")
             currentStepViewController.willMove(toParent: nil)
             currentStepViewController.view.removeFromSuperview()
             currentStepViewController.removeFromParent()
@@ -153,6 +156,8 @@ public class OnairosModalController: UIViewController {
         // Create new step view controller
         let stepViewController = createStepViewController(for: state.currentStep)
         currentStepViewController = stepViewController
+        
+        print("🔍 [DEBUG] Created new step view controller: \(type(of: stepViewController))")
         
         // Add as child view controller
         addChild(stepViewController)
@@ -168,6 +173,7 @@ public class OnairosModalController: UIViewController {
         ])
         
         stepViewController.didMove(toParent: self)
+        print("🔍 [DEBUG] Step view controller setup completed")
     }
     
     /// Create step view controller for current step

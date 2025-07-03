@@ -75,7 +75,9 @@ public class OnboardingCoordinator {
     /// Dismiss the onboarding flow
     /// - Parameter result: Onboarding result
     private func dismiss(with result: OnboardingResult) {
+        print("🔍 [DEBUG] OnboardingCoordinator.dismiss called with result: \(result)")
         modalController?.dismiss(animated: true) { [weak self] in
+            print("🔍 [DEBUG] Modal dismissal completed, calling completion handlers")
             self?.completion?(result)
             self?.onCompletion?(result)
             self?.cleanup()

@@ -18,6 +18,9 @@ public class OnairosSDK: ObservableObject {
     /// Current modal controller
     private weak var modalController: OnairosModalController?
     
+    /// Current onboarding coordinator
+    private var coordinator: OnboardingCoordinator?
+    
     private init() {}
     
     /// Initialize the SDK with configuration
@@ -211,6 +214,8 @@ public class OnairosSDK: ObservableObject {
             return
         }
         
+        print("🔍 [DEBUG] startUniversalOnboarding called")
+        
         let state = OnboardingState()
         let coordinator = OnboardingCoordinator(
             state: state,
@@ -218,8 +223,14 @@ public class OnairosSDK: ObservableObject {
             apiClient: OnairosAPIClient.shared
         )
         
+        // Store coordinator reference to prevent deallocation
+        self.coordinator = coordinator
+        
+        print("🔍 [DEBUG] Created coordinator and state")
+        
         // Set up completion handler ONLY once - this will be called when the full flow completes
         coordinator.onCompletion = { [weak self] result in
+            print("🔍 [DEBUG] Coordinator onCompletion called with result: \(result)")
             DispatchQueue.main.async {
                 // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
                 let convertedResult: Result<OnboardingResult, OnairosError>
@@ -230,25 +241,32 @@ public class OnairosSDK: ObservableObject {
                     convertedResult = .failure(error)
                 }
                 
+                print("🔍 [DEBUG] Calling completionCallback with converted result")
                 self?.completionCallback?(convertedResult)
                 
-                // Clear the modal controller reference
+                // Clear references
                 self?.modalController = nil
+                self?.coordinator = nil
             }
         }
         
-        // Start the coordinator flow (this will create and present the modal)
-        // Do NOT set a completion handler here - it creates duplicate callbacks
-        coordinator.start(from: presentingViewController) { [weak self] result in
-            // This completion is for the coordinator.start() method itself, not the full flow
-            // It should only handle start-up errors, not flow completion
-            if case .failure(let error) = result {
-                DispatchQueue.main.async {
-                    self?.completionCallback?(.failure(error))
-                    self?.modalController = nil
-                }
-            }
-            // Success case is handled by coordinator.onCompletion above
+        // Create and present modal directly
+        let modalController = OnairosModalController(
+            coordinator: coordinator,
+            state: state,
+            config: config
+        )
+        
+        self.modalController = modalController
+        
+        print("🔍 [DEBUG] Created modal controller, about to present")
+        
+        // Present modal with animation
+        modalController.modalPresentationStyle = .overFullScreen
+        modalController.modalTransitionStyle = .crossDissolve
+        
+        presentingViewController.present(modalController, animated: true) {
+            print("🔍 [DEBUG] Modal presentation completed")
         }
     }
     
@@ -258,6 +276,8 @@ public class OnairosSDK: ObservableObject {
             completionCallback?(.failure(.configurationError("SDK not configured")))
             return
         }
+        
+        print("🔍 [DEBUG] startDataCollection called")
         
         // For existing users, skip to training
         let state = OnboardingState()
@@ -269,7 +289,11 @@ public class OnairosSDK: ObservableObject {
             apiClient: OnairosAPIClient.shared
         )
         
+        // Store coordinator reference to prevent deallocation
+        self.coordinator = coordinator
+        
         coordinator.onCompletion = { [weak self] result in
+            print("🔍 [DEBUG] Data collection onCompletion called with result: \(result)")
             DispatchQueue.main.async {
                 // Convert OnboardingResult to Result<OnboardingResult, OnairosError>
                 let convertedResult: Result<OnboardingResult, OnairosError>
@@ -280,7 +304,11 @@ public class OnairosSDK: ObservableObject {
                     convertedResult = .failure(error)
                 }
                 
+                print("🔍 [DEBUG] Calling completionCallback from data collection")
                 self?.completionCallback?(convertedResult)
+                
+                // Clear coordinator reference
+                self?.coordinator = nil
             }
         }
         
