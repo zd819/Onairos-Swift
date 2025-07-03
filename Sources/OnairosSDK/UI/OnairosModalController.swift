@@ -303,15 +303,40 @@ public class OnairosModalController: UIViewController {
         let translation = gesture.translation(in: view)
         let velocity = gesture.velocity(in: view)
         
+        // CRITICAL: Protect against NaN values from gesture calculations
+        guard !translation.y.isNaN && !translation.y.isInfinite &&
+              !velocity.y.isNaN && !velocity.y.isInfinite else {
+            print("🚨 [ERROR] Invalid gesture values - translation.y: \(translation.y), velocity.y: \(velocity.y)")
+            return
+        }
+        
         switch gesture.state {
         case .changed:
             // Only allow downward movement
             if translation.y > 0 {
-                containerView.transform = CGAffineTransform(translationX: 0, y: translation.y)
+                // CRITICAL: Protect CGAffineTransform from NaN values
+                let transformValue = translation.y
+                guard !transformValue.isNaN && !transformValue.isInfinite else {
+                    print("🚨 [ERROR] Invalid transform value: \(transformValue)")
+                    return
+                }
+                
+                containerView.transform = CGAffineTransform(translationX: 0, y: transformValue)
                 
                 // Adjust background opacity based on translation
                 let progress = min(translation.y / 200, 1.0)
-                backgroundOverlay.alpha = 1.0 - (progress * 0.5)
+                guard !progress.isNaN && !progress.isInfinite else {
+                    print("🚨 [ERROR] Invalid progress value: \(progress)")
+                    return
+                }
+                
+                let newAlpha = 1.0 - (progress * 0.5)
+                guard !newAlpha.isNaN && !newAlpha.isInfinite else {
+                    print("🚨 [ERROR] Invalid alpha value: \(newAlpha)")
+                    return
+                }
+                
+                backgroundOverlay.alpha = newAlpha
             }
             
         case .ended, .cancelled:

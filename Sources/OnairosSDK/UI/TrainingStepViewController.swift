@@ -138,7 +138,14 @@ public class TrainingStepViewController: BaseStepViewController {
             if currentDotIndex < self.animationDots.count {
                 UIView.animate(withDuration: 0.2) {
                     self.animationDots[currentDotIndex].alpha = 1.0
-                    self.animationDots[currentDotIndex].transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+                    
+                    // CRITICAL: Protect CGAffineTransform from NaN values
+                    let scaleTransform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+                    guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
+                        print("🚨 [ERROR] Invalid scale transform in training animation")
+                        return
+                    }
+                    self.animationDots[currentDotIndex].transform = scaleTransform
                 } completion: { _ in
                     UIView.animate(withDuration: 0.1) {
                         self.animationDots[currentDotIndex].transform = .identity
@@ -184,18 +191,35 @@ public class TrainingStepViewController: BaseStepViewController {
     /// Update progress UI
     /// - Parameter progress: Progress value (0.0 to 1.0)
     private func updateProgress(_ progress: Double) {
-        let percentage = Int(progress * 100)
+        // CRITICAL: Protect against NaN progress values
+        guard !progress.isNaN && !progress.isInfinite else {
+            print("🚨 [ERROR] Received NaN progress value: \(progress)")
+            // Set to safe fallback value
+            updateProgress(0.0)
+            return
+        }
         
-        // Animate progress view
+        // Clamp progress to valid range
+        let safeProgress = min(max(progress, 0.0), 1.0)
+        let percentage = Int(safeProgress * 100)
+        
+        // CRITICAL: Protect Float conversion for UIProgressView
+        let progressFloat = Float(safeProgress)
+        guard !progressFloat.isNaN && !progressFloat.isInfinite else {
+            print("🚨 [ERROR] Progress Float conversion resulted in NaN")
+            return
+        }
+        
+        // Animate progress view with safe value
         UIView.animate(withDuration: 0.3) {
-            self.progressView.progress = Float(progress)
+            self.progressView.progress = progressFloat
         }
         
         // Update percentage label
         progressLabel.text = "\(percentage)%"
         
         // Update button when complete
-        if progress >= 1.0 {
+        if safeProgress >= 1.0 {
             // Ensure we're on main actor for UI updates
             Task { @MainActor in
                 self.stopTrainingAnimation()
@@ -237,7 +261,14 @@ public class TrainingStepViewController: BaseStepViewController {
             UIView.animate(withDuration: 0.5) {
                 dot.backgroundColor = .systemGreen
                 dot.alpha = 1.0
-                dot.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+                
+                // CRITICAL: Protect CGAffineTransform from NaN values
+                let scaleTransform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+                guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
+                    print("🚨 [ERROR] Invalid scale transform in completion animation")
+                    return
+                }
+                dot.transform = scaleTransform
             } completion: { _ in
                 UIView.animate(withDuration: 0.3) {
                     dot.transform = .identity
@@ -268,8 +299,19 @@ public class TrainingStepViewController: BaseStepViewController {
             checkmarkLabel.centerYAnchor.constraint(equalTo: animationView.centerYAnchor, constant: -20)
         ])
         
+        // CRITICAL: Protect CGAffineTransform from NaN values
+        let scaleTransform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+        guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
+            print("🚨 [ERROR] Invalid scale transform in checkmark animation")
+            // Fallback: just animate alpha
+            UIView.animate(withDuration: 0.6, animations: {
+                checkmarkLabel.alpha = 1.0
+            })
+            return
+        }
+        
         // Animate checkmark appearance
-        checkmarkLabel.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+        checkmarkLabel.transform = scaleTransform
         UIView.animate(
             withDuration: 0.6,
             delay: 0,

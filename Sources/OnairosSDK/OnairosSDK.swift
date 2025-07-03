@@ -469,9 +469,18 @@ public class OnairosConnectButton: UIButton {
     
     /// Handle button tap
     @objc private func buttonTapped() {
+        // CRITICAL: Protect CGAffineTransform from NaN values
+        let scaleTransform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
+            print("🚨 [ERROR] Invalid scale transform in button tap animation")
+            // Fallback: just call onTapped without animation
+            onTapped?()
+            return
+        }
+        
         // Add tap animation
         UIView.animate(withDuration: 0.1, animations: {
-            self.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+            self.transform = scaleTransform
         }) { _ in
             UIView.animate(withDuration: 0.1) {
                 self.transform = .identity

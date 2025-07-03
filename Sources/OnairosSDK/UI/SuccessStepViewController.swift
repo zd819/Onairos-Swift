@@ -83,7 +83,19 @@ public class SuccessStepViewController: BaseStepViewController {
     
     /// Animate checkmark appearance
     private func animateCheckmarkAppearance() {
-        checkmarkView.transform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+        // CRITICAL: Protect CGAffineTransform from NaN values
+        let scaleTransform = CGAffineTransform(scaleX: 0.1, y: 0.1)
+        guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
+            print("🚨 [ERROR] Invalid scale transform values")
+            // Fallback: just set alpha without transform
+            checkmarkView.alpha = 0
+            UIView.animate(withDuration: 0.6, animations: {
+                self.checkmarkView.alpha = 1.0
+            })
+            return
+        }
+        
+        checkmarkView.transform = scaleTransform
         checkmarkView.alpha = 0
         
         UIView.animate(
@@ -103,15 +115,51 @@ public class SuccessStepViewController: BaseStepViewController {
     private func startAutoAdvance() {
         let duration: TimeInterval = 3.0
         
-        // Start progress animation
+        // CRITICAL: Add NaN protection for timer calculations
+        guard duration > 0 && !duration.isNaN && !duration.isInfinite else {
+            print("🚨 [ERROR] Invalid duration for auto-advance timer: \(duration)")
+            // Fallback to immediate advance
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.autoAdvanceToNextStep()
+            }
+            return
+        }
+        
+        // Start progress animation with NaN protection
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
             guard let self = self else {
                 timer.invalidate()
                 return
             }
             
+            // CRITICAL: Protect against NaN in increment calculation
             let increment = Float(0.02 / duration)
-            self.progressView.progress += increment
+            guard !increment.isNaN && !increment.isInfinite && increment > 0 else {
+                print("🚨 [ERROR] Invalid increment calculated: \(increment)")
+                timer.invalidate()
+                self.progressTimer = nil
+                return
+            }
+            
+            // CRITICAL: Protect current progress value
+            let currentProgress = self.progressView.progress
+            guard !currentProgress.isNaN && !currentProgress.isInfinite else {
+                print("🚨 [ERROR] Current progress is NaN: \(currentProgress)")
+                self.progressView.progress = 0.0
+                return
+            }
+            
+            // CRITICAL: Protect new progress calculation
+            let newProgress = currentProgress + increment
+            guard !newProgress.isNaN && !newProgress.isInfinite else {
+                print("🚨 [ERROR] New progress would be NaN: \(newProgress)")
+                timer.invalidate()
+                self.progressTimer = nil
+                return
+            }
+            
+            // Safely set progress with bounds checking
+            self.progressView.progress = min(max(newProgress, 0.0), 1.0)
             
             if self.progressView.progress >= 1.0 {
                 timer.invalidate()

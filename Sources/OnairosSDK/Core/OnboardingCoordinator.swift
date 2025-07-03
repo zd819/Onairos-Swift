@@ -637,6 +637,19 @@ public class OnboardingCoordinator {
         let interval = config.isTestMode ? 0.1 : 0.1
         let increment = config.isTestMode ? 0.015 : 0.02  // Slower in test mode
         
+        // CRITICAL: Protect against invalid increment values
+        guard !interval.isNaN && !interval.isInfinite && interval > 0 &&
+              !increment.isNaN && !increment.isInfinite && increment > 0 else {
+            print("🚨 [ERROR] Invalid training simulation parameters - interval: \(interval), increment: \(increment)")
+            // Fallback to safe values
+            state.setTrainingProgress(1.0)
+            state.trainingStatus = "Training completed"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                self.handleTrainingComplete()
+            }
+            return
+        }
+        
         if config.isTestMode {
             print("🧪 [TEST MODE] Starting training simulation - will take ~10 seconds to complete")
         }
@@ -647,8 +660,26 @@ public class OnboardingCoordinator {
                 return
             }
             
+            // CRITICAL: Protect against NaN in current progress
+            let currentProgress = self.state.trainingProgress
+            guard !currentProgress.isNaN && !currentProgress.isInfinite else {
+                print("🚨 [ERROR] Current training progress is NaN: \(currentProgress)")
+                timer.invalidate()
+                self.state.setTrainingProgress(1.0)
+                self.handleTrainingComplete()
+                return
+            }
+            
             // Safely increment progress with NaN protection
-            let newProgress = self.state.trainingProgress + increment
+            let newProgress = currentProgress + increment
+            guard !newProgress.isNaN && !newProgress.isInfinite else {
+                print("🚨 [ERROR] New training progress would be NaN: \(newProgress)")
+                timer.invalidate()
+                self.state.setTrainingProgress(1.0)
+                self.handleTrainingComplete()
+                return
+            }
+            
             self.state.setTrainingProgress(newProgress)
             
             // Update status messages based on progress
