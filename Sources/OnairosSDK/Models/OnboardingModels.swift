@@ -53,10 +53,10 @@ public enum Platform: String, CaseIterable, Hashable {
     /// OAuth scopes for the platform
     public var oauthScopes: String {
         switch self {
-        case .instagram: return "user_profile,user_media"
-        case .youtube: return "https://www.googleapis.com/auth/youtube.readonly"
-        case .reddit: return "identity,read"
-        case .pinterest: return "read_public,read_relationships"
+        case .instagram: return "" // Uses Opacity SDK, not OAuth
+        case .youtube: return "" // Uses Google Sign-In SDK, not OAuth
+        case .reddit: return "identity read"
+        case .pinterest: return "read_public"
         case .gmail: return "https://www.googleapis.com/auth/gmail.readonly"
         }
     }

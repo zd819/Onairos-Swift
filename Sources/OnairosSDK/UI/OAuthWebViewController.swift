@@ -206,19 +206,4 @@ extension OAuthWebViewController: WKNavigationDelegate {
 }
 
 // MARK: - Platform OAuth Extensions
-extension Platform {
-    
-    /// OAuth scopes for each platform
-    var oauthScopes: String {
-        switch self {
-        case .reddit:
-            return "identity read"
-        case .pinterest:
-            return "read_public"
-        case .gmail:
-            return "https://www.googleapis.com/auth/gmail.readonly"
-        case .instagram, .youtube:
-            return "" // These use different auth methods
-        }
-    }
-} 
+// Note: oauthScopes is now defined in OnboardingModels.swift as a public property 
