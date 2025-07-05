@@ -85,9 +85,8 @@ public class EmailStepViewController: BaseStepViewController {
     /// Handle email text changes
     @objc private func emailTextChanged() {
         // SAFEGUARD: Protect against potential crashes during text changes
-        guard let textField = emailTextField,
-              let text = textField.text else {
-            print("🚨 [ERROR] emailTextChanged called with invalid text field state")
+        guard let text = emailTextField.text else {
+            print("🚨 [ERROR] emailTextChanged called with nil text")
             return
         }
         
@@ -95,7 +94,7 @@ public class EmailStepViewController: BaseStepViewController {
         let maxEmailLength = 254
         if text.count > maxEmailLength {
             let truncatedText = String(text.prefix(maxEmailLength))
-            textField.text = truncatedText
+            emailTextField.text = truncatedText
             state.email = truncatedText
         } else {
             state.email = text
