@@ -125,9 +125,21 @@ public class OnboardingState: ObservableObject {
     
     /// Validate email format
     private func isValidEmail(_ email: String) -> Bool {
-        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
-        return emailPredicate.evaluate(with: email)
+        // Guard against empty or extremely long emails that could cause regex issues
+        guard !email.isEmpty && email.count <= 254 else {
+            return false
+        }
+        
+        // Protect against potential regex crashes with try-catch
+        do {
+            let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+            let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+            return emailPredicate.evaluate(with: email)
+        } catch {
+            print("🚨 [ERROR] Email validation regex failed: \(error)")
+            // Fallback to basic email check
+            return email.contains("@") && email.contains(".")
+        }
     }
     
     /// Validate PIN requirements

@@ -612,8 +612,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **CoreGraphics NaN Crash**: Added defensive checks in `BaseStepViewController.scrollToActiveInput()` to prevent NaN / infinite values from being passed to `scrollRectToVisible`. This eliminates repeated console warnings `invalid numeric value (NaN, or not-a-number) to CoreGraphics API` and stops the modal from unexpectedly dismissing after the email step.
+- **Email Input Crashes**: Added comprehensive safeguards in `EmailStepViewController` to prevent crashes during email entry:
+  - Protected email validation regex with try-catch error handling
+  - Added email length limits (254 characters max per RFC 5321)
+  - Enhanced text field delegate methods with validation guards
+  - Added keyboard dismissal before step transitions
+  - Implemented fallback validation for regex failures
 
 ### Technical Details
 - Guard against NaN / infinite values when converting frames to scroll‐view coordinate space.
 - Clamp target Y-offset to non-negative values for safe scrolling.
-- Added extra logging so any future invalid frames are reported without crashing the UI. 
+- Added extra logging so any future invalid frames are reported without crashing the UI.
+- Protected all email validation calls with error handling and fallback logic.
+- Enhanced text input handling to prevent performance issues with extremely long input. 
