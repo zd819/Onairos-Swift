@@ -14,8 +14,8 @@ public class EmailStepViewController: BaseStepViewController {
         super.configureStep()
         
         // Configure header
-        titleLabel.text = "Welcome to Onairos"
-        subtitleLabel.text = "Enter your email to get started"
+        titleLabel.text = "Sign in with Onairos"
+        subtitleLabel.text = "Enter your email to sign in / create an account"
         
         // Configure buttons
         primaryButton.setTitle("Continue", for: .normal)

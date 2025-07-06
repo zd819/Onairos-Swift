@@ -161,7 +161,7 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
     /// Setup footer view components
     private func setupFooterView() {
         // Primary button
-        primaryButton.backgroundColor = .systemBlue
+        primaryButton.backgroundColor = .black
         primaryButton.setTitleColor(.white, for: .normal)
         primaryButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         primaryButton.layer.cornerRadius = 12
