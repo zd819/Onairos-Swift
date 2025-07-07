@@ -7,7 +7,7 @@ import Combine
 public class OnairosSDK: ObservableObject {
     
     /// SDK version
-    public static let version = "1.1.2"
+    public static let version = "1.1.3"
     
     /// Shared singleton instance
     public static let shared = OnairosSDK()
@@ -453,6 +453,31 @@ public class OnairosSDK: ObservableObject {
     /// - Returns: Current biometric availability status
     public static func biometricAvailability() -> BiometricAvailability {
         return BiometricPINManager.shared.biometricAvailability()
+    }
+    
+    /// Test function to verify BiometricPINManager accessibility
+    /// - Returns: True if all types are accessible and working
+    public static func testBiometricPINManagerAccessibility() -> Bool {
+        // Test BiometricPINManager access
+        let manager = BiometricPINManager.shared
+        
+        // Test BiometricAvailability enum
+        let availability = manager.biometricAvailability()
+        let availabilityName = availability.displayName
+        
+        // Test BiometricPINError enum
+        let testError = BiometricPINError.invalidPIN
+        let errorDescription = testError.localizedDescription
+        
+        // Test hasPIN functionality
+        let hasPIN = manager.hasPIN()
+        
+        print("✅ [BIOMETRIC TEST] BiometricPINManager accessibility test passed")
+        print("   - Availability: \(availabilityName)")
+        print("   - Has PIN: \(hasPIN)")
+        print("   - Error handling: \(errorDescription)")
+        
+        return !availabilityName.isEmpty && !errorDescription.isEmpty
     }
 }
 

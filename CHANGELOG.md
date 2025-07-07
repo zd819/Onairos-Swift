@@ -5,6 +5,24 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2024-12-28
+
+### Fixed
+- BiometricPINManager module visibility and scope issues
+- Resolved "Cannot find BiometricPINManager in scope" compilation errors
+- Fixed "Cannot find type BiometricAvailability in scope" errors  
+- Fixed "Cannot find type BiometricPINError in scope" errors
+- Moved BiometricPINError and BiometricAvailability types to OnboardingModels.swift for proper accessibility
+- Removed duplicate type definitions from BiometricPINManager.swift
+
+### Added
+- BiometricPINManager accessibility test function for debugging
+- Comprehensive logging for biometric authentication testing
+
+### Changed
+- Restructured BiometricPINManager types for better module organization
+- Enhanced type visibility throughout the SDK module
+
 ## [1.1.2] - 2024-12-28
 
 ### Fixed

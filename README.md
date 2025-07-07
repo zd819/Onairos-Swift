@@ -29,7 +29,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/onairos/onairos-swift-sdk", from: "1.1.2")
+    .package(url: "https://github.com/onairos/onairos-swift-sdk", from: "1.1.3")
 ]
 ```
 
