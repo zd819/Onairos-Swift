@@ -29,6 +29,12 @@ public class OAuthWebViewController: UIViewController {
     /// Close button
     private let closeButton = UIButton(type: .system)
     
+    /// Progress view
+    private var progressView: UIProgressView?
+    
+    /// Loading label
+    private var loadingLabel: UILabel?
+    
     /// Initialize OAuth WebView controller
     /// - Parameters:
     ///   - platform: Platform to authenticate
@@ -66,6 +72,26 @@ public class OAuthWebViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .systemBackground
         
+        // Header view
+        let headerView = UIView()
+        headerView.backgroundColor = .systemBackground
+        headerView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Title label
+        let titleLabel = UILabel()
+        titleLabel.text = "Connect to \(platform.displayName)"
+        titleLabel.font = .systemFont(ofSize: 18, weight: .semibold)
+        titleLabel.textAlignment = .center
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Subtitle label
+        let subtitleLabel = UILabel()
+        subtitleLabel.text = "Sign in to authorize access"
+        subtitleLabel.font = .systemFont(ofSize: 14, weight: .regular)
+        subtitleLabel.textColor = .secondaryLabel
+        subtitleLabel.textAlignment = .center
+        subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
         // Close button
         closeButton.setTitle("Cancel", for: .normal)
         closeButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
@@ -76,26 +102,77 @@ public class OAuthWebViewController: UIViewController {
         loadingIndicator.hidesWhenStopped = true
         loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
         
+        // Loading label
+        let loadingLabel = UILabel()
+        loadingLabel.text = "Loading authorization page..."
+        loadingLabel.font = .systemFont(ofSize: 14, weight: .regular)
+        loadingLabel.textColor = .secondaryLabel
+        loadingLabel.textAlignment = .center
+        loadingLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Progress view
+        let progressView = UIProgressView(progressViewStyle: .default)
+        progressView.translatesAutoresizingMaskIntoConstraints = false
+        progressView.alpha = 0
+        
         // Add subviews
+        view.addSubview(headerView)
+        headerView.addSubview(titleLabel)
+        headerView.addSubview(subtitleLabel)
+        headerView.addSubview(closeButton)
         view.addSubview(webView)
-        view.addSubview(closeButton)
         view.addSubview(loadingIndicator)
+        view.addSubview(loadingLabel)
+        view.addSubview(progressView)
+        
+        // Store references for later use
+        self.progressView = progressView
+        self.loadingLabel = loadingLabel
         
         // Setup constraints
         NSLayoutConstraint.activate([
+            // Header view
+            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            headerView.heightAnchor.constraint(equalToConstant: 80),
+            
+            // Title label
+            titleLabel.topAnchor.constraint(equalTo: headerView.topAnchor, constant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
+            titleLabel.trailingAnchor.constraint(equalTo: closeButton.leadingAnchor, constant: -16),
+            
+            // Subtitle label
+            subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+            subtitleLabel.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 16),
+            subtitleLabel.trailingAnchor.constraint(equalTo: closeButton.leadingAnchor, constant: -16),
+            
             // Close button
-            closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-            closeButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            closeButton.topAnchor.constraint(equalTo: headerView.topAnchor, constant: 16),
+            closeButton.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -16),
+            closeButton.widthAnchor.constraint(equalToConstant: 70),
+            closeButton.heightAnchor.constraint(equalToConstant: 32),
+            
+            // Progress view
+            progressView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
+            progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            progressView.heightAnchor.constraint(equalToConstant: 2),
             
             // WebView
-            webView.topAnchor.constraint(equalTo: closeButton.bottomAnchor, constant: 16),
+            webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             
             // Loading indicator
             loadingIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            loadingIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            
+            // Loading label
+            loadingLabel.topAnchor.constraint(equalTo: loadingIndicator.bottomAnchor, constant: 16),
+            loadingLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 32),
+            loadingLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -32)
         ])
     }
     
@@ -148,16 +225,67 @@ extension OAuthWebViewController: WKNavigationDelegate {
     
     public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         loadingIndicator.startAnimating()
+        loadingLabel?.text = "Loading authorization page..."
+        
+        // Show progress bar
+        UIView.animate(withDuration: 0.3) {
+            self.progressView?.alpha = 1.0
+        }
     }
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loadingIndicator.stopAnimating()
+        loadingLabel?.text = ""
+        
+        // Hide progress bar
+        UIView.animate(withDuration: 0.3) {
+            self.progressView?.alpha = 0.0
+        }
+        
+        // Check if we've been redirected to the success page
+        if let url = webView.url, url.absoluteString.contains("onairos.uk/Home") {
+            // Backend has successfully processed the OAuth callback
+            loadingLabel?.text = "Authorization successful!"
+            handleSuccessfulRedirect()
+        }
     }
     
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         loadingIndicator.stopAnimating()
-        completion(.failure(.networkError(error.localizedDescription)))
-        dismiss(animated: true)
+        loadingLabel?.text = "Failed to load authorization page"
+        
+        // Hide progress bar
+        UIView.animate(withDuration: 0.3) {
+            self.progressView?.alpha = 0.0
+        }
+        
+        // Show error message
+        showError(message: "Connection failed. Please check your internet connection and try again.")
+        
+        // Auto-dismiss after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.completion(.failure(.networkError(error.localizedDescription)))
+            self.dismiss(animated: true)
+        }
+    }
+    
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        loadingIndicator.stopAnimating()
+        loadingLabel?.text = "Failed to connect to authorization server"
+        
+        // Hide progress bar
+        UIView.animate(withDuration: 0.3) {
+            self.progressView?.alpha = 0.0
+        }
+        
+        // Show error message
+        showError(message: "Unable to connect to \(platform.displayName). Please try again later.")
+        
+        // Auto-dismiss after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.completion(.failure(.networkError(error.localizedDescription)))
+            self.dismiss(animated: true)
+        }
     }
     
     public func webView(
@@ -170,17 +298,72 @@ extension OAuthWebViewController: WKNavigationDelegate {
             return
         }
         
-        // Check if this is our callback URL
+        print("🔍 [OAuth] Navigating to: \(url.absoluteString)")
+        
+        // Check if this is our custom URL scheme callback (fallback)
         if url.scheme == config.urlScheme && url.host == "oauth" {
             handleOAuthCallback(url: url)
             decisionHandler(.cancel)
             return
         }
         
+        // Check if this is the backend success redirect
+        if url.absoluteString.contains("onairos.uk/Home") {
+            loadingLabel?.text = "Completing authorization..."
+            // Allow the navigation to complete, then handle success
+            decisionHandler(.allow)
+            return
+        }
+        
+        // Update loading message based on URL
+        if url.absoluteString.contains("authorize") {
+            loadingLabel?.text = "Preparing authorization..."
+        } else if url.absoluteString.contains("login") {
+            loadingLabel?.text = "Loading sign-in page..."
+        } else if url.absoluteString.contains("callback") {
+            loadingLabel?.text = "Processing authorization..."
+        }
+        
+        // Allow all other navigation
         decisionHandler(.allow)
     }
     
-    /// Handle OAuth callback URL
+    /// Show error message to user
+    /// - Parameter message: Error message to display
+    private func showError(message: String) {
+        let alertController = UIAlertController(title: "Authorization Error", message: message, preferredStyle: .alert)
+        
+        let retryAction = UIAlertAction(title: "Retry", style: .default) { [weak self] _ in
+            self?.startOAuthFlow()
+        }
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
+            self?.completion(.failure(.userCancelled))
+            self?.dismiss(animated: true)
+        }
+        
+        alertController.addAction(retryAction)
+        alertController.addAction(cancelAction)
+        
+        present(alertController, animated: true)
+    }
+    
+    /// Handle successful backend redirect
+    private func handleSuccessfulRedirect() {
+        // Show success feedback
+        loadingLabel?.text = "✅ Authorization successful!"
+        
+        // Generate a success token for the platform connection
+        let successToken = generateStateParameter()
+        completion(.success(successToken))
+        
+        // Dismiss with a slight delay to ensure smooth UI transition
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.dismiss(animated: true)
+        }
+    }
+    
+    /// Handle OAuth callback URL (fallback method)
     /// - Parameter url: Callback URL with auth code
     private func handleOAuthCallback(url: URL) {
         guard let urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -192,8 +375,13 @@ extension OAuthWebViewController: WKNavigationDelegate {
         
         // Extract authorization code
         if let authCode = queryItems.first(where: { $0.name == "code" })?.value {
+            loadingLabel?.text = "✅ Authorization complete!"
             completion(.success(authCode))
-            dismiss(animated: true)
+            
+            // Dismiss with a slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.dismiss(animated: true)
+            }
         } else if let error = queryItems.first(where: { $0.name == "error" })?.value {
             let errorDescription = queryItems.first(where: { $0.name == "error_description" })?.value ?? error
             completion(.failure(.authenticationFailed(errorDescription)))

@@ -30,7 +30,7 @@ let package = Package(
             ],
             path: "Sources/OnairosSDK",
             resources: [
-                .process("Resources")
+                .copy("Resources")
             ]
         ),
         .testTarget(

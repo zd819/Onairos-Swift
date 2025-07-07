@@ -5,6 +5,43 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2024-12-28
+
+### Added
+- **Enhanced OAuth Flow**: Complete OAuth webview authorization with backend redirect handling
+  - Webview automatically opens `/{platform}/authorize` URLs for all OAuth platforms
+  - Proper detection of backend redirect to `onairos.uk/Home` for successful authentication
+  - Comprehensive callback handling for both custom URL schemes and backend redirects
+  - Real-time connection state management with persistent storage
+
+### Enhanced
+- **Improved Webview Experience**: Professional OAuth webview with enhanced UI/UX
+  - Added platform-specific titles and loading messages
+  - Progress bar indicators for loading states
+  - Comprehensive error handling with retry functionality
+  - Success/failure notifications with visual feedback
+  - Proper header layout with cancel button and descriptive text
+
+### Fixed
+- **Connection State Management**: Fixed platform connection persistence and synchronization
+  - Proper state updates when OAuth authentication succeeds
+  - Persistent storage of connection tokens and timestamps
+  - Enhanced connection feedback with success/error messages
+  - Automatic UI updates when platforms are connected/disconnected
+
+### Technical
+- **Resource Bundle Fix**: Fixed PNG image bundling issue in Swift Package Manager
+  - Changed from `.process("Resources")` to `.copy("Resources")` in Package.swift
+  - Ensures all 6 PNG platform icons are properly included in the bundle
+  - Resolved selective file inclusion issues that were excluding 5 out of 6 images
+
+### OAuth Platform Support
+- **Backend Integration**: Enhanced integration with OAuth backend endpoints
+  - Proper handling of Reddit, Pinterest, Gmail, LinkedIn OAuth flows
+  - Automatic token storage and expiration management
+  - Connection state synchronization across app sessions
+  - Comprehensive error handling and user feedback
+
 ## [1.0.21] - 2024-12-28
 
 ### Fixed
