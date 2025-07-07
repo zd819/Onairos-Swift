@@ -218,7 +218,12 @@ public class OnairosAPIClient {
     /// - Parameter email: Email address
     /// - Returns: Verification status
     public func checkEmailVerificationStatus(email: String) async -> Result<EmailVerificationStatusResponse, OnairosError> {
-        return await makeRequest(endpoint: "/email/verify/status", method: .POST, body: ["email": email], responseType: EmailVerificationStatusResponse.self)
+        return await performRequestWithDictionary(
+            endpoint: "/email/verify/status", 
+            method: .POST, 
+            body: ["email": email], 
+            responseType: EmailVerificationStatusResponse.self
+        )
     }
     
     /// Request email verification with full response
@@ -627,7 +632,10 @@ public class OnairosAPIClient {
         jwtToken: String,
         responseType: T.Type
     ) async -> Result<T, OnairosError> {
-        let url = baseURL.appendingPathComponent(endpoint)
+        guard let url = URL(string: baseURL + endpoint) else {
+            return .failure(.configurationError("Invalid URL: \(baseURL + endpoint)"))
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -637,7 +645,7 @@ public class OnairosAPIClient {
             let jsonData = try JSONEncoder().encode(body)
             request.httpBody = jsonData
             
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 return .failure(.networkError("Invalid response"))

@@ -1,4 +1,5 @@
 import UIKit
+import Foundation
 import LocalAuthentication
 
 /// PIN creation step view controller
