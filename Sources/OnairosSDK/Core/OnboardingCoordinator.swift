@@ -522,41 +522,6 @@ public class OnboardingCoordinator {
     
     // MARK: - Platform Authentication
     
-    /// Handle platform connection success
-    /// - Parameter platform: Platform that was successfully connected
-    public func handlePlatformConnected(_ platform: Platform) {
-        print("📱 [OnboardingCoordinator] Platform connected: \(platform.displayName)")
-        
-        // Update connected platforms data
-        let platformData = PlatformData(
-            accessToken: UserDefaults.standard.string(forKey: "onairos_\(platform.rawValue)_token") ?? "",
-            refreshToken: nil,
-            expiresAt: UserDefaults.standard.object(forKey: "onairos_\(platform.rawValue)_token_expires") as? Date,
-            userData: [:]
-        )
-        
-        connectedPlatformData[platform.rawValue] = platformData
-        
-        // Log connection success
-        print("✅ [OnboardingCoordinator] Successfully stored platform data for \(platform.displayName)")
-    }
-    
-    /// Connect to platform (legacy method for backward compatibility)
-    /// - Parameter platform: Platform to connect to
-    public func connectToPlatform(_ platform: Platform) {
-        print("🔗 [OnboardingCoordinator] Connecting to platform: \(platform.displayName)")
-        
-        // This method can be used for non-OAuth platforms or additional setup
-        // For OAuth platforms, the connection is handled by the webview flow
-        
-        switch platform.authMethod {
-        case .oauth:
-            print("ℹ️ [OnboardingCoordinator] OAuth platforms handled by webview")
-        case .nativeSDK:
-            print("ℹ️ [OnboardingCoordinator] Native SDK platforms need additional setup")
-        }
-    }
-    
     /// Authenticate with specific platform
     /// - Parameter platform: Platform to authenticate
     /// - Returns: Platform data
