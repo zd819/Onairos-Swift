@@ -131,8 +131,8 @@ final class OnairosSDKTests: XCTestCase {
         let networkError = OnairosError.networkUnavailable
         XCTAssertFalse(networkError.localizedDescription.isEmpty)
         
-        let platformError = OnairosError.platformUnavailable("Instagram")
-        XCTAssertTrue(platformError.localizedDescription.contains("Instagram"))
+        let platformError = OnairosError.platformUnavailable("LinkedIn")
+        XCTAssertTrue(platformError.localizedDescription.contains("LinkedIn"))
         
         let validationError = OnairosError.validationFailed("Invalid email")
         XCTAssertTrue(validationError.localizedDescription.contains("Invalid email"))
@@ -149,7 +149,7 @@ final class OnairosSDKTests: XCTestCase {
     // MARK: - Platform Tests
     
     func testPlatformDisplayNames() throws {
-        XCTAssertEqual(Platform.instagram.displayName, "Instagram")
+        XCTAssertEqual(Platform.linkedin.displayName, "LinkedIn")
         XCTAssertEqual(Platform.youtube.displayName, "YouTube")
         XCTAssertEqual(Platform.reddit.displayName, "Reddit")
         XCTAssertEqual(Platform.pinterest.displayName, "Pinterest")

@@ -8,7 +8,6 @@ public enum OnairosError: Error, LocalizedError {
     case invalidCredentials
     case authenticationFailed(String)
     case platformUnavailable(String)
-    case opacitySDKRequired
     case googleSignInFailed(String)
     case emailVerificationFailed(String)
     case invalidEmail
@@ -37,8 +36,7 @@ public enum OnairosError: Error, LocalizedError {
             return "Authentication failed: \(reason)"
         case .platformUnavailable(let platform):
             return "\(platform) connection is currently unavailable."
-        case .opacitySDKRequired:
-            return "Instagram connection requires the Opacity SDK."
+
         case .googleSignInFailed(let reason):
             return "YouTube connection failed: \(reason)"
         case .emailVerificationFailed(let reason):
@@ -83,8 +81,7 @@ public enum OnairosError: Error, LocalizedError {
             return "Try authenticating again or contact support."
         case .platformUnavailable:
             return "Try connecting to other platforms or skip this step."
-        case .opacitySDKRequired:
-            return "Contact your app developer to add Instagram support."
+
         case .googleSignInFailed:
             return "Make sure Google Sign-In is properly configured."
         case .emailVerificationFailed:
@@ -113,7 +110,7 @@ public enum OnairosError: Error, LocalizedError {
     /// Whether the error is recoverable
     public var isRecoverable: Bool {
         switch self {
-        case .notInitialized, .configurationError, .opacitySDKRequired:
+        case .notInitialized, .configurationError:
             return false
         case .userCancelled:
             return true
@@ -129,7 +126,7 @@ public enum OnairosError: Error, LocalizedError {
             return .configuration
         case .networkUnavailable, .networkError, .socketConnectionFailed:
             return .network
-        case .platformUnavailable, .opacitySDKRequired, .googleSignInFailed, .authenticationFailed:
+        case .platformUnavailable, .googleSignInFailed, .authenticationFailed:
             return .authentication
         case .invalidCredentials, .emailVerificationFailed, .invalidEmail, .invalidPIN, .validationFailed:
             return .validation
@@ -217,8 +214,6 @@ public extension OnairosError {
     /// Create error from platform authentication failure
     static func platformAuthError(platform: Platform, reason: String) -> OnairosError {
         switch platform.authMethod {
-        case .opacitySDK:
-            return .opacitySDKRequired
         case .nativeSDK:
             return .googleSignInFailed(reason)
         case .oauth:

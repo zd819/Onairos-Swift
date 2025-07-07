@@ -13,7 +13,7 @@ public enum OnboardingStep: String, CaseIterable {
 
 /// Platform enumeration
 public enum Platform: String, CaseIterable, Hashable {
-    case instagram = "instagram"
+    case linkedin = "linkedin"
     case youtube = "youtube"
     case reddit = "reddit"
     case pinterest = "pinterest"
@@ -22,7 +22,7 @@ public enum Platform: String, CaseIterable, Hashable {
     /// Display name for the platform
     public var displayName: String {
         switch self {
-        case .instagram: return "Instagram"
+        case .linkedin: return "LinkedIn"
         case .youtube: return "YouTube"
         case .reddit: return "Reddit"
         case .pinterest: return "Pinterest"
@@ -33,7 +33,7 @@ public enum Platform: String, CaseIterable, Hashable {
     /// Authentication method for the platform
     public var authMethod: AuthMethod {
         switch self {
-        case .instagram: return .opacitySDK
+        case .linkedin: return .oauth
         case .youtube: return .nativeSDK
         case .reddit, .pinterest, .gmail: return .oauth
         }
@@ -42,7 +42,7 @@ public enum Platform: String, CaseIterable, Hashable {
     /// OAuth authorization URL for the platform
     public func authorizationURL(baseURL: String) -> String {
         switch self {
-        case .instagram: return "\(baseURL)/instagram/authorize"
+        case .linkedin: return "\(baseURL)/linkedin/authorize"
         case .youtube: return "\(baseURL)/youtube/native-auth"
         case .reddit: return "\(baseURL)/reddit/authorize"
         case .pinterest: return "\(baseURL)/pinterest/authorize"
@@ -53,18 +53,28 @@ public enum Platform: String, CaseIterable, Hashable {
     /// OAuth scopes for the platform
     public var oauthScopes: String {
         switch self {
-        case .instagram: return "" // Uses Opacity SDK, not OAuth
+        case .linkedin: return "r_liteprofile r_emailaddress"
         case .youtube: return "" // Uses Google Sign-In SDK, not OAuth
         case .reddit: return "identity read"
         case .pinterest: return "read_public"
         case .gmail: return "https://www.googleapis.com/auth/gmail.readonly"
         }
     }
+    
+    /// Icon filename for the platform
+    public var iconFileName: String {
+        switch self {
+        case .linkedin: return "Linkedinicon.png"
+        case .youtube: return "YouTubeicon1.png"
+        case .reddit: return "RedditIcon.png"
+        case .pinterest: return "pinterest.png"
+        case .gmail: return "Gmail.png"
+        }
+    }
 }
 
 /// Authentication method enumeration
 public enum AuthMethod {
-    case opacitySDK    // Instagram - requires Opacity SDK
     case nativeSDK     // YouTube - uses Google Sign-In SDK
     case oauth         // Others - WebView OAuth flow
 }

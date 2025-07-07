@@ -162,7 +162,7 @@ private class PlatformConnectionView: UIView {
     private let config: OnairosConfig
     
     /// Platform icon
-    private let iconView = UIView()
+    private let iconView = UIImageView()
     
     /// Platform name label
     private let nameLabel = UILabel()
@@ -203,9 +203,8 @@ private class PlatformConnectionView: UIView {
         backgroundColor = .systemGray6
         layer.cornerRadius = 12
         
-        // Platform icon (placeholder)
-        iconView.backgroundColor = platformColor()
-        iconView.layer.cornerRadius = 20
+        // Platform icon
+        setupPlatformIcon()
         addSubview(iconView)
         
         // Platform name
@@ -229,6 +228,121 @@ private class PlatformConnectionView: UIView {
         addSubview(loadingIndicator)
         
         setupConstraints()
+    }
+    
+    /// Setup platform icon
+    private func setupPlatformIcon() {
+        iconView.contentMode = .scaleAspectFit
+        iconView.layer.cornerRadius = 20
+        iconView.layer.masksToBounds = true
+        iconView.backgroundColor = .clear
+        
+        // Clear any existing content first
+        iconView.image = nil
+        iconView.subviews.forEach { $0.removeFromSuperview() }
+        
+        let fileName = platform.iconFileName
+        let fileNameWithoutExtension = String(fileName.dropLast(4)) // Remove .png
+        
+        print("🔍 [DEBUG] Loading icon for \(platform.displayName)")
+        print("🔍 [DEBUG] Filename: \(fileName)")
+        print("🔍 [DEBUG] Without extension: \(fileNameWithoutExtension)")
+        
+        // Debug: Print bundle information
+        print("🔍 [DEBUG] Bundle.module: \(Bundle.module)")
+        print("🔍 [DEBUG] Bundle.module.bundlePath: \(Bundle.module.bundlePath)")
+        
+        // Try the most direct approach first - Bundle.module with exact filename
+        if let iconImage = UIImage(named: fileNameWithoutExtension, in: Bundle.module, compatibleWith: nil) {
+            iconView.image = iconImage
+            print("✅ [SUCCESS] Loaded \(platform.displayName) icon with method 1 (Bundle.module, no extension)")
+            print("✅ [SUCCESS] Icon size: \(iconImage.size)")
+            return
+        }
+        
+        // Try Bundle.module with full filename
+        if let iconImage = UIImage(named: fileName, in: Bundle.module, compatibleWith: nil) {
+            iconView.image = iconImage
+            print("✅ [SUCCESS] Loaded \(platform.displayName) icon with method 2 (Bundle.module, with extension)")
+            print("✅ [SUCCESS] Icon size: \(iconImage.size)")
+            return
+        }
+        
+        // Try direct file path access
+        if let resourcePath = Bundle.module.path(forResource: fileNameWithoutExtension, ofType: "png") {
+            print("🔍 [DEBUG] Found resource path: \(resourcePath)")
+            if let directImage = UIImage(contentsOfFile: resourcePath) {
+                iconView.image = directImage
+                print("✅ [SUCCESS] Loaded \(platform.displayName) icon with direct file access")
+                print("✅ [SUCCESS] Icon size: \(directImage.size)")
+                return
+            }
+        }
+        
+        // Try alternative resource path
+        if let resourcePath = Bundle.module.path(forResource: fileName, ofType: nil) {
+            print("🔍 [DEBUG] Found alternative resource path: \(resourcePath)")
+            if let directImage = UIImage(contentsOfFile: resourcePath) {
+                iconView.image = directImage
+                print("✅ [SUCCESS] Loaded \(platform.displayName) icon with alternative direct file access")
+                print("✅ [SUCCESS] Icon size: \(directImage.size)")
+                return
+            }
+        }
+        
+        // Try main bundle as fallback
+        if let iconImage = UIImage(named: fileNameWithoutExtension, in: Bundle.main, compatibleWith: nil) {
+            iconView.image = iconImage
+            print("✅ [SUCCESS] Loaded \(platform.displayName) icon from main bundle")
+            print("✅ [SUCCESS] Icon size: \(iconImage.size)")
+            return
+        }
+        
+        // List all resources in the bundle for debugging
+        if let resourcePath = Bundle.module.resourcePath {
+            print("🔍 [DEBUG] Bundle resource path: \(resourcePath)")
+            do {
+                let contents = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
+                print("🔍 [DEBUG] Bundle contents: \(contents)")
+            } catch {
+                print("🚨 [ERROR] Failed to list bundle contents: \(error)")
+            }
+        }
+        
+        // Final fallback: use colored background with system icon
+        print("🚨 [FINAL FALLBACK] Using colored background for \(platform.displayName)")
+        iconView.backgroundColor = platformColor()
+        
+        let systemIconView = UIImageView()
+        systemIconView.contentMode = .scaleAspectFit
+        systemIconView.tintColor = .white
+        systemIconView.image = platformSystemIcon()
+        systemIconView.translatesAutoresizingMaskIntoConstraints = false
+        
+        iconView.addSubview(systemIconView)
+        NSLayoutConstraint.activate([
+            systemIconView.centerXAnchor.constraint(equalTo: iconView.centerXAnchor),
+            systemIconView.centerYAnchor.constraint(equalTo: iconView.centerYAnchor),
+            systemIconView.widthAnchor.constraint(equalToConstant: 24),
+            systemIconView.heightAnchor.constraint(equalToConstant: 24)
+        ])
+    }
+    
+    /// Get platform-specific system icon
+    /// - Returns: Platform system icon
+    private func platformSystemIcon() -> UIImage? {
+        switch platform {
+        case .linkedin:
+            return UIImage(systemName: "person.crop.rectangle")
+        case .youtube:
+            return UIImage(systemName: "play.rectangle")
+        case .reddit:
+            return UIImage(systemName: "bubble.left.and.bubble.right")
+        case .pinterest:
+            return UIImage(systemName: "pin")
+        case .gmail:
+            return UIImage(systemName: "envelope")
+        }
     }
     
     /// Setup Auto Layout constraints
@@ -272,8 +386,8 @@ private class PlatformConnectionView: UIView {
     /// - Returns: Platform color
     private func platformColor() -> UIColor {
         switch platform {
-        case .instagram:
-            return UIColor(red: 0.8, green: 0.3, blue: 0.8, alpha: 1.0) // Purple/Pink
+        case .linkedin:
+            return UIColor(red: 0.0, green: 0.47, blue: 0.75, alpha: 1.0) // LinkedIn Blue
         case .youtube:
             return UIColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0) // Red
         case .reddit:
@@ -299,8 +413,8 @@ private class PlatformConnectionView: UIView {
             statusLabel.text = "Not connected"
             statusLabel.textColor = .secondaryLabel
             actionButton.setTitle("Connect", for: .normal)
-            actionButton.backgroundColor = .systemBlue.withAlphaComponent(0.1)
-            actionButton.setTitleColor(.systemBlue, for: .normal)
+            actionButton.backgroundColor = .black
+            actionButton.setTitleColor(.white, for: .normal)
         }
     }
     

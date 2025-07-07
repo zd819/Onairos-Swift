@@ -177,7 +177,7 @@ runTest("API Client Singleton") {
 
 // MARK: - Platform Tests
 runTest("Platform Display Names") {
-    let platforms: [Platform] = [.instagram, .youtube, .reddit, .pinterest, .gmail]
+            let platforms: [Platform] = [.linkedin, .youtube, .reddit, .pinterest, .gmail]
     return platforms.allSatisfy { !$0.displayName.isEmpty }
 }
 
@@ -206,7 +206,7 @@ runTest("State Reset Functionality") {
     state.email = "test@example.com"
     state.pin = "password123!"
             state.setTrainingProgress(0.5)
-    state.connectedPlatforms.insert("instagram")
+            state.connectedPlatforms.insert("linkedin")
     
     state.reset()
     

@@ -617,8 +617,8 @@ public struct OnairosConfig {
     /// Platforms to enable
     public let platforms: Set<Platform>
     
-    /// Opacity API key for Instagram authentication
-    public let opacityAPIKey: String?
+    /// LinkedIn client ID for LinkedIn authentication
+    public let linkedInClientID: String?
     
     /// Google client ID for YouTube authentication
     public let googleClientID: String?
@@ -646,8 +646,8 @@ public struct OnairosConfig {
         allowEmptyConnections: Bool = false,
         simulateTraining: Bool = false,
         apiBaseURL: String = "https://api2.onairos.uk",
-        platforms: Set<Platform> = [.instagram, .youtube, .reddit, .pinterest, .gmail],
-        opacityAPIKey: String? = nil,
+        platforms: Set<Platform> = [.linkedin, .youtube, .reddit, .pinterest, .gmail],
+        linkedInClientID: String? = nil,
         googleClientID: String? = nil,
         urlScheme: String,
         appName: String
@@ -659,7 +659,7 @@ public struct OnairosConfig {
         self.simulateTraining = isTestMode ? true : simulateTraining
         self.apiBaseURL = apiBaseURL
         self.platforms = platforms
-        self.opacityAPIKey = opacityAPIKey
+        self.linkedInClientID = linkedInClientID
         self.googleClientID = googleClientID
         self.urlScheme = urlScheme
         self.appName = appName

@@ -527,8 +527,6 @@ public class OnboardingCoordinator {
     /// - Returns: Platform data
     private func authenticatePlatform(_ platform: Platform) async throws -> PlatformData {
         switch platform.authMethod {
-        case .opacitySDK:
-            return try await authenticateInstagram()
         case .nativeSDK:
             return try await authenticateYouTube()
         case .oauth:
@@ -536,24 +534,7 @@ public class OnboardingCoordinator {
         }
     }
     
-    /// Authenticate with Instagram using Opacity SDK
-    /// - Returns: Instagram platform data
-    private func authenticateInstagram() async throws -> PlatformData {
-        // Placeholder - would use Opacity SDK when available
-        throw OnairosError.opacitySDKRequired
-        
-        /*
-        // Example implementation when Opacity SDK is available:
-        let profile = try await InstagramAuthManager.shared.getProfile()
-        return PlatformData(
-            platform: "instagram",
-            accessToken: profile.accessToken,
-            refreshToken: nil,
-            expiresAt: nil,
-            userData: profile.userData
-        )
-        */
-    }
+
     
     /// Authenticate with YouTube using Google Sign-In
     /// - Returns: YouTube platform data
