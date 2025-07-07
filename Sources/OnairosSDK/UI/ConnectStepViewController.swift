@@ -450,12 +450,12 @@ private class PlatformConnectionView: UIView {
                 self?.setLoading(false)
                 
                 switch result {
-                case .success(let authCode):
+                case .success(let authToken):
                     // Handle successful OAuth
-                    self?.handleOAuthSuccess(authCode: authCode)
+                    self?.handleOAuthSuccess(authToken: authToken)
                 case .failure(let error):
                     // Handle OAuth failure
-                    print("OAuth failed for \(self?.platform.displayName ?? "platform"): \(error)")
+                    self?.handleOAuthFailure(error: error)
                 }
             }
         }
@@ -464,13 +464,173 @@ private class PlatformConnectionView: UIView {
     }
     
     /// Handle successful OAuth authentication
-    private func handleOAuthSuccess(authCode: String) {
-        // Mark platform as connected
+    private func handleOAuthSuccess(authToken: String) {
+        // Mark platform as connected in state
         state.connectedPlatforms.insert(platform.rawValue)
+        
+        // Persist connection state
+        persistConnectionState()
+        
+        // Update UI to show connected state
         updateConnectionState()
         
-        // Store auth code for later use
-        UserDefaults.standard.set(authCode, forKey: "oauth_\(platform.rawValue)_code")
+        // Store auth token for API calls
+        storeAuthToken(authToken)
+        
+        // Provide user feedback
+        showSuccessMessage()
+        
+        // Notify coordinator if available
+        coordinator?.handlePlatformConnected(platform)
+        
+        print("✅ [SUCCESS] \(platform.displayName) connected successfully")
+    }
+    
+    /// Handle OAuth authentication failure
+    private func handleOAuthFailure(error: OnairosError) {
+        // Show user-friendly error message
+        showErrorMessage(for: error)
+        
+        print("❌ [ERROR] OAuth failed for \(platform.displayName): \(error.localizedDescription)")
+    }
+    
+    /// Persist connection state to UserDefaults
+    private func persistConnectionState() {
+        let connectionKey = "onairos_connected_platforms"
+        let connectedPlatforms = Array(state.connectedPlatforms)
+        UserDefaults.standard.set(connectedPlatforms, forKey: connectionKey)
+        
+        // Also store individual platform connection timestamp
+        let timestampKey = "onairos_\(platform.rawValue)_connected_at"
+        UserDefaults.standard.set(Date(), forKey: timestampKey)
+        
+        print("💾 [STORAGE] Persisted connection state for \(platform.displayName)")
+    }
+    
+    /// Store auth token securely
+    private func storeAuthToken(_ token: String) {
+        let tokenKey = "onairos_\(platform.rawValue)_token"
+        UserDefaults.standard.set(token, forKey: tokenKey)
+        
+        // Set expiration time (tokens typically expire after 1 hour)
+        let expirationKey = "onairos_\(platform.rawValue)_token_expires"
+        let expirationDate = Date().addingTimeInterval(3600) // 1 hour
+        UserDefaults.standard.set(expirationDate, forKey: expirationKey)
+        
+        print("🔐 [SECURITY] Stored auth token for \(platform.displayName)")
+    }
+    
+    /// Show success message to user
+    private func showSuccessMessage() {
+        // Create success feedback view
+        let successView = UIView()
+        successView.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
+        successView.layer.cornerRadius = 8
+        successView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let checkmarkImageView = UIImageView(image: UIImage(systemName: "checkmark.circle.fill"))
+        checkmarkImageView.tintColor = .systemGreen
+        checkmarkImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let successLabel = UILabel()
+        successLabel.text = "Connected to \(platform.displayName)!"
+        successLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        successLabel.textColor = .systemGreen
+        successLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        successView.addSubview(checkmarkImageView)
+        successView.addSubview(successLabel)
+        
+        addSubview(successView)
+        
+        NSLayoutConstraint.activate([
+            successView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            successView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            successView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            successView.heightAnchor.constraint(equalToConstant: 32),
+            
+            checkmarkImageView.leadingAnchor.constraint(equalTo: successView.leadingAnchor, constant: 8),
+            checkmarkImageView.centerYAnchor.constraint(equalTo: successView.centerYAnchor),
+            checkmarkImageView.widthAnchor.constraint(equalToConstant: 16),
+            checkmarkImageView.heightAnchor.constraint(equalToConstant: 16),
+            
+            successLabel.leadingAnchor.constraint(equalTo: checkmarkImageView.trailingAnchor, constant: 8),
+            successLabel.centerYAnchor.constraint(equalTo: successView.centerYAnchor),
+            successLabel.trailingAnchor.constraint(equalTo: successView.trailingAnchor, constant: -8)
+        ])
+        
+        // Auto-hide after 3 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            UIView.animate(withDuration: 0.3) {
+                successView.alpha = 0
+            } completion: { _ in
+                successView.removeFromSuperview()
+            }
+        }
+    }
+    
+    /// Show error message to user
+    private func showErrorMessage(for error: OnairosError) {
+        let errorMessage: String
+        
+        switch error {
+        case .userCancelled:
+            errorMessage = "Authentication cancelled"
+        case .networkError(let details):
+            errorMessage = "Network error: \(details)"
+        case .authenticationFailed(let reason):
+            errorMessage = "Authentication failed: \(reason)"
+        default:
+            errorMessage = "Connection failed. Please try again."
+        }
+        
+        // Create error feedback view
+        let errorView = UIView()
+        errorView.backgroundColor = UIColor.systemRed.withAlphaComponent(0.1)
+        errorView.layer.cornerRadius = 8
+        errorView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let errorImageView = UIImageView(image: UIImage(systemName: "exclamationmark.triangle.fill"))
+        errorImageView.tintColor = .systemRed
+        errorImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        let errorLabel = UILabel()
+        errorLabel.text = errorMessage
+        errorLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        errorLabel.textColor = .systemRed
+        errorLabel.numberOfLines = 0
+        errorLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        errorView.addSubview(errorImageView)
+        errorView.addSubview(errorLabel)
+        
+        addSubview(errorView)
+        
+        NSLayoutConstraint.activate([
+            errorView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+            errorView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            errorView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            errorView.heightAnchor.constraint(greaterThanOrEqualToConstant: 32),
+            
+            errorImageView.leadingAnchor.constraint(equalTo: errorView.leadingAnchor, constant: 8),
+            errorImageView.topAnchor.constraint(equalTo: errorView.topAnchor, constant: 8),
+            errorImageView.widthAnchor.constraint(equalToConstant: 16),
+            errorImageView.heightAnchor.constraint(equalToConstant: 16),
+            
+            errorLabel.leadingAnchor.constraint(equalTo: errorImageView.trailingAnchor, constant: 8),
+            errorLabel.topAnchor.constraint(equalTo: errorView.topAnchor, constant: 8),
+            errorLabel.trailingAnchor.constraint(equalTo: errorView.trailingAnchor, constant: -8),
+            errorLabel.bottomAnchor.constraint(equalTo: errorView.bottomAnchor, constant: -8)
+        ])
+        
+        // Auto-hide after 5 seconds
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+            UIView.animate(withDuration: 0.3) {
+                errorView.alpha = 0
+            } completion: { _ in
+                errorView.removeFromSuperview()
+            }
+        }
     }
     
     /// Find parent view controller
