@@ -5,6 +5,20 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2024-12-28
+
+### Fixed
+- **EmailVerificationResponse Build Error**: Fixed compilation error "Value of type 'EmailVerificationResponse' has no member 'accountInfo'"
+  - Added missing `accountInfo: [String: AnyCodable]?` property to EmailVerificationResponse struct
+  - Resolved OnboardingCoordinator.swift line 213 compilation error
+  - Ensures proper account information handling in email verification flow
+
+### Verified
+- **BiometricPINManager Integration**: Confirmed BiometricPINManager is properly implemented and integrated
+  - Secure keychain storage with biometric authentication protection
+  - Proper integration in PINStepViewController and OnairosSDK
+  - All public methods available and error handling complete
+
 ## [1.1.3] - 2024-12-28
 
 ### Fixed

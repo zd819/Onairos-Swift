@@ -238,6 +238,7 @@ public struct EmailVerificationResponse: Codable {
     public let error: String?
     public let code: Int?
     public let attemptsRemaining: Int?
+    public let accountInfo: [String: AnyCodable]?
     
     /// User data structure from API response
     public struct UserData: Codable {
