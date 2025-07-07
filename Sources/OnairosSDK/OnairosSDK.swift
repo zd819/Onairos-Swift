@@ -396,9 +396,7 @@ public class OnairosSDK: ObservableObject {
     private func cleanup() {
         modalController = nil
         completionCallback = nil
-        connectedPlatformData.removeAll()
-        trainingManager?.disconnect()
-        trainingManager = nil
+        coordinator = nil
     }
     
     // MARK: - PIN Management

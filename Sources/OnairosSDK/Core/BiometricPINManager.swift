@@ -2,6 +2,9 @@ import Foundation
 import Security
 import LocalAuthentication
 
+// Security framework constants that might not be available in all Swift versions
+private let errSecUserCancel: OSStatus = -128
+
 /// Manager for secure PIN storage with biometric authentication
 public class BiometricPINManager {
     
