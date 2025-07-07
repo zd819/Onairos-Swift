@@ -90,6 +90,7 @@ public class OnboardingState: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String?
     @Published public var trainingStatus: String = "Initializing..."
+    @Published public var accountInfo: [String: AnyCodable]?
     
     /// Training progress with NaN protection
     @Published public var trainingProgress: Double = 0.0
@@ -113,6 +114,7 @@ public class OnboardingState: ObservableObject {
         isLoading = false
         errorMessage = nil
         trainingStatus = "Initializing..."
+        accountInfo = nil
     }
     
     /// Validate current step data
@@ -216,12 +218,10 @@ public enum PINValidationResult {
 /// Email verification request
 public struct EmailVerificationRequest: Codable {
     public let email: String
-    public let action: String?
     public let code: String?
     
-    public init(email: String, action: String? = nil, code: String? = nil) {
+    public init(email: String, code: String? = nil) {
         self.email = email
-        self.action = action
         self.code = code
     }
 }
@@ -231,6 +231,16 @@ public struct EmailVerificationResponse: Codable {
     public let success: Bool
     public let message: String?
     public let verified: Bool?
+    public let testingMode: Bool?
+    public let accountInfo: [String: AnyCodable]?
+    public let note: String?
+}
+
+/// Email verification status response
+public struct EmailVerificationStatusResponse: Codable {
+    public let success: Bool
+    public let hasCode: Bool?
+    public let expiresAt: String?
 }
 
 /// Platform authentication request

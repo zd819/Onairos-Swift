@@ -7,9 +7,6 @@ public class ConnectStepViewController: BaseStepViewController {
     /// Platform list container
     private let platformListContainer = UIView()
     
-    /// Privacy message label
-    private let privacyMessageLabel = UILabel()
-    
     /// Platform connection views
     private var platformViews: [PlatformConnectionView] = []
     
@@ -18,7 +15,7 @@ public class ConnectStepViewController: BaseStepViewController {
         
         // Configure header
         titleLabel.text = "Connect Your Accounts"
-        subtitleLabel.text = "Choose which platforms to connect for personalized AI training"
+        setupSubtitleWithLink()
         
         // Configure buttons
         primaryButton.setTitle("Continue", for: .normal)
@@ -27,11 +24,65 @@ public class ConnectStepViewController: BaseStepViewController {
         // Setup platform list
         setupPlatformList()
         
-        // Setup privacy message
-        setupPrivacyMessage()
-        
         // Bind to state
         bindToState()
+    }
+    
+    /// Setup subtitle with clickable "How it's used" link
+    private func setupSubtitleWithLink() {
+        // Create attributed string for subtitle with link
+        let baseText = "Choose which platforms to connect for personalized AI training. "
+        let linkText = "How it's used →"
+        let fullText = baseText + linkText
+        
+        let attributedString = NSMutableAttributedString(string: fullText)
+        
+        // Style the base text
+        attributedString.addAttribute(.foregroundColor, value: UIColor.secondaryLabel, range: NSRange(location: 0, length: baseText.count))
+        attributedString.addAttribute(.font, value: UIFont.systemFont(ofSize: 16, weight: .regular), range: NSRange(location: 0, length: baseText.count))
+        
+        // Style the link text
+        let linkRange = NSRange(location: baseText.count, length: linkText.count)
+        attributedString.addAttribute(.foregroundColor, value: UIColor.label, range: linkRange)
+        attributedString.addAttribute(.font, value: UIFont.systemFont(ofSize: 16, weight: .medium), range: linkRange)
+        attributedString.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: linkRange)
+        
+        // Set the attributed text
+        subtitleLabel.attributedText = attributedString
+        
+        // Make subtitle label interactive
+        subtitleLabel.isUserInteractionEnabled = true
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(subtitleTapped(_:)))
+        subtitleLabel.addGestureRecognizer(tapGesture)
+    }
+    
+    /// Handle subtitle tap to detect link
+    @objc private func subtitleTapped(_ gesture: UITapGestureRecognizer) {
+        guard let attributedText = subtitleLabel.attributedText else { return }
+        
+        let baseText = "Choose which platforms to connect for personalized AI training. "
+        let linkText = "How it's used →"
+        let linkRange = NSRange(location: baseText.count, length: linkText.count)
+        
+        // Get the tapped character index
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer(size: subtitleLabel.bounds.size)
+        let textStorage = NSTextStorage(attributedString: attributedText)
+        
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+        
+        textContainer.lineFragmentPadding = 0
+        textContainer.maximumNumberOfLines = subtitleLabel.numberOfLines
+        textContainer.lineBreakMode = subtitleLabel.lineBreakMode
+        
+        let locationOfTouchInLabel = gesture.location(in: subtitleLabel)
+        let indexOfCharacter = layoutManager.characterIndex(for: locationOfTouchInLabel, in: textContainer, fractionOfDistanceBetweenInsertionPoints: nil)
+        
+        // Check if the tap was on the link
+        if NSLocationInRange(indexOfCharacter, linkRange) {
+            showPrivacyDetails()
+        }
     }
     
     /// Setup platform connection list
@@ -69,22 +120,23 @@ public class ConnectStepViewController: BaseStepViewController {
         ])
     }
     
-    /// Setup privacy message
-    private func setupPrivacyMessage() {
-        privacyMessageLabel.text = "🔒 None of your app data is shared with ANYONE"
-        privacyMessageLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        privacyMessageLabel.textColor = .systemGreen
-        privacyMessageLabel.textAlignment = .center
-        privacyMessageLabel.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.1)
-        privacyMessageLabel.layer.cornerRadius = 8
-        privacyMessageLabel.layer.masksToBounds = true
+
+    
+    /// Show privacy details modal
+    @objc private func showPrivacyDetails() {
+        let privacyModal = PrivacyDetailsModal()
+        privacyModal.modalPresentationStyle = UIModalPresentationStyle.pageSheet
+        privacyModal.modalTransitionStyle = UIModalTransitionStyle.coverVertical
         
-        contentStackView.addArrangedSubview(privacyMessageLabel)
+        // Configure sheet presentation (iOS 15+ only)
+        if #available(iOS 15.0, *) {
+            if let sheet = privacyModal.sheetPresentationController {
+                sheet.detents = [UISheetPresentationController.Detent.large()]
+                sheet.prefersGrabberVisible = true
+            }
+        }
         
-        privacyMessageLabel.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            privacyMessageLabel.heightAnchor.constraint(equalToConstant: 36)
-        ])
+        present(privacyModal, animated: true)
     }
     
     /// Bind to onboarding state
@@ -241,92 +293,110 @@ private class PlatformConnectionView: UIView {
         iconView.image = nil
         iconView.subviews.forEach { $0.removeFromSuperview() }
         
-        let fileName = platform.iconFileName
-        let fileNameWithoutExtension = String(fileName.dropLast(4)) // Remove .png
-        
-        print("🔍 [DEBUG] Loading icon for \(platform.displayName)")
-        print("🔍 [DEBUG] Filename: \(fileName)")
-        print("🔍 [DEBUG] Without extension: \(fileNameWithoutExtension)")
-        
-        // Debug: Print bundle information
-        print("🔍 [DEBUG] Bundle.module: \(Bundle.module)")
-        print("🔍 [DEBUG] Bundle.module.bundlePath: \(Bundle.module.bundlePath)")
-        
-        // Try the most direct approach first - Bundle.module with exact filename
-        if let iconImage = UIImage(named: fileNameWithoutExtension, in: Bundle.module, compatibleWith: nil) {
-            iconView.image = iconImage
-            print("✅ [SUCCESS] Loaded \(platform.displayName) icon with method 1 (Bundle.module, no extension)")
-            print("✅ [SUCCESS] Icon size: \(iconImage.size)")
-            return
-        }
-        
-        // Try Bundle.module with full filename
-        if let iconImage = UIImage(named: fileName, in: Bundle.module, compatibleWith: nil) {
-            iconView.image = iconImage
-            print("✅ [SUCCESS] Loaded \(platform.displayName) icon with method 2 (Bundle.module, with extension)")
-            print("✅ [SUCCESS] Icon size: \(iconImage.size)")
-            return
-        }
-        
-        // Try direct file path access
-        if let resourcePath = Bundle.module.path(forResource: fileNameWithoutExtension, ofType: "png") {
-            print("🔍 [DEBUG] Found resource path: \(resourcePath)")
-            if let directImage = UIImage(contentsOfFile: resourcePath) {
-                iconView.image = directImage
-                print("✅ [SUCCESS] Loaded \(platform.displayName) icon with direct file access")
-                print("✅ [SUCCESS] Icon size: \(directImage.size)")
-                return
-            }
-        }
-        
-        // Try alternative resource path
-        if let resourcePath = Bundle.module.path(forResource: fileName, ofType: nil) {
-            print("🔍 [DEBUG] Found alternative resource path: \(resourcePath)")
-            if let directImage = UIImage(contentsOfFile: resourcePath) {
-                iconView.image = directImage
-                print("✅ [SUCCESS] Loaded \(platform.displayName) icon with alternative direct file access")
-                print("✅ [SUCCESS] Icon size: \(directImage.size)")
-                return
-            }
-        }
-        
-        // Try main bundle as fallback
-        if let iconImage = UIImage(named: fileNameWithoutExtension, in: Bundle.main, compatibleWith: nil) {
-            iconView.image = iconImage
-            print("✅ [SUCCESS] Loaded \(platform.displayName) icon from main bundle")
-            print("✅ [SUCCESS] Icon size: \(iconImage.size)")
-            return
-        }
-        
-        // List all resources in the bundle for debugging
-        if let resourcePath = Bundle.module.resourcePath {
-            print("🔍 [DEBUG] Bundle resource path: \(resourcePath)")
-            do {
-                let contents = try FileManager.default.contentsOfDirectory(atPath: resourcePath)
-                print("🔍 [DEBUG] Bundle contents: \(contents)")
-            } catch {
-                print("🚨 [ERROR] Failed to list bundle contents: \(error)")
-            }
-        }
-        
-        // Final fallback: use colored background with system icon
-        print("🚨 [FINAL FALLBACK] Using colored background for \(platform.displayName)")
-        iconView.backgroundColor = platformColor()
-        
-        let systemIconView = UIImageView()
-        systemIconView.contentMode = .scaleAspectFit
-        systemIconView.tintColor = .white
-        systemIconView.image = platformSystemIcon()
-        systemIconView.translatesAutoresizingMaskIntoConstraints = false
-        
-        iconView.addSubview(systemIconView)
-        NSLayoutConstraint.activate([
-            systemIconView.centerXAnchor.constraint(equalTo: iconView.centerXAnchor),
-            systemIconView.centerYAnchor.constraint(equalTo: iconView.centerYAnchor),
-            systemIconView.widthAnchor.constraint(equalToConstant: 24),
-            systemIconView.heightAnchor.constraint(equalToConstant: 24)
-        ])
+        // Create platform icon programmatically (bypasses bundle resource issues)
+        let iconImage = createPlatformIcon(for: platform)
+        iconView.image = iconImage
     }
+    
+    /// Create platform icon programmatically with proper branding
+    private func createPlatformIcon(for platform: Platform) -> UIImage {
+        let size = CGSize(width: 40, height: 40)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { context in
+            let rect = CGRect(origin: .zero, size: size)
+            
+            // Set platform-specific background color
+            platformColor().setFill()
+            context.cgContext.fillEllipse(in: rect)
+            
+            // Add platform-specific icon/text
+            switch platform {
+            case .gmail:
+                // Gmail - Draw envelope icon
+                let iconRect = CGRect(x: 8, y: 8, width: 24, height: 24)
+                UIColor.white.setFill()
+                
+                // Simple envelope shape
+                let path = UIBezierPath()
+                path.move(to: CGPoint(x: iconRect.minX, y: iconRect.minY + 6))
+                path.addLine(to: CGPoint(x: iconRect.maxX, y: iconRect.minY + 6))
+                path.addLine(to: CGPoint(x: iconRect.maxX, y: iconRect.maxY - 6))
+                path.addLine(to: CGPoint(x: iconRect.minX, y: iconRect.maxY - 6))
+                path.close()
+                path.fill()
+                
+                // Envelope flap
+                let flapPath = UIBezierPath()
+                flapPath.move(to: CGPoint(x: iconRect.minX, y: iconRect.minY + 6))
+                flapPath.addLine(to: CGPoint(x: iconRect.midX, y: iconRect.midY))
+                flapPath.addLine(to: CGPoint(x: iconRect.maxX, y: iconRect.minY + 6))
+                flapPath.lineWidth = 2
+                UIColor.red.setStroke()
+                flapPath.stroke()
+                
+            case .linkedin:
+                // LinkedIn - Draw "in" text
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 14, weight: .bold),
+                    .foregroundColor: UIColor.white
+                ]
+                let text = "in"
+                let textSize = text.size(withAttributes: attributes)
+                let textRect = CGRect(
+                    x: (size.width - textSize.width) / 2,
+                    y: (size.height - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                text.draw(in: textRect, withAttributes: attributes)
+                
+            case .youtube:
+                // YouTube - Draw play button
+                let playRect = CGRect(x: 12, y: 12, width: 16, height: 16)
+                let playPath = UIBezierPath()
+                playPath.move(to: CGPoint(x: playRect.minX, y: playRect.minY))
+                playPath.addLine(to: CGPoint(x: playRect.maxX, y: playRect.midY))
+                playPath.addLine(to: CGPoint(x: playRect.minX, y: playRect.maxY))
+                playPath.close()
+                UIColor.white.setFill()
+                playPath.fill()
+                
+            case .reddit:
+                // Reddit - Draw "r/" text
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 12, weight: .bold),
+                    .foregroundColor: UIColor.white
+                ]
+                let text = "r/"
+                let textSize = text.size(withAttributes: attributes)
+                let textRect = CGRect(
+                    x: (size.width - textSize.width) / 2,
+                    y: (size.height - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                text.draw(in: textRect, withAttributes: attributes)
+                
+            case .pinterest:
+                // Pinterest - Draw "P" text
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 18, weight: .bold),
+                    .foregroundColor: UIColor.white
+                ]
+                let text = "P"
+                let textSize = text.size(withAttributes: attributes)
+                let textRect = CGRect(
+                    x: (size.width - textSize.width) / 2,
+                    y: (size.height - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                text.draw(in: textRect, withAttributes: attributes)
+            }
+        }
+    }
+
     
     /// Get platform-specific system icon
     /// - Returns: Platform system icon
@@ -497,5 +567,255 @@ private class PlatformConnectionView: UIView {
             actionButton.isEnabled = true
             updateConnectionState()
         }
+    }
+}
+
+/// Privacy details modal view controller
+private class PrivacyDetailsModal: UIViewController {
+    
+    /// Main scroll view
+    private let scrollView = UIScrollView()
+    
+    /// Content view
+    private let contentView = UIView()
+    
+    /// Main stack view
+    private let stackView = UIStackView()
+    
+    /// Got it button
+    private let gotItButton = UIButton(type: .system)
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        setupUI()
+        setupConstraints()
+    }
+    
+    /// Setup UI components
+    private func setupUI() {
+        view.backgroundColor = .systemBackground
+        
+        // Configure scroll view
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.alwaysBounceVertical = true
+        view.addSubview(scrollView)
+        
+        // Configure content view
+        scrollView.addSubview(contentView)
+        
+        // Configure stack view
+        stackView.axis = .vertical
+        stackView.spacing = 20
+        stackView.alignment = .fill
+        contentView.addSubview(stackView)
+        
+        // Setup header
+        setupHeader()
+        
+        // Setup content
+        setupContent()
+        
+        // Setup footer
+        setupFooter()
+    }
+    
+    /// Setup header with back button and title
+    private func setupHeader() {
+        let headerContainer = UIView()
+        
+        // Back button
+        let backButton = UIButton(type: .system)
+        backButton.setImage(UIImage(systemName: "arrow.left"), for: .normal)
+        backButton.tintColor = .label
+        backButton.addTarget(self, action: #selector(dismissModal), for: .touchUpInside)
+        
+        // Title label
+        let titleLabel = UILabel()
+        titleLabel.text = "How Enoch uses personal data"
+        titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+        titleLabel.textColor = .label
+        
+        headerContainer.addSubview(backButton)
+        headerContainer.addSubview(titleLabel)
+        
+        // Setup constraints
+        backButton.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            backButton.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor),
+            backButton.centerYAnchor.constraint(equalTo: headerContainer.centerYAnchor),
+            backButton.widthAnchor.constraint(equalToConstant: 44),
+            backButton.heightAnchor.constraint(equalToConstant: 44),
+            
+            titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 8),
+            titleLabel.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor),
+            titleLabel.centerYAnchor.constraint(equalTo: headerContainer.centerYAnchor),
+            
+            headerContainer.heightAnchor.constraint(equalToConstant: 60)
+        ])
+        
+        stackView.addArrangedSubview(headerContainer)
+    }
+    
+    /// Setup content with privacy information
+    private func setupContent() {
+        // Create bullet points container with more spacing
+        let bulletPointsContainer = UIView()
+        
+        // Create vertical stack for bullet points with increased spacing
+        let bulletPointsStack = UIStackView()
+        bulletPointsStack.axis = .vertical
+        bulletPointsStack.spacing = 40 // Increased spacing between bullet points
+        bulletPointsStack.alignment = .center
+        bulletPointsStack.distribution = .equalSpacing
+        
+        // Create bullet points
+        let bulletPoints = [
+            "Enoch legally accesses your platform data with explicit permission for this event only - never stored post-session and auto-deleted.",
+            "Enoch NEVER sells your data. You are a user, not a commodity.",
+            "Data collected builds your Onairos persona, enabling personalized experiences across future products while prioritizing your data sovereignty."
+        ]
+        
+        for bulletText in bulletPoints {
+            let bulletContainer = createBulletPoint(text: bulletText)
+            bulletPointsStack.addArrangedSubview(bulletContainer)
+        }
+        
+        bulletPointsContainer.addSubview(bulletPointsStack)
+        
+        // Setup constraints for bullet points container
+        bulletPointsStack.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            bulletPointsStack.topAnchor.constraint(equalTo: bulletPointsContainer.topAnchor, constant: 40),
+            bulletPointsStack.leadingAnchor.constraint(equalTo: bulletPointsContainer.leadingAnchor, constant: 20),
+            bulletPointsStack.trailingAnchor.constraint(equalTo: bulletPointsContainer.trailingAnchor, constant: -20),
+            bulletPointsStack.bottomAnchor.constraint(equalTo: bulletPointsContainer.bottomAnchor, constant: -40)
+        ])
+        
+        stackView.addArrangedSubview(bulletPointsContainer)
+    }
+    
+    /// Create a bullet point view
+    /// - Parameter text: Bullet point text
+    /// - Returns: Container view with bullet point
+    private func createBulletPoint(text: String) -> UIView {
+        let container = UIView()
+        
+        // Create horizontal stack for better centering
+        let horizontalStack = UIStackView()
+        horizontalStack.axis = .horizontal
+        horizontalStack.spacing = 12
+        horizontalStack.alignment = .top
+        horizontalStack.distribution = .fill
+        
+        // Bullet point
+        let bulletLabel = UILabel()
+        bulletLabel.text = "•"
+        bulletLabel.font = .systemFont(ofSize: 20, weight: .bold)
+        bulletLabel.textColor = .label
+        bulletLabel.textAlignment = .center
+        
+        // Text label
+        let textLabel = UILabel()
+        textLabel.text = text
+        textLabel.font = .systemFont(ofSize: 16, weight: .regular)
+        textLabel.textColor = .label
+        textLabel.numberOfLines = 0
+        textLabel.lineBreakMode = .byWordWrapping
+        textLabel.textAlignment = .left
+        
+        // Add to horizontal stack
+        horizontalStack.addArrangedSubview(bulletLabel)
+        horizontalStack.addArrangedSubview(textLabel)
+        
+        container.addSubview(horizontalStack)
+        
+        // Setup constraints
+        bulletLabel.translatesAutoresizingMaskIntoConstraints = false
+        horizontalStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            // Bullet label width
+            bulletLabel.widthAnchor.constraint(equalToConstant: 24),
+            
+            // Horizontal stack constraints
+            horizontalStack.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            horizontalStack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            horizontalStack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+            horizontalStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8)
+        ])
+        
+        return container
+    }
+    
+    /// Setup footer with Got it button
+    private func setupFooter() {
+        // Add spacer to push button to bottom
+        let spacerView = UIView()
+        spacerView.backgroundColor = .clear
+        stackView.addArrangedSubview(spacerView)
+        
+        let footerContainer = UIView()
+        
+        // Got it button
+        gotItButton.setTitle("Got it", for: .normal)
+        gotItButton.backgroundColor = .black
+        gotItButton.setTitleColor(.white, for: .normal)
+        gotItButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        gotItButton.layer.cornerRadius = 12
+        gotItButton.addTarget(self, action: #selector(dismissModal), for: .touchUpInside)
+        
+        footerContainer.addSubview(gotItButton)
+        
+        // Setup constraints
+        gotItButton.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            gotItButton.leadingAnchor.constraint(equalTo: footerContainer.leadingAnchor, constant: 20),
+            gotItButton.trailingAnchor.constraint(equalTo: footerContainer.trailingAnchor, constant: -20),
+            gotItButton.topAnchor.constraint(equalTo: footerContainer.topAnchor, constant: 60),
+            gotItButton.bottomAnchor.constraint(equalTo: footerContainer.bottomAnchor, constant: -20),
+            gotItButton.heightAnchor.constraint(equalToConstant: 52)
+        ])
+        
+        stackView.addArrangedSubview(footerContainer)
+        
+        // Set spacer height to push button to bottom
+        spacerView.translatesAutoresizingMaskIntoConstraints = false
+        spacerView.heightAnchor.constraint(greaterThanOrEqualToConstant: 60).isActive = true
+    }
+    
+    /// Setup Auto Layout constraints
+    private func setupConstraints() {
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            // Scroll view
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            
+            // Content view
+            contentView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+            
+            // Stack view
+            stackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
+            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -20)
+        ])
+    }
+    
+    /// Dismiss the modal
+    @objc private func dismissModal() {
+        dismiss(animated: true)
     }
 } 

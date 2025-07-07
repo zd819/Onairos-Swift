@@ -265,6 +265,8 @@ The SDK provides a complete 6-step onboarding process:
 - Basic email format validation
 - API integration for sending verification codes
 - Development mode accepts any 6-digit code
+- **NEW**: Support for existing account detection via `accountInfo` field
+- **NEW**: Email verification status checking endpoint
 
 #### Platform Connections
 - Instagram: Requires Opacity SDK integration
@@ -358,7 +360,12 @@ The SDK integrates with the following Onairos API endpoints:
 - Health Check: `/health`
 
 ### Simulated APIs (Development)
-- Email Verification: `/email/verification`
+- **Email Verification**: 
+  - Request Code: `POST /email/verify`
+  - Verify Code: `POST /email/verify/confirm` 
+  - Check Status: `GET /email/verify/status/{email}`
+  - **Behavior**: All codes accepted in development mode
+  - **Account Info**: May return existing account information in `accountInfo` field
 - AI Training: `/enoch/trainModel/mobile` with Socket.IO
 
 ## Customization

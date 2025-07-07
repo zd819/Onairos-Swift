@@ -13,21 +13,14 @@ public class TrainingStepViewController: BaseStepViewController {
     /// Training status label
     private let statusLabel = UILabel()
     
-    /// Training animation view
-    private let animationView = UIView()
-    
-    /// Animated dots for training indicator
-    private var animationDots: [UIView] = []
-    
-    /// Animation timer
-    private var animationTimer: Timer?
+
     
     public override func configureStep() {
         super.configureStep()
         
         // Configure header
-        titleLabel.text = "Training Your AI"
-        subtitleLabel.text = "Building your personalized model..."
+        titleLabel.text = "Creating Your Persona"
+        subtitleLabel.text = "This will only take a moment. We're personalizing your experience."
         
         // Configure buttons
         primaryButton.setTitle("Cancel", for: .normal)
@@ -39,9 +32,6 @@ public class TrainingStepViewController: BaseStepViewController {
         
         // Bind to state
         bindToState()
-        
-        // Start training animation
-        startTrainingAnimation()
     }
     
     /// Setup training UI components
@@ -66,107 +56,15 @@ public class TrainingStepViewController: BaseStepViewController {
         statusLabel.textAlignment = .center
         statusLabel.numberOfLines = 0
         
-        // Animation view
-        setupAnimationView()
-        
-        // Add to content stack
-        contentStackView.addArrangedSubview(animationView)
-        contentStackView.addArrangedSubview(progressLabel)
+        // Add to content stack (remove animation view, put progress label under progress bar)
         contentStackView.addArrangedSubview(progressView)
+        contentStackView.addArrangedSubview(progressLabel)
         contentStackView.addArrangedSubview(statusLabel)
         
         // Setup constraints
         NSLayoutConstraint.activate([
-            animationView.heightAnchor.constraint(equalToConstant: 80),
             progressView.heightAnchor.constraint(equalToConstant: 8)
         ])
-    }
-    
-    /// Setup training animation view
-    private func setupAnimationView() {
-        animationView.backgroundColor = .clear
-        
-        // Create animated dots
-        let dotCount = 5
-        let dotSize: CGFloat = 12
-        let spacing: CGFloat = 16
-        
-        let stackView = UIStackView()
-        stackView.axis = .horizontal
-        stackView.spacing = spacing
-        stackView.alignment = .center
-        stackView.distribution = .equalSpacing
-        
-        for i in 0..<dotCount {
-            let dot = UIView()
-            dot.backgroundColor = .systemBlue
-            dot.layer.cornerRadius = dotSize / 2
-            dot.alpha = 0.3
-            
-            animationDots.append(dot)
-            stackView.addArrangedSubview(dot)
-            
-            // Set fixed size
-            dot.translatesAutoresizingMaskIntoConstraints = false
-            NSLayoutConstraint.activate([
-                dot.widthAnchor.constraint(equalToConstant: dotSize),
-                dot.heightAnchor.constraint(equalToConstant: dotSize)
-            ])
-        }
-        
-        animationView.addSubview(stackView)
-        
-        // Center stack view
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stackView.centerXAnchor.constraint(equalTo: animationView.centerXAnchor),
-            stackView.centerYAnchor.constraint(equalTo: animationView.centerYAnchor)
-        ])
-    }
-    
-    /// Start training animation
-    private func startTrainingAnimation() {
-        var currentDotIndex = 0
-        
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            // Reset all dots
-            self.animationDots.forEach { $0.alpha = 0.3 }
-            
-            // Highlight current dot
-            if currentDotIndex < self.animationDots.count {
-                UIView.animate(withDuration: 0.2) {
-                    self.animationDots[currentDotIndex].alpha = 1.0
-                    
-                    // CRITICAL: Protect CGAffineTransform from NaN values
-                    let scaleTransform = CGAffineTransform(scaleX: 1.2, y: 1.2)
-                    guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
-                        print("🚨 [ERROR] Invalid scale transform in training animation")
-                        return
-                    }
-                    self.animationDots[currentDotIndex].transform = scaleTransform
-                } completion: { _ in
-                    UIView.animate(withDuration: 0.1) {
-                        self.animationDots[currentDotIndex].transform = .identity
-                    }
-                }
-            }
-            
-            currentDotIndex = (currentDotIndex + 1) % self.animationDots.count
-        }
-    }
-    
-    /// Stop training animation
-    private func stopTrainingAnimation() {
-        animationTimer?.invalidate()
-        animationTimer = nil
-        
-        // Reset all dots
-        animationDots.forEach { dot in
-            dot.alpha = 0.3
-            dot.transform = .identity
-        }
     }
     
     /// Bind to onboarding state
@@ -222,8 +120,6 @@ public class TrainingStepViewController: BaseStepViewController {
         if safeProgress >= 1.0 {
             // Ensure we're on main actor for UI updates
             Task { @MainActor in
-                self.stopTrainingAnimation()
-                
                 // Show completion animation
                 self.showCompletionAnimation()
                 
@@ -256,73 +152,13 @@ public class TrainingStepViewController: BaseStepViewController {
     
     /// Show completion animation
     private func showCompletionAnimation() {
-        // Change all dots to green
-        animationDots.forEach { dot in
-            UIView.animate(withDuration: 0.5) {
-                dot.backgroundColor = .systemGreen
-                dot.alpha = 1.0
-                
-                // CRITICAL: Protect CGAffineTransform from NaN values
-                let scaleTransform = CGAffineTransform(scaleX: 1.3, y: 1.3)
-                guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
-                    print("🚨 [ERROR] Invalid scale transform in completion animation")
-                    return
-                }
-                dot.transform = scaleTransform
-            } completion: { _ in
-                UIView.animate(withDuration: 0.3) {
-                    dot.transform = .identity
-                }
-            }
+        // Simple completion animation - just animate the progress bar to green
+        UIView.animate(withDuration: 0.5) {
+            self.progressView.progressTintColor = .systemGreen
         }
         
-        // Add checkmark
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            self.addCompletionCheckmark()
-        }
-    }
-    
-    /// Add completion checkmark
-    private func addCompletionCheckmark() {
-        let checkmarkLabel = UILabel()
-        checkmarkLabel.text = "✓"
-        checkmarkLabel.font = .systemFont(ofSize: 32, weight: .bold)
-        checkmarkLabel.textColor = .systemGreen
-        checkmarkLabel.textAlignment = .center
-        checkmarkLabel.alpha = 0
-        
-        animationView.addSubview(checkmarkLabel)
-        
-        checkmarkLabel.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            checkmarkLabel.centerXAnchor.constraint(equalTo: animationView.centerXAnchor),
-            checkmarkLabel.centerYAnchor.constraint(equalTo: animationView.centerYAnchor, constant: -20)
-        ])
-        
-        // CRITICAL: Protect CGAffineTransform from NaN values
-        let scaleTransform = CGAffineTransform(scaleX: 0.1, y: 0.1)
-        guard !scaleTransform.a.isNaN && !scaleTransform.d.isNaN else {
-            print("🚨 [ERROR] Invalid scale transform in checkmark animation")
-            // Fallback: just animate alpha
-            UIView.animate(withDuration: 0.6, animations: {
-                checkmarkLabel.alpha = 1.0
-            })
-            return
-        }
-        
-        // Animate checkmark appearance
-        checkmarkLabel.transform = scaleTransform
-        UIView.animate(
-            withDuration: 0.6,
-            delay: 0,
-            usingSpringWithDamping: 0.6,
-            initialSpringVelocity: 0.8,
-            options: [.curveEaseOut],
-            animations: {
-                checkmarkLabel.alpha = 1.0
-                checkmarkLabel.transform = .identity
-            }
-        )
+        // Update status to show completion
+        statusLabel.text = "Persona created successfully!"
     }
     
     public override func setLoading(_ isLoading: Bool) {
@@ -341,9 +177,6 @@ public class TrainingStepViewController: BaseStepViewController {
     }
     
     deinit {
-        // Use Task to properly handle MainActor isolation
-        Task { @MainActor in
-            self.stopTrainingAnimation()
-        }
+        // Cleanup is handled automatically when view controller is deallocated
     }
 } 

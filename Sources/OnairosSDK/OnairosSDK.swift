@@ -729,6 +729,7 @@ public struct OnboardingData: Codable {
     public let sessionSaved: Bool
     public let inferenceData: [String: AnyCodable]?
     public let partner: String?
+    public let accountInfo: [String: AnyCodable]?
     
     public init(
         apiURL: String,
@@ -737,7 +738,8 @@ public struct OnboardingData: Codable {
         connectedPlatforms: [String: PlatformData],
         sessionSaved: Bool,
         inferenceData: [String: Any]? = nil,
-        partner: String? = nil
+        partner: String? = nil,
+        accountInfo: [String: Any]? = nil
     ) {
         self.apiURL = apiURL
         self.token = token
@@ -746,6 +748,7 @@ public struct OnboardingData: Codable {
         self.sessionSaved = sessionSaved
         self.inferenceData = inferenceData?.mapValues { AnyCodable($0) }
         self.partner = partner
+        self.accountInfo = accountInfo?.mapValues { AnyCodable($0) }
     }
 }
 

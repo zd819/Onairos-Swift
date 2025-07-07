@@ -152,7 +152,7 @@ public class OnairosAPIClient {
         let request = EmailVerificationRequest(email: email)
         
         let result = await performRequest(
-            endpoint: "/email/verification",
+            endpoint: "/email/verify",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
@@ -161,6 +161,12 @@ public class OnairosAPIClient {
         switch result {
         case .success(let response):
             log("✅ Email verification request successful: \(response.success)", level: .info)
+            if let testingMode = response.testingMode {
+                log("🧪 Testing mode enabled: \(testingMode)", level: .info)
+            }
+            if let accountInfo = response.accountInfo {
+                log("📋 Account info received: \(accountInfo)", level: .info)
+            }
             return .success(response.success)
         case .failure(let error):
             log("❌ Email verification request failed: \(error.localizedDescription)", level: .error)
@@ -179,10 +185,10 @@ public class OnairosAPIClient {
     public func verifyEmailCode(email: String, code: String) async -> Result<Bool, OnairosError> {
         log("🚀 Verifying email code for: \(email) with code: \(code)", level: .info)
         
-        let request = EmailVerificationRequest(email: email, action: "verify", code: code)
+        let request = EmailVerificationRequest(email: email, code: code)
         
         let result = await performRequest(
-            endpoint: "/email/verification",
+            endpoint: "/email/verify/confirm",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
@@ -192,6 +198,12 @@ public class OnairosAPIClient {
         case .success(let response):
             let verified = response.verified ?? false
             log("✅ Email verification code check completed: \(verified)", level: .info)
+            if let testingMode = response.testingMode {
+                log("🧪 Testing mode enabled: \(testingMode)", level: .info)
+            }
+            if let accountInfo = response.accountInfo {
+                log("📋 Account info received: \(accountInfo)", level: .info)
+            }
             return .success(verified)
         case .failure(let error):
             log("❌ Email verification code check failed: \(error.localizedDescription)", level: .error)
@@ -205,14 +217,46 @@ public class OnairosAPIClient {
     /// Check email verification status
     /// - Parameter email: Email address
     /// - Returns: Verification status
-    public func checkEmailVerificationStatus(email: String) async -> Result<Bool, OnairosError> {
+    public func checkEmailVerificationStatus(email: String) async -> Result<EmailVerificationStatusResponse, OnairosError> {
         return await performRequestWithoutBody(
-            endpoint: "/email/verification/status/\(email)",
+            endpoint: "/email/verify/status/\(email)",
             method: .GET,
+            responseType: EmailVerificationStatusResponse.self
+        )
+    }
+    
+    /// Request email verification with full response
+    /// - Parameter email: Email address to verify
+    /// - Returns: Full email verification response including account info
+    public func requestEmailVerificationWithResponse(email: String) async -> Result<EmailVerificationResponse, OnairosError> {
+        log("🚀 Requesting email verification with full response for: \(email)", level: .info)
+        
+        let request = EmailVerificationRequest(email: email)
+        
+        return await performRequest(
+            endpoint: "/email/verify",
+            method: .POST,
+            body: request,
             responseType: EmailVerificationResponse.self
-        ).map { response in
-            response.verified ?? false
-        }
+        )
+    }
+    
+    /// Verify email with code and get full response
+    /// - Parameters:
+    ///   - email: Email address
+    ///   - code: Verification code
+    /// - Returns: Full email verification response including account info
+    public func verifyEmailCodeWithResponse(email: String, code: String) async -> Result<EmailVerificationResponse, OnairosError> {
+        log("🚀 Verifying email code with full response for: \(email) with code: \(code)", level: .info)
+        
+        let request = EmailVerificationRequest(email: email, code: code)
+        
+        return await performRequest(
+            endpoint: "/email/verify/confirm",
+            method: .POST,
+            body: request,
+            responseType: EmailVerificationResponse.self
+        )
     }
     
     /// Enhance email verification errors with more context

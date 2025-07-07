@@ -837,3 +837,50 @@ Only required for production YouTube integration. For development with `testMode
 - **Issues**: Report bugs via GitHub issues
 
 ## Advanced Configuration
+
+### Accessing Account Information
+
+The SDK now supports detecting existing accounts during email verification. If an account already exists for the provided email, the API will return account information that can be accessed through the onboarding state:
+
+```swift
+// Start onboarding
+OnairosSDK.shared.startOnboarding(from: self) { result in
+    switch result {
+    case .success(let data):
+        // Check if account info was provided during verification
+        if let accountInfo = data.accountInfo {
+            print("Existing account found:")
+            print("User ID: \(accountInfo["userId"]?.value ?? "N/A")")
+            print("Name: \(accountInfo["name"]?.value ?? "N/A")")
+            print("Verified: \(accountInfo["verified"]?.value ?? false)")
+        }
+        
+        // Handle successful onboarding
+        print("Onboarding completed successfully")
+    case .failure(let error):
+        print("Onboarding failed: \(error.localizedDescription)")
+    }
+}
+```
+
+### Email Verification Status
+
+You can also check the verification status of an email address:
+
+```swift
+// Check email verification status
+let coordinator = OnairosSDK.shared.currentCoordinator
+let result = await coordinator?.checkEmailVerificationStatus(email: "user@example.com")
+
+switch result {
+case .success(let status):
+    print("Has pending code: \(status.hasCode ?? false)")
+    if let expiresAt = status.expiresAt {
+        print("Code expires at: \(expiresAt)")
+    }
+case .failure(let error):
+    print("Failed to check status: \(error.localizedDescription)")
+case .none:
+    print("No active onboarding session")
+}
+```

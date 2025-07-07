@@ -73,16 +73,36 @@ public class OnairosModalController: UIViewController {
         
         // Container view
         containerView.backgroundColor = .systemBackground
-        containerView.layer.cornerRadius = 24
+        containerView.layer.cornerRadius = 28
         containerView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         containerView.layer.shadowColor = UIColor.black.cgColor
         containerView.layer.shadowOffset = CGSize(width: 0, height: -2)
         containerView.layer.shadowRadius = 8
         containerView.layer.shadowOpacity = 0.1
+        containerView.clipsToBounds = false // Ensure shadows are visible
         view.addSubview(containerView)
+        
+        // Add drag handle indicator at the top
+        setupDragHandle()
         
         setupConstraints()
         setupGestureRecognizers()
+    }
+    
+    /// Setup drag handle indicator
+    private func setupDragHandle() {
+        let dragHandle = UIView()
+        dragHandle.backgroundColor = .systemGray4
+        dragHandle.layer.cornerRadius = 2.5
+        containerView.addSubview(dragHandle)
+        
+        dragHandle.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            dragHandle.centerXAnchor.constraint(equalTo: containerView.centerXAnchor),
+            dragHandle.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 8),
+            dragHandle.widthAnchor.constraint(equalToConstant: 36),
+            dragHandle.heightAnchor.constraint(equalToConstant: 5)
+        ])
     }
     
     /// Setup Auto Layout constraints
@@ -163,10 +183,10 @@ public class OnairosModalController: UIViewController {
         addChild(stepViewController)
         containerView.addSubview(stepViewController.view)
         
-        // Setup constraints
+        // Setup constraints (add top padding for drag handle)
         stepViewController.view.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            stepViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            stepViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 20),
             stepViewController.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             stepViewController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
             stepViewController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)

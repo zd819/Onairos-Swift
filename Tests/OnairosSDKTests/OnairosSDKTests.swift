@@ -180,4 +180,150 @@ final class OnairosSDKTests: XCTestCase {
             }
         }
     }
+    
+    // MARK: - Email Verification Tests
+    
+    func testEmailVerificationRequest() throws {
+        let request = EmailVerificationRequest(email: "test@example.com")
+        
+        XCTAssertEqual(request.email, "test@example.com")
+        XCTAssertNil(request.code)
+    }
+    
+    func testEmailVerificationRequestWithCode() throws {
+        let request = EmailVerificationRequest(email: "test@example.com", code: "123456")
+        
+        XCTAssertEqual(request.email, "test@example.com")
+        XCTAssertEqual(request.code, "123456")
+    }
+    
+    func testEmailVerificationResponse() throws {
+        // Test basic response
+        let response = EmailVerificationResponse(
+            success: true,
+            message: "Code sent",
+            verified: nil,
+            testingMode: true,
+            accountInfo: nil,
+            note: "Testing mode enabled"
+        )
+        
+        XCTAssertTrue(response.success)
+        XCTAssertEqual(response.message, "Code sent")
+        XCTAssertNil(response.verified)
+        XCTAssertEqual(response.testingMode, true)
+        XCTAssertNil(response.accountInfo)
+        XCTAssertEqual(response.note, "Testing mode enabled")
+    }
+    
+    func testEmailVerificationResponseWithAccountInfo() throws {
+        let accountInfo = [
+            "userId": AnyCodable("12345"),
+            "name": AnyCodable("John Doe"),
+            "verified": AnyCodable(true)
+        ]
+        
+        let response = EmailVerificationResponse(
+            success: true,
+            message: "Existing account found",
+            verified: true,
+            testingMode: false,
+            accountInfo: accountInfo,
+            note: nil
+        )
+        
+        XCTAssertTrue(response.success)
+        XCTAssertEqual(response.message, "Existing account found")
+        XCTAssertEqual(response.verified, true)
+        XCTAssertEqual(response.testingMode, false)
+        XCTAssertNotNil(response.accountInfo)
+        XCTAssertEqual(response.accountInfo?["userId"]?.value as? String, "12345")
+        XCTAssertEqual(response.accountInfo?["name"]?.value as? String, "John Doe")
+        XCTAssertEqual(response.accountInfo?["verified"]?.value as? Bool, true)
+        XCTAssertNil(response.note)
+    }
+    
+    func testEmailVerificationStatusResponse() throws {
+        let statusResponse = EmailVerificationStatusResponse(
+            success: true,
+            hasCode: true,
+            expiresAt: "2024-01-01T12:00:00Z"
+        )
+        
+        XCTAssertTrue(statusResponse.success)
+        XCTAssertEqual(statusResponse.hasCode, true)
+        XCTAssertEqual(statusResponse.expiresAt, "2024-01-01T12:00:00Z")
+    }
+    
+    func testOnboardingStateAccountInfo() throws {
+        let state = OnboardingState()
+        
+        // Test initial state
+        XCTAssertNil(state.accountInfo)
+        
+        // Test setting account info
+        let accountInfo = [
+            "userId": AnyCodable("12345"),
+            "name": AnyCodable("John Doe")
+        ]
+        state.accountInfo = accountInfo
+        
+        XCTAssertNotNil(state.accountInfo)
+        XCTAssertEqual(state.accountInfo?["userId"]?.value as? String, "12345")
+        XCTAssertEqual(state.accountInfo?["name"]?.value as? String, "John Doe")
+        
+        // Test reset clears account info
+        state.reset()
+        XCTAssertNil(state.accountInfo)
+    }
+    
+    // MARK: - Flow Tests
+    
+    func testOnboardingFlowProgression() throws {
+        let config = OnairosConfig.testMode(urlScheme: "test", appName: "Test")
+        let state = OnboardingState()
+        let coordinator = OnboardingCoordinator(
+            state: state,
+            config: config,
+            apiClient: OnairosAPIClient.shared
+        )
+        
+        // Test Connect -> PIN transition (skip success step)
+        state.currentStep = .connect
+        coordinator.proceedToNextStep()
+        XCTAssertEqual(state.currentStep, .pin, "Connect step should proceed directly to PIN step")
+        
+        // Test PIN -> Training transition
+        state.currentStep = .pin
+        state.pin = "testpin123!"
+        coordinator.proceedToNextStep()
+        
+        // In test mode, this should transition to training
+        let expectation = self.expectation(description: "PIN step should proceed to Training step")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            XCTAssertEqual(state.currentStep, .training, "PIN step should proceed to Training step")
+            expectation.fulfill()
+        }
+        
+        waitForExpectations(timeout: 2.0)
+    }
+    
+    func testConnectStepSkipForNow() throws {
+        let config = OnairosConfig.testMode(urlScheme: "test", appName: "Test")
+        let state = OnboardingState()
+        let coordinator = OnboardingCoordinator(
+            state: state,
+            config: config,
+            apiClient: OnairosAPIClient.shared
+        )
+        
+        // Test that Connect step allows proceeding without connections in test mode
+        state.currentStep = .connect
+        // Don't connect any platforms
+        XCTAssertTrue(state.connectedPlatforms.isEmpty, "Should have no connected platforms")
+        
+        // Should still be able to proceed in test mode
+        coordinator.proceedToNextStep()
+        XCTAssertEqual(state.currentStep, .pin, "Connect step should proceed directly to PIN even without connections in test mode")
+    }
 } 

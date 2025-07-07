@@ -140,10 +140,11 @@ public class OnboardingCoordinator {
         }
         
         // User manually chose to proceed (either with or without connections)
-        state.currentStep = .success
+        // Skip the success step and go directly to PIN creation
+        state.currentStep = .pin
         
         if config.isTestMode {
-            print("🧪 [TEST MODE] Moving to success step")
+            print("🧪 [TEST MODE] Moving directly to PIN step")
         }
     }
     
@@ -160,7 +161,7 @@ public class OnboardingCoordinator {
         case .success:
             state.currentStep = .connect
         case .pin:
-            state.currentStep = .success
+            state.currentStep = .connect // Go back to connect step, skip success
         case .training:
             state.currentStep = .pin
         }
@@ -198,15 +199,27 @@ public class OnboardingCoordinator {
         
         print("🔍 [DEBUG] Making API call for email verification...")
         Task {
-            let result = await apiClient.requestEmailVerification(email: state.email)
+            let result = await apiClient.requestEmailVerificationWithResponse(email: state.email)
             print("🔍 [DEBUG] API call completed with result: \(result)")
             
             await MainActor.run {
                 state.isLoading = false
                 
                 switch result {
-                case .success:
+                case .success(let response):
                     print("🔍 [DEBUG] Email verification success - moving to verify step")
+                    
+                    // Store account info if provided
+                    if let accountInfo = response.accountInfo {
+                        print("🔍 [DEBUG] Account info received: \(accountInfo)")
+                        state.accountInfo = accountInfo
+                    }
+                    
+                    // Log testing mode if enabled
+                    if let testingMode = response.testingMode, testingMode {
+                        print("🧪 [TEST MODE] Testing mode enabled via API response")
+                    }
+                    
                     state.currentStep = .verify
                 case .failure(let error):
                     print("🔍 [DEBUG] Email verification failed: \(error)")
@@ -282,7 +295,7 @@ public class OnboardingCoordinator {
         }
         
         Task {
-            let result = await apiClient.verifyEmailCode(
+            let result = await apiClient.verifyEmailCodeWithResponse(
                 email: state.email,
                 code: state.verificationCode
             )
@@ -291,9 +304,22 @@ public class OnboardingCoordinator {
                 state.isLoading = false
                 
                 switch result {
-                case .success(let verified):
+                case .success(let response):
+                    let verified = response.verified ?? false
                     if verified {
                         print("🔍 [DEBUG] Email verification code validated successfully")
+                        
+                        // Store account info if provided
+                        if let accountInfo = response.accountInfo {
+                            print("🔍 [DEBUG] Account info received during verification: \(accountInfo)")
+                            state.accountInfo = accountInfo
+                        }
+                        
+                        // Log testing mode if enabled
+                        if let testingMode = response.testingMode, testingMode {
+                            print("🧪 [TEST MODE] Testing mode enabled via verification response")
+                        }
+                        
                         state.currentStep = .connect
                     } else {
                         print("🔍 [DEBUG] Email verification code invalid")
@@ -394,21 +420,15 @@ public class OnboardingCoordinator {
     
     /// Handle success step (auto-advance)
     /// NOTE: Success step is a brief "Success!" screen between Connect and PIN steps
+    /// The SuccessStepViewController handles its own auto-advance, so this method
+    /// is called when the user manually proceeds from the success step
     private func handleSuccessStep() {
         if config.isTestMode {
-            print("🧪 [TEST MODE] Success step - showing brief success screen then moving to PIN")
+            print("🧪 [TEST MODE] Success step - user manually proceeding to PIN")
         }
-        state.currentStep = .pin
         
-        // Auto-advance after a brief moment to show the success screen
-        let delay = config.isTestMode ? 1.5 : 2.0
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            // Success step auto-advances to PIN - this is intended behavior
-            if self?.config.isTestMode == true {
-                print("🧪 [TEST MODE] Auto-advancing from success to PIN step")
-            }
-            // No need to call handleSuccessStep() again, just let the UI update
-        }
+        // User manually proceeded from success step, move to PIN
+        state.currentStep = .pin
     }
     
     /// Handle PIN creation step
@@ -469,6 +489,13 @@ public class OnboardingCoordinator {
         startAITraining()
     }
     
+    /// Check email verification status
+    /// - Parameter email: Email address to check
+    /// - Returns: Verification status response
+    public func checkEmailVerificationStatus(email: String) async -> Result<EmailVerificationStatusResponse, OnairosError> {
+        return await apiClient.checkEmailVerificationStatus(email: email)
+    }
+    
     /// Handle training completion
     private func handleTrainingComplete() {
         // Save session
@@ -486,7 +513,8 @@ public class OnboardingCoordinator {
             connectedPlatforms: connectedPlatformData,
             sessionSaved: true,
             inferenceData: nil,
-            partner: nil
+            partner: nil,
+            accountInfo: state.accountInfo?.mapValues { $0.value }
         )
         
         dismiss(with: .success(onboardingData))

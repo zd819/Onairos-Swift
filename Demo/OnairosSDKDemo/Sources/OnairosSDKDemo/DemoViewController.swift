@@ -230,6 +230,9 @@ class DemoViewController: UIViewController {
             🔗 Platform Data:
             \(formatPlatformData(onboardingData.connectedPlatforms.mapValues { $0.platform }))
             
+            👤 Account Info:
+            \(formatAccountInfo(onboardingData.accountInfo?.mapValues { $0.value }))
+            
             🔗 API URL: \(onboardingData.apiURL)
             🔑 Token: \(onboardingData.token.prefix(20))...
             """
@@ -289,6 +292,21 @@ class DemoViewController: UIViewController {
             formatted += "  • \(platform.capitalized): Connected\n"
         }
         return formatted.isEmpty ? "  No platforms connected" : formatted
+    }
+    
+    /// Format account info for display
+    /// - Parameter accountInfo: Account info dictionary
+    /// - Returns: Formatted string
+    private func formatAccountInfo(_ accountInfo: [String: Any]?) -> String {
+        guard let accountInfo = accountInfo else {
+            return "  No existing account info"
+        }
+        
+        var formatted = ""
+        for (key, value) in accountInfo {
+            formatted += "  • \(key): \(value)\n"
+        }
+        return formatted.isEmpty ? "  No account info" : formatted
     }
     
     /// Show error alert
