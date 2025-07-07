@@ -11,6 +11,9 @@ public class OAuthWebViewController: UIViewController {
     /// Configuration
     private let config: OnairosConfig
     
+    /// User email for username extraction
+    private let userEmail: String
+    
     /// Completion callback
     private let completion: (Result<String, OnairosError>) -> Void
     
@@ -39,14 +42,17 @@ public class OAuthWebViewController: UIViewController {
     /// - Parameters:
     ///   - platform: Platform to authenticate
     ///   - config: SDK configuration
+    ///   - userEmail: User email for username extraction
     ///   - completion: Completion callback with auth code
     init(
         platform: Platform,
         config: OnairosConfig,
+        userEmail: String,
         completion: @escaping (Result<String, OnairosError>) -> Void
     ) {
         self.platform = platform
         self.config = config
+        self.userEmail = userEmail
         self.completion = completion
         
         super.init(nibName: nil, bundle: nil)
@@ -191,6 +197,9 @@ public class OAuthWebViewController: UIViewController {
         let baseURL = config.apiBaseURL
         let redirectURI = "\(config.urlScheme)://oauth/callback"
         
+        // Extract username from email (part before @)
+        let username = extractUsername(from: userEmail)
+        
         guard var urlComponents = URLComponents(string: "\(baseURL)/\(platform.rawValue)/authorize") else {
             // Fallback to a basic URL if components creation fails
             return URL(string: "\(baseURL)/\(platform.rawValue)/authorize")!
@@ -200,10 +209,20 @@ public class OAuthWebViewController: UIViewController {
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "redirect_uri", value: redirectURI),
             URLQueryItem(name: "scope", value: platform.oauthScopes),
-            URLQueryItem(name: "state", value: generateStateParameter())
+            URLQueryItem(name: "state", value: generateStateParameter()),
+            URLQueryItem(name: "email", value: userEmail),
+            URLQueryItem(name: "username", value: username)
         ]
         
         return urlComponents.url ?? URL(string: "\(baseURL)/\(platform.rawValue)/authorize")!
+    }
+    
+    /// Extract username from email address
+    /// - Parameter email: Full email address
+    /// - Returns: Username (part before @)
+    private func extractUsername(from email: String) -> String {
+        let components = email.components(separatedBy: "@")
+        return components.first ?? email
     }
     
     /// Generate state parameter for OAuth security

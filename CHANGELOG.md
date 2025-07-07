@@ -5,6 +5,42 @@ All notable changes to the Onairos Swift SDK will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2024-12-28
+
+### Fixed
+- PIN submission format to match backend API requirements
+- Updated PIN submission endpoint to `/store-pin/web` with JWT authentication
+- Simplified PIN request payload to only include username and pin
+- Enhanced PIN submission with proper Bearer token authentication
+- Updated PIN submission to use actual API call instead of placeholder
+
+### Changed
+- PINSubmissionRequest model now only requires username and pin (removed email and userId)
+- PIN submission now uses JWT token for authentication
+- Enhanced error handling for PIN submission with detailed logging
+
+## [1.1.1] - 2024-12-28
+
+### Added
+- Enhanced email verification API response handling with comprehensive user data
+- User data storage and management from email verification responses
+- New user vs existing user detection and handling
+- PIN submission API endpoint preparation with proper request/response models
+- User data persistence in UserDefaults for cross-session access
+- Comprehensive error handling for email verification with attempt tracking
+
+### Changed
+- Updated EmailVerificationResponse model to include full user data structure
+- Enhanced email verification process to handle new API response format
+- Improved PIN backend submission with proper user context
+- Updated OnboardingCoordinator to store and utilize user data throughout flow
+- Enhanced error messages to show remaining verification attempts
+
+### Fixed
+- Email verification response parsing to handle new backend API structure
+- User data extraction and storage from verification responses
+- PIN submission context with proper user identification
+
 ## [1.1.0] - 2024-12-28
 
 ### Added
@@ -605,60 +641,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CRITICAL: Force Unwrap Safety**: Eliminated all force unwraps that could cause runtime crashes
   - `OnairosSDK.swift`: Replaced `config!` with safe guard statements and proper error handling
   - `OAuthWebViewController.swift`: Protected URL construction with safe unwrapping and fallbacks
-  - Enhanced button constraint handling to prevent `titleLabel!` crashes
-  - All configuration access now validated before use
-
-### Added
-- **Comprehensive Test Suite**: 20+ automated tests covering all SDK components
-  - Configuration validation tests (test mode, debug mode, production mode)
-  - Model validation tests (OnboardingState, PIN requirements, email validation)
-  - NaN protection validation for training progress calculations
-  - Error handling and localization tests
-  - Platform and device info testing coverage
-  - Memory safety and state reset functionality tests
-  
-- **Enhanced Integration Guide**: Complete testing and validation documentation
-  - Step-by-step integration validation checklist
-  - Automated test runner with pass/fail reporting and success rate calculation
-  - Manual testing instructions with demo app workflow
-  - Common integration issues and solutions guide
-  - Production deployment guidelines and configuration examples
-
-### Enhanced
-- **Developer Experience**: Comprehensive testing and validation tools
-  - `TestApp/Sources/TestApp/main.swift`: Complete rewrite with 20+ test cases
-  - Automated test execution with detailed feedback and next steps
-  - Integration validation checklist for systematic verification
-  - Clear success/failure reporting with troubleshooting guidance
-
-### Technical
-- **Memory Safety Improvements**: Enhanced error handling throughout the SDK
-  - Guard statements for all configuration access points
-  - Safe URL construction with fallback mechanisms
-  - Protected constraint setup for UI components
-  - Comprehensive validation before state assignments
-
-### Stability
-- **Production Readiness**: Eliminated all potential crash points
-  - No more force unwraps that could cause runtime failures
-  - Safe handling of optional values throughout authentication flows
-  - Protected against malformed URLs in OAuth processes
-  - Enhanced error recovery mechanisms for network and configuration issues
-
-## [1.0.33] - 2025-07-03
-
-### Fixed
-- **CoreGraphics NaN Crash**: Added defensive checks in `BaseStepViewController.scrollToActiveInput()` to prevent NaN / infinite values from being passed to `scrollRectToVisible`. This eliminates repeated console warnings `invalid numeric value (NaN, or not-a-number) to CoreGraphics API` and stops the modal from unexpectedly dismissing after the email step.
-- **Email Input Crashes**: Added comprehensive safeguards in `EmailStepViewController` to prevent crashes during email entry:
-  - Protected email validation regex with try-catch error handling
-  - Added email length limits (254 characters max per RFC 5321)
-  - Enhanced text field delegate methods with validation guards
-  - Added keyboard dismissal before step transitions
-  - Implemented fallback validation for regex failures
-
-### Technical Details
-- Guard against NaN / infinite values when converting frames to scroll‐view coordinate space.
-- Clamp target Y-offset to non-negative values for safe scrolling.
-- Added extra logging so any future invalid frames are reported without crashing the UI.
-- Protected all email validation calls with error handling and fallback logic.
-- Enhanced text input handling to prevent performance issues with extremely long input. 
+  - Enhanced button constraint handling to prevent `

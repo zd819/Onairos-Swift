@@ -232,8 +232,31 @@ public struct EmailVerificationResponse: Codable {
     public let message: String?
     public let verified: Bool?
     public let testingMode: Bool?
-    public let accountInfo: [String: AnyCodable]?
-    public let note: String?
+    public let email: String?
+    public let isNewUser: Bool?
+    public let user: UserData?
+    public let error: String?
+    public let code: Int?
+    public let attemptsRemaining: Int?
+    
+    /// User data structure from API response
+    public struct UserData: Codable {
+        public let id: String
+        public let userId: String
+        public let userName: String
+        public let name: String
+        public let email: String
+        public let verified: Bool
+        public let creationDate: String
+    }
+}
+
+/// Email verification error response
+public struct EmailVerificationErrorResponse: Codable {
+    public let success: Bool
+    public let error: String
+    public let code: Int
+    public let attemptsRemaining: Int?
 }
 
 /// Email verification status response
@@ -378,4 +401,24 @@ public struct AnyCodable: Codable {
             throw EncodingError.invalidValue(value, EncodingError.Context(codingPath: encoder.codingPath, debugDescription: "Cannot encode value"))
         }
     }
+}
+
+/// PIN submission request
+public struct PINSubmissionRequest: Codable {
+    public let username: String
+    public let pin: String
+    
+    public init(username: String, pin: String) {
+        self.username = username
+        self.pin = pin
+    }
+}
+
+/// PIN submission response
+public struct PINSubmissionResponse: Codable {
+    public let success: Bool
+    public let message: String
+    public let userId: String?
+    public let pinSecured: Bool?
+    public let timestamp: String?
 } 

@@ -218,11 +218,7 @@ public class OnairosAPIClient {
     /// - Parameter email: Email address
     /// - Returns: Verification status
     public func checkEmailVerificationStatus(email: String) async -> Result<EmailVerificationStatusResponse, OnairosError> {
-        return await performRequestWithoutBody(
-            endpoint: "/email/verify/status/\(email)",
-            method: .GET,
-            responseType: EmailVerificationStatusResponse.self
-        )
+        return await makeRequest(endpoint: "/email/verify/status", method: .POST, body: ["email": email], responseType: EmailVerificationStatusResponse.self)
     }
     
     /// Request email verification with full response
@@ -601,6 +597,61 @@ public class OnairosAPIClient {
             
         } catch {
             return .failure(OnairosError.fromHTTPResponse(data: nil, response: nil, error: error))
+        }
+    }
+    
+    /// Submit PIN to backend endpoint
+    /// - Parameter request: PIN submission request with username and pin
+    /// - Returns: Result with PIN submission response
+    public func submitPIN(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
+        log("📤 Submitting PIN to backend for user: \(request.username)", level: .info)
+        
+        // TODO: JWT token should be retrieved from secure storage or user session
+        // For now, using placeholder - implement proper JWT token management
+        let jwtToken = "placeholder_jwt_token"
+        
+        return await makeRequestWithAuth(
+            endpoint: "/store-pin/web",
+            method: .POST,
+            body: request,
+            jwtToken: jwtToken,
+            responseType: PINSubmissionResponse.self
+        )
+    }
+    
+    /// Make authenticated request with JWT token
+    private func makeRequestWithAuth<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        body: Codable,
+        jwtToken: String,
+        responseType: T.Type
+    ) async -> Result<T, OnairosError> {
+        let url = baseURL.appendingPathComponent(endpoint)
+        var request = URLRequest(url: url)
+        request.httpMethod = method.rawValue
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            let jsonData = try JSONEncoder().encode(body)
+            request.httpBody = jsonData
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .failure(.networkError("Invalid response"))
+            }
+            
+            guard httpResponse.statusCode == 200 else {
+                return .failure(.apiError("PIN submission failed", httpResponse.statusCode))
+            }
+            
+            let decodedResponse = try JSONDecoder().decode(responseType, from: data)
+            return .success(decodedResponse)
+            
+        } catch {
+            return .failure(.networkError("PIN submission failed: \(error.localizedDescription)"))
         }
     }
 }

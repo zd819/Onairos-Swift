@@ -307,12 +307,27 @@ public class OnboardingCoordinator {
                 case .success(let response):
                     let verified = response.verified ?? false
                     if verified {
-                        print("🔍 [DEBUG] Email verification code validated successfully")
+                        print("✅ [EMAIL VERIFICATION] Code validated successfully")
                         
-                        // Store account info if provided
-                        if let accountInfo = response.accountInfo {
-                            print("🔍 [DEBUG] Account info received during verification: \(accountInfo)")
-                            state.accountInfo = accountInfo
+                        // Handle user data from the new API response
+                        if let user = response.user {
+                            print("📋 [USER DATA] User info received:")
+                            print("   - User ID: \(user.userId)")
+                            print("   - Username: \(user.userName)")
+                            print("   - Email: \(user.email)")
+                            print("   - Creation Date: \(user.creationDate)")
+                            
+                            // Store user data in onboarding state
+                            storeUserData(user, isNewUser: response.isNewUser ?? false)
+                        }
+                        
+                        // Check if this is a new user
+                        if let isNewUser = response.isNewUser {
+                            if isNewUser {
+                                print("🆕 [NEW USER] Account created successfully")
+                            } else {
+                                print("👤 [EXISTING USER] Account verified successfully")
+                            }
                         }
                         
                         // Log testing mode if enabled
@@ -322,41 +337,74 @@ public class OnboardingCoordinator {
                         
                         state.currentStep = .connect
                     } else {
-                        print("🔍 [DEBUG] Email verification code invalid")
-                        if config.isDebugMode {
-                            // In debug mode, show error but allow proceeding after delay
-                            state.errorMessage = "Invalid verification code, but debug mode allows proceeding..."
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                                print("🔍 [DEBUG] Debug mode - proceeding to connect step despite invalid code")
-                                self?.state.errorMessage = nil
-                                self?.state.currentStep = .connect
-                            }
-                        } else {
-                            state.errorMessage = "Invalid verification code. Please check your email and try again."
-                        }
+                        print("❌ [EMAIL VERIFICATION] Code validation failed")
+                        handleVerificationFailure(response: response)
                     }
                 case .failure(let error):
-                    print("🔍 [DEBUG] Email verification API call failed: \(error)")
-                    
-                    // CRITICAL FIX: Always show error message first, never dismiss modal on API failure
-                    let userFriendlyMessage = getUserFriendlyVerificationErrorMessage(for: error)
-                    state.errorMessage = userFriendlyMessage
-                    
-                    if config.isDebugMode {
-                        // In debug mode, show error but allow proceeding after delay
-                        print("🔍 [DEBUG] Debug mode - showing verification error but will allow proceeding")
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                            print("🔍 [DEBUG] Debug mode - proceeding to connect step despite verification API failure")
-                            self?.state.errorMessage = nil
-                            self?.state.currentStep = .connect
-                        }
-                    } else {
-                        // In production mode, stay on verification step and show error
-                        print("🔍 [DEBUG] Production mode - staying on verification step with error message")
-                        // DO NOT dismiss modal or proceed - let user retry or cancel manually
-                    }
+                    print("❌ [EMAIL VERIFICATION] API call failed: \(error)")
+                    handleVerificationError(error: error)
                 }
             }
+        }
+    }
+    
+    /// Store user data from verification response
+    private func storeUserData(_ user: EmailVerificationResponse.UserData, isNewUser: Bool) {
+        // Store user data in UserDefaults for later use
+        UserDefaults.standard.set(user.userId, forKey: "onairos_user_id")
+        UserDefaults.standard.set(user.userName, forKey: "onairos_username")
+        UserDefaults.standard.set(user.name, forKey: "onairos_user_name")
+        UserDefaults.standard.set(user.email, forKey: "onairos_user_email")
+        UserDefaults.standard.set(user.verified, forKey: "onairos_user_verified")
+        UserDefaults.standard.set(user.creationDate, forKey: "onairos_user_creation_date")
+        UserDefaults.standard.set(isNewUser, forKey: "onairos_is_new_user")
+        
+        print("💾 [USER DATA] Stored user information locally")
+    }
+    
+    /// Handle verification failure from API response
+    private func handleVerificationFailure(response: EmailVerificationResponse) {
+        if config.isDebugMode {
+            // In debug mode, show error but allow proceeding after delay
+            state.errorMessage = "Invalid verification code, but debug mode allows proceeding..."
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                print("🔍 [DEBUG] Debug mode - proceeding to connect step despite invalid code")
+                self?.state.errorMessage = nil
+                self?.state.currentStep = .connect
+            }
+        } else {
+            // Handle specific error cases from the new API response
+            if let error = response.error {
+                state.errorMessage = error
+                
+                // Show attempts remaining if provided
+                if let attemptsRemaining = response.attemptsRemaining {
+                    state.errorMessage = "\(error) (\(attemptsRemaining) attempts remaining)"
+                }
+            } else {
+                state.errorMessage = "Invalid verification code. Please check your email and try again."
+            }
+        }
+    }
+    
+    /// Handle verification API error
+    private func handleVerificationError(error: OnairosError) {
+        // CRITICAL FIX: Always show error message first, never dismiss modal on API failure
+        let userFriendlyMessage = getUserFriendlyVerificationErrorMessage(for: error)
+        state.errorMessage = userFriendlyMessage
+        
+        if config.isDebugMode {
+            // In debug mode, show error but allow proceeding after delay
+            print("🔍 [DEBUG] Debug mode - showing verification error but will allow proceeding")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                print("🔍 [DEBUG] Debug mode - proceeding to connect step despite verification API failure")
+                self?.state.errorMessage = nil
+                self?.state.currentStep = .connect
+            }
+        } else {
+            // In production mode, stay on verification step and show error
+            print("🔍 [DEBUG] Production mode - staying on verification step with error message")
+            // DO NOT dismiss modal or proceed - let user retry or cancel manually
         }
     }
     

@@ -291,88 +291,132 @@ public class PINStepViewController: BaseStepViewController {
         // Clear any existing error
         state.errorMessage = nil
         
-        // Update button to show biometric authentication is in progress
-        primaryButton.setTitle("Authenticating...", for: .normal)
+        // Update button to show storage is in progress
+        primaryButton.setTitle("Securing PIN...", for: .normal)
         primaryButton.isEnabled = false
+        setLoading(true)
         
-        // Trigger Face ID/Touch ID authentication before proceeding
-        authenticateWithBiometrics { [weak self] success in
-            DispatchQueue.main.async {
-                // Restore button state
-                self?.primaryButton.setTitle("Create PIN", for: .normal)
-                self?.primaryButton.isEnabled = true
+        // Store PIN with biometric authentication
+        Task {
+            await storePINSecurely()
+        }
+    }
+    
+    /// Store PIN securely with biometric authentication and send to backend
+    private func storePINSecurely() async {
+        do {
+            // Store PIN with biometric authentication
+            let result = await BiometricPINManager.shared.storePIN(state.pin)
+            
+            switch result {
+            case .success:
+                print("✅ [PIN] PIN stored securely with biometric protection")
                 
-                if success {
-                    // Biometric authentication successful, proceed to next step
-                    self?.proceedToNextStep()
-                } else {
-                    // Biometric authentication failed or not available, still proceed
-                    // (PIN is already validated, so we don't block the user)
-                    self?.proceedToNextStep()
+                // Send PIN to backend
+                await submitPINToBackend()
+                
+            case .failure(let error):
+                await MainActor.run {
+                    print("❌ [PIN] Failed to store PIN securely: \(error.localizedDescription)")
+                    
+                    // Show user-friendly error message
+                    state.errorMessage = "Failed to secure your PIN: \(error.localizedDescription)"
+                    
+                    // Restore button state
+                    primaryButton.setTitle("Create PIN", for: .normal)
+                    primaryButton.isEnabled = true
+                    setLoading(false)
                 }
             }
         }
     }
     
-    /// Proceed to next step after biometric authentication
-    private func proceedToNextStep() {
-        coordinator?.proceedToNextStep()
-    }
-    
-    /// Authenticate with Face ID/Touch ID
-    /// - Parameter completion: Completion handler with success result
-    private func authenticateWithBiometrics(completion: @escaping (Bool) -> Void) {
-        let context = LAContext()
-        var error: NSError?
-        
-        // Check if biometric authentication is available
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            print("🔐 [BIOMETRIC] Biometric authentication not available: \(error?.localizedDescription ?? "Unknown error")")
-            completion(false)
-            return
-        }
-        
-        // Determine biometric type for user-friendly message
-        let biometricType = context.biometryType
-        let authReason: String
-        
-        switch biometricType {
-        case .faceID:
-            authReason = "Use Face ID to secure your PIN"
-        case .touchID:
-            authReason = "Use Touch ID to secure your PIN"
-        case .opticID:
-            authReason = "Use Optic ID to secure your PIN"
-        default:
-            authReason = "Use biometric authentication to secure your PIN"
-        }
-        
-        print("🔐 [BIOMETRIC] Starting biometric authentication with \(biometricType)")
-        
-        // Perform biometric authentication
-        context.evaluatePolicy(
-            .deviceOwnerAuthenticationWithBiometrics,
-            localizedReason: authReason
-        ) { success, authError in
-            if success {
-                print("🔐 [BIOMETRIC] Authentication successful")
-                // Store PIN securely in Keychain here if needed
-                self.storePINSecurely()
-                completion(true)
-            } else {
-                print("🔐 [BIOMETRIC] Authentication failed: \(authError?.localizedDescription ?? "Unknown error")")
-                completion(false)
+    /// Submit PIN to backend endpoint
+    private func submitPINToBackend() async {
+        do {
+            // Get username from stored user data
+            let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
+            
+            print("📤 [PIN SUBMISSION] Sending PIN to backend:")
+            print("   - Username: \(username)")
+            print("   - PIN: [REDACTED]")
+            
+            // Create PIN submission request
+            let pinRequest = PINSubmissionRequest(
+                username: username,
+                pin: state.pin
+            )
+            
+            // Submit PIN to backend
+            let result = await OnairosAPIClient.shared.submitPIN(pinRequest)
+            
+            switch result {
+            case .success(let response):
+                await MainActor.run {
+                    print("✅ [PIN SUBMISSION] PIN submitted successfully: \(response.message)")
+                    
+                    // Restore button state and proceed
+                    primaryButton.setTitle("Create PIN", for: .normal)
+                    primaryButton.isEnabled = true
+                    setLoading(false)
+                    
+                    // Proceed to next step
+                    coordinator?.proceedToNextStep()
+                }
+                
+            case .failure(let error):
+                await MainActor.run {
+                    print("❌ [PIN SUBMISSION] Failed to submit PIN: \(error.localizedDescription)")
+                    
+                    // Show error but still proceed (PIN is stored locally)
+                    state.errorMessage = "PIN secured locally but failed to sync with server. You can continue."
+                    
+                    // Restore button state and proceed anyway
+                    primaryButton.setTitle("Create PIN", for: .normal)
+                    primaryButton.isEnabled = true
+                    setLoading(false)
+                    
+                    // Proceed to next step after short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.coordinator?.proceedToNextStep()
+                    }
+                }
+            }
+            
+        } catch {
+            await MainActor.run {
+                print("❌ [PIN SUBMISSION] Unexpected error: \(error.localizedDescription)")
+                
+                // Show error but still proceed (PIN is stored locally)
+                state.errorMessage = "PIN secured locally but failed to sync with server. You can continue."
+                
+                // Restore button state and proceed anyway
+                primaryButton.setTitle("Create PIN", for: .normal)
+                primaryButton.isEnabled = true
+                setLoading(false)
+                
+                // Proceed to next step after short delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    self.coordinator?.proceedToNextStep()
+                }
             }
         }
     }
     
-    /// Store PIN securely in Keychain (placeholder implementation)
-    private func storePINSecurely() {
-        // In a real implementation, you would store the PIN in the Keychain
-        // For now, we'll just store a flag that biometric authentication was set up
-        UserDefaults.standard.set(true, forKey: "onairos_biometric_enabled")
-        UserDefaults.standard.set(state.pin, forKey: "onairos_pin_hash") // In production, hash this!
-        print("🔐 [BIOMETRIC] PIN stored securely with biometric protection")
+    /// Authenticate with Face ID/Touch ID (legacy method - now handled by BiometricPINManager)
+    /// - Parameter completion: Completion handler with success result
+    private func authenticateWithBiometrics(completion: @escaping (Bool) -> Void) {
+        // Check biometric availability using our new manager
+        let availability = BiometricPINManager.shared.biometricAvailability()
+        
+        guard availability != .notAvailable else {
+            print("🔐 [BIOMETRIC] Biometric authentication not available")
+            completion(false)
+            return
+        }
+        
+        print("🔐 [BIOMETRIC] Biometric type available: \(availability.displayName)")
+        completion(true)
     }
 }
 

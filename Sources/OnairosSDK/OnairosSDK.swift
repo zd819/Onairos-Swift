@@ -6,6 +6,9 @@ import Combine
 @MainActor
 public class OnairosSDK: ObservableObject {
     
+    /// SDK version
+    public static let version = "1.1.2"
+    
     /// Shared singleton instance
     public static let shared = OnairosSDK()
     
@@ -387,6 +390,69 @@ public class OnairosSDK: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "OnairosSessionExists")
         UserDefaults.standard.removeObject(forKey: "OnairosConnectedPlatforms")
         UserDefaults.standard.removeObject(forKey: "OnairosUserEmail")
+    }
+    
+    /// Clean up resources
+    private func cleanup() {
+        modalController = nil
+        completionCallback = nil
+        connectedPlatformData.removeAll()
+        trainingManager?.disconnect()
+        trainingManager = nil
+    }
+    
+    // MARK: - PIN Management
+    
+    /// Store user PIN securely with biometric authentication
+    /// - Parameter pin: PIN to store securely
+    /// - Returns: Result indicating success or failure
+    public static func storePIN(_ pin: String) async -> Result<Void, OnairosError> {
+        let result = await BiometricPINManager.shared.storePIN(pin)
+        
+        switch result {
+        case .success:
+            return .success(())
+        case .failure(let error):
+            return .failure(.authenticationFailed(error.localizedDescription))
+        }
+    }
+    
+    /// Retrieve user PIN with biometric authentication
+    /// - Returns: Result containing the PIN or error
+    public static func retrievePIN() async -> Result<String, OnairosError> {
+        let result = await BiometricPINManager.shared.retrievePIN()
+        
+        switch result {
+        case .success(let pin):
+            return .success(pin)
+        case .failure(let error):
+            return .failure(.authenticationFailed(error.localizedDescription))
+        }
+    }
+    
+    /// Check if a PIN is stored securely
+    /// - Returns: True if PIN exists in secure storage
+    public static func hasPIN() -> Bool {
+        return BiometricPINManager.shared.hasPIN()
+    }
+    
+    /// Delete stored PIN
+    /// - Returns: Result indicating success or failure
+    public static func deletePIN() -> Result<Void, OnairosError> {
+        let result = BiometricPINManager.shared.deletePIN()
+        
+        switch result {
+        case .success:
+            return .success(())
+        case .failure(let error):
+            return .failure(.authenticationFailed(error.localizedDescription))
+        }
+    }
+    
+    /// Get biometric authentication availability
+    /// - Returns: Current biometric availability status
+    public static func biometricAvailability() -> BiometricAvailability {
+        return BiometricPINManager.shared.biometricAvailability()
     }
 }
 

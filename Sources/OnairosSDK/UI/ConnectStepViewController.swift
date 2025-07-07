@@ -295,7 +295,7 @@ private class PlatformConnectionView: UIView {
         
         // Create platform icon programmatically (bypasses bundle resource issues)
         let iconImage = createPlatformIcon(for: platform)
-        iconView.image = iconImage
+            iconView.image = iconImage
     }
     
     /// Create platform icon programmatically with proper branding
@@ -514,7 +514,8 @@ private class PlatformConnectionView: UIView {
         
         let oauthController = OAuthWebViewController(
             platform: platform,
-            config: config
+            config: config,
+            userEmail: state.email
         ) { [weak self] result in
             DispatchQueue.main.async {
                 self?.setLoading(false)
