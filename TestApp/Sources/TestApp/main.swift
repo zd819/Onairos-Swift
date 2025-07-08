@@ -28,6 +28,10 @@ func runTest(_ testName: String, test: () throws -> Bool) {
 // MARK: - Configuration Tests
 runTest("OnairosConfig Creation") {
     let config = OnairosConfig(
+        apiKey: "test-api-key",
+        environment: .development,
+        enableLogging: true,
+        isTestMode: false,
         isDebugMode: true,
         urlScheme: "test-app",
         appName: "Test App"

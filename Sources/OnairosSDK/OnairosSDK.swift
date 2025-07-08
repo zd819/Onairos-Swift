@@ -7,7 +7,7 @@ import Combine
 public class OnairosSDK: ObservableObject {
     
     /// SDK version
-    public static let version = "1.1.3"
+    public static let version = "1.2.4"
     
     /// Shared singleton instance
     public static let shared = OnairosSDK()
@@ -93,6 +93,49 @@ public class OnairosSDK: ObservableObject {
         )
         
         try await initializeApiKey(config: config)
+    }
+    
+    /// Initialize the SDK with configuration (modern method)
+    /// - Parameter config: SDK configuration
+    public func initialize(config: OnairosConfig) {
+        self.config = config
+        
+        // Validate configuration and provide guidance
+        validateConfiguration(config)
+        
+        // Configure API client logging based on mode
+        let logLevel: APILogLevel
+        let enableDetailedLogging: Bool
+        
+        if config.isTestMode {
+            logLevel = .verbose
+            enableDetailedLogging = true
+            print("🧪 [OnairosSDK] Test mode enabled - Full API logging active")
+            print("🧪 [OnairosSDK] ⚠️  WARNING: Test mode bypasses all real API calls!")
+            print("🧪 [OnairosSDK] ✅ This configuration prevents modal dismissal issues during development")
+        } else if config.isDebugMode {
+            logLevel = .debug
+            enableDetailedLogging = true
+            print("🐛 [OnairosSDK] Debug mode enabled - Enhanced API logging active")
+            print("🐛 [OnairosSDK] ⚠️  WARNING: Debug mode makes real API calls but bypasses failures")
+            print("🐛 [OnairosSDK] 🔧 For development without API calls, use OnairosConfig.testMode() instead")
+        } else {
+            logLevel = .info
+            enableDetailedLogging = false
+            print("ℹ️ [OnairosSDK] Production mode - Basic API logging active")
+        }
+        
+        // Configure shared API client
+        OnairosAPIClient.shared.configure(
+            baseURL: config.apiBaseURL,
+            logLevel: logLevel,
+            enableDetailedLogging: enableDetailedLogging
+        )
+        
+        print("✅ [OnairosSDK] SDK initialized successfully")
+        print("   Mode: \(config.isTestMode ? "Test" : config.isDebugMode ? "Debug" : "Production")")
+        print("   API Base URL: \(config.apiBaseURL)")
+        print("   Logging Level: \(logLevel)")
     }
     
     /// Initialize the SDK with configuration (legacy method)
