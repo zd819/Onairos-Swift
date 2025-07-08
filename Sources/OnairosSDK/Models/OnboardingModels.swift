@@ -275,6 +275,7 @@ public struct PlatformAuthRequest: Codable {
     public let idToken: String?
     public let authCode: String?
     public let userData: [String: AnyCodable]?
+    public let session: SessionData?
     
     public init(
         platform: String,
@@ -282,7 +283,8 @@ public struct PlatformAuthRequest: Codable {
         refreshToken: String? = nil,
         idToken: String? = nil,
         authCode: String? = nil,
-        userData: [String: Any]? = nil
+        userData: [String: Any]? = nil,
+        username: String? = nil
     ) {
         self.platform = platform
         self.accessToken = accessToken
@@ -290,6 +292,28 @@ public struct PlatformAuthRequest: Codable {
         self.idToken = idToken
         self.authCode = authCode
         self.userData = userData?.mapValues { AnyCodable($0) }
+        
+        // Create session data if username is provided
+        if let username = username {
+            self.session = SessionData(username: username)
+        } else {
+            // Try to get username from UserDefaults as fallback
+            let storedUsername = UserDefaults.standard.string(forKey: "onairos_username")
+            if let storedUsername = storedUsername, !storedUsername.isEmpty {
+                self.session = SessionData(username: storedUsername)
+            } else {
+                self.session = nil
+            }
+        }
+    }
+}
+
+/// Session data for OAuth requests
+public struct SessionData: Codable {
+    public let username: String
+    
+    public init(username: String) {
+        self.username = username
     }
 }
 

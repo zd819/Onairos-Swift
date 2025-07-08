@@ -307,22 +307,51 @@ public class OnairosAPIClient {
         )
     }
     
+    /// Authenticate with platform (with explicit username)
+    /// - Parameters:
+    ///   - platform: Platform name (e.g., "pinterest", "linkedin")
+    ///   - accessToken: OAuth access token
+    ///   - refreshToken: OAuth refresh token (optional)
+    ///   - authCode: Authorization code (optional)
+    ///   - username: Username for session identification
+    /// - Returns: Authentication response
+    public func authenticatePlatform(
+        platform: String,
+        accessToken: String,
+        refreshToken: String? = nil,
+        authCode: String? = nil,
+        username: String
+    ) async -> Result<PlatformAuthResponse, OnairosError> {
+        let request = PlatformAuthRequest(
+            platform: platform,
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            authCode: authCode,
+            username: username
+        )
+        
+        return await authenticatePlatform(request)
+    }
+    
     /// Authenticate YouTube with native tokens
     /// - Parameters:
     ///   - accessToken: YouTube access token
     ///   - refreshToken: YouTube refresh token
     ///   - idToken: ID token from Google Sign-In
+    ///   - username: Optional username for session (if not provided, will use stored username)
     /// - Returns: Authentication response
     public func authenticateYouTube(
         accessToken: String,
         refreshToken: String,
-        idToken: String?
+        idToken: String?,
+        username: String? = nil
     ) async -> Result<PlatformAuthResponse, OnairosError> {
         let request = PlatformAuthRequest(
             platform: "youtube",
             accessToken: accessToken,
             refreshToken: refreshToken,
-            idToken: idToken
+            idToken: idToken,
+            username: username
         )
         
         return await performRequest(
