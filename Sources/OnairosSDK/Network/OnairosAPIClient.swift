@@ -513,8 +513,10 @@ public class OnairosAPIClient {
             // Log response details
             logResponse(response, data: data, error: nil)
             
-            // Check for HTTP errors
+            // Check for HTTP errors and get status code
+            var statusCode: Int = 0
             if let httpResponse = response as? HTTPURLResponse {
+                statusCode = httpResponse.statusCode
                 guard 200...299 ~= httpResponse.statusCode else {
                     // Handle rate limiting specifically
                     if httpResponse.statusCode == 429 {
@@ -549,9 +551,9 @@ public class OnairosAPIClient {
                         log("❌ API returned error: \(errorMessage)", level: .error)
                         
                         if let errorCode = errorCode {
-                            return .failure(.apiError("\(errorMessage) (Code: \(errorCode))", httpResponse.statusCode))
+                            return .failure(.apiError("\(errorMessage) (Code: \(errorCode))", statusCode))
                         } else {
-                            return .failure(.apiError(errorMessage, httpResponse.statusCode))
+                            return .failure(.apiError(errorMessage, statusCode))
                         }
                     }
                 } else {
