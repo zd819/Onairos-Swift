@@ -730,6 +730,13 @@ private class PlatformConnectionView: UIView {
             errorMessage = "Network error: \(details)"
         case .authenticationFailed(let reason):
             errorMessage = "Authentication failed: \(reason)"
+        case .googleSignInFailed(let reason):
+            // Handle YouTube/Google Sign-In specific errors
+            if reason.contains("timed out") {
+                errorMessage = "Connection timed out. Please try again."
+            } else {
+                errorMessage = "YouTube connection failed: \(reason)"
+            }
         default:
             errorMessage = "Connection failed. Please try again."
         }
@@ -802,6 +809,17 @@ private class PlatformConnectionView: UIView {
             loadingIndicator.startAnimating()
             actionButton.setTitle("", for: .normal)
             actionButton.isEnabled = false
+            
+            // Add timeout for YouTube to prevent infinite loading
+            if platform == .youtube {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6.0) { [weak self] in
+                    // If still loading after 6 seconds, force reset
+                    if self?.loadingIndicator.isAnimating == true {
+                        self?.setLoading(false)
+                        print("⏰ [ConnectStepViewController] Force stopped loading for YouTube after 6 seconds")
+                    }
+                }
+            }
         } else {
             loadingIndicator.stopAnimating()
             actionButton.isEnabled = true
