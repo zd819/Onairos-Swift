@@ -70,6 +70,12 @@ public class OAuthWebViewController: UIViewController {
     
     public override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // Force light mode for OAuth web view
+        if #available(iOS 13.0, *) {
+            overrideUserInterfaceStyle = .light
+        }
+        
         setupUI()
         startOAuthFlow()
     }
@@ -100,9 +106,18 @@ public class OAuthWebViewController: UIViewController {
         
         // Close button
         closeButton.setTitle("Cancel", for: .normal)
+        closeButton.setTitleColor(.systemBlue, for: .normal)
         closeButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        closeButton.backgroundColor = .systemBackground
+        closeButton.layer.cornerRadius = 8
+        closeButton.layer.borderWidth = 1
+        closeButton.layer.borderColor = UIColor.systemBlue.cgColor
         closeButton.addTarget(self, action: #selector(closeButtonTapped), for: .touchUpInside)
         closeButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Ensure button is interactive and receives touches
+        closeButton.isUserInteractionEnabled = true
+        closeButton.isEnabled = true
         
         // Loading indicator
         loadingIndicator.hidesWhenStopped = true
@@ -185,7 +200,7 @@ public class OAuthWebViewController: UIViewController {
     /// Start OAuth authentication flow
     private func startOAuthFlow() {
         let authURL = buildOAuthURL()
-        let request = URLRequest(url: authURL)
+        let request = buildOAuthRequest(url: authURL)
         
         loadingIndicator.startAnimating()
         webView.load(request)
@@ -195,26 +210,47 @@ public class OAuthWebViewController: UIViewController {
     /// - Returns: OAuth authorization URL
     private func buildOAuthURL() -> URL {
         let baseURL = config.apiBaseURL
-        let redirectURI = "\(config.urlScheme)://oauth/callback"
+        let urlString = "\(baseURL)/\(platform.rawValue)/authorize"
+        
+        guard let url = URL(string: urlString) else {
+            fatalError("Invalid OAuth URL: \(urlString)")
+        }
+        
+        return url
+    }
+    
+    /// Build OAuth POST request with form data
+    /// - Parameter url: OAuth URL
+    /// - Returns: URLRequest configured for POST
+    private func buildOAuthRequest(url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         
         // Extract username from email (part before @)
         let username = extractUsername(from: userEmail)
+        let redirectURI = "\(config.urlScheme)://oauth/callback"
         
-        guard var urlComponents = URLComponents(string: "\(baseURL)/\(platform.rawValue)/authorize") else {
-            // Fallback to a basic URL if components creation fails
-            return URL(string: "\(baseURL)/\(platform.rawValue)/authorize")!
-        }
-        
-        urlComponents.queryItems = [
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "redirect_uri", value: redirectURI),
-            URLQueryItem(name: "scope", value: platform.oauthScopes),
-            URLQueryItem(name: "state", value: generateStateParameter()),
-            URLQueryItem(name: "email", value: userEmail),
-            URLQueryItem(name: "username", value: username)
+        // Build form data
+        let formData = [
+            "response_type": "code",
+            "redirect_uri": redirectURI,
+            "scope": platform.oauthScopes,
+            "state": generateStateParameter(),
+            "email": userEmail,
+            "username": username
         ]
         
-        return urlComponents.url ?? URL(string: "\(baseURL)/\(platform.rawValue)/authorize")!
+        // Convert to form-encoded string
+        let formString = formData.map { key, value in
+            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+            return "\(encodedKey)=\(encodedValue)"
+        }.joined(separator: "&")
+        
+        request.httpBody = formString.data(using: .utf8)
+        
+        return request
     }
     
     /// Extract username from email address
@@ -234,8 +270,19 @@ public class OAuthWebViewController: UIViewController {
     
     /// Handle close button tap
     @objc private func closeButtonTapped() {
+        print("🔍 [OAuth] Cancel button tapped - dismissing OAuth flow")
+        
+        // Stop any ongoing loading
+        webView.stopLoading()
+        loadingIndicator.stopAnimating()
+        
+        // Call completion with user cancelled error
         completion(.failure(.userCancelled))
-        dismiss(animated: true)
+        
+        // Dismiss the view controller
+        dismiss(animated: true) {
+            print("🔍 [OAuth] OAuth flow dismissed after cancel")
+        }
     }
 }
 
@@ -246,6 +293,10 @@ extension OAuthWebViewController: WKNavigationDelegate {
         loadingIndicator.startAnimating()
         loadingLabel?.text = "Loading authorization page..."
         
+        // Ensure cancel button remains active during loading
+        closeButton.isEnabled = true
+        closeButton.isUserInteractionEnabled = true
+        
         // Show progress bar
         UIView.animate(withDuration: 0.3) {
             self.progressView?.alpha = 1.0
@@ -255,6 +306,10 @@ extension OAuthWebViewController: WKNavigationDelegate {
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         loadingIndicator.stopAnimating()
         loadingLabel?.text = ""
+        
+        // Ensure cancel button remains active after loading
+        closeButton.isEnabled = true
+        closeButton.isUserInteractionEnabled = true
         
         // Hide progress bar
         UIView.animate(withDuration: 0.3) {
@@ -272,6 +327,10 @@ extension OAuthWebViewController: WKNavigationDelegate {
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to load authorization page"
+        
+        // Ensure cancel button remains active after error
+        closeButton.isEnabled = true
+        closeButton.isUserInteractionEnabled = true
         
         // Hide progress bar
         UIView.animate(withDuration: 0.3) {
@@ -291,6 +350,10 @@ extension OAuthWebViewController: WKNavigationDelegate {
     public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to connect to authorization server"
+        
+        // Ensure cancel button remains active after error
+        closeButton.isEnabled = true
+        closeButton.isUserInteractionEnabled = true
         
         // Hide progress bar
         UIView.animate(withDuration: 0.3) {

@@ -77,6 +77,11 @@ public class BaseStepViewController: UIViewController, LoadingCapable {
     public override func viewDidLoad() {
         super.viewDidLoad()
         
+        // Force light mode for all step view controllers
+        if #available(iOS 13.0, *) {
+            overrideUserInterfaceStyle = .light
+        }
+        
         setupUI()
         setupConstraints()
         setupObservers()

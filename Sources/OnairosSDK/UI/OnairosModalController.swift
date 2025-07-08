@@ -50,6 +50,11 @@ public class OnairosModalController: UIViewController {
     public override func viewDidLoad() {
         super.viewDidLoad()
         
+        // Force light mode for the entire modal
+        if #available(iOS 13.0, *) {
+            overrideUserInterfaceStyle = .light
+        }
+        
         setupUI()
         setupObservers()
         showCurrentStep()

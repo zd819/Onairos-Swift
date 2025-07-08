@@ -285,17 +285,92 @@ private class PlatformConnectionView: UIView {
     /// Setup platform icon
     private func setupPlatformIcon() {
         iconView.contentMode = .scaleAspectFit
-        iconView.layer.cornerRadius = 20
-        iconView.layer.masksToBounds = true
+        iconView.layer.cornerRadius = 0  // Remove circular masking
+        iconView.layer.masksToBounds = false  // Allow full icon visibility
         iconView.backgroundColor = .clear
         
         // Clear any existing content first
         iconView.image = nil
         iconView.subviews.forEach { $0.removeFromSuperview() }
         
-        // Create platform icon programmatically (bypasses bundle resource issues)
-        let iconImage = createPlatformIcon(for: platform)
+        // Load actual platform logo from Resources bundle
+        let iconFileName = platform.iconFileName
+        if let logoImage = UIImage(named: iconFileName, in: Bundle.module, compatibleWith: nil) {
+            // Process image to handle transparency issues
+            let processedImage = processImageForTransparency(logoImage, platform: platform)
+            iconView.image = processedImage
+            iconView.backgroundColor = .clear
+            iconView.isOpaque = false
+        } else {
+            // Fallback to programmatically created icon if logo not found
+            let iconImage = createPlatformIcon(for: platform)
             iconView.image = iconImage
+        }
+    }
+    
+    /// Process image to handle transparency issues (remove checkerboard patterns)
+    private func processImageForTransparency(_ image: UIImage, platform: Platform) -> UIImage {
+        // For Gmail, fix orientation issues and clean up transparency
+        if platform == .gmail {
+            let orientationFixedImage = fixImageOrientation(image)
+            return cleanCheckerboardPattern(from: orientationFixedImage)
+        }
+        // For YouTube, which may have checkerboard patterns, we'll clean them up
+        else if platform == .youtube {
+            return cleanCheckerboardPattern(from: image)
+        }
+        return image
+    }
+    
+    /// Fix image orientation issues (especially for Gmail)
+    private func fixImageOrientation(_ image: UIImage) -> UIImage {
+        guard let cgImage = image.cgImage else { return image }
+        
+        let size = image.size
+        let scale = image.scale
+        
+        // Create a new image context
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        guard let context = UIGraphicsGetCurrentContext() else { return image }
+        
+        // For Gmail, always flip 180 degrees to correct the upside-down issue
+        // Rotate 180 degrees by translating to center, rotating, then translating back
+        context.translateBy(x: size.width, y: size.height)
+        context.rotate(by: .pi)
+        
+        // Draw the image
+        context.draw(cgImage, in: CGRect(origin: .zero, size: size))
+        
+        // Get the corrected image
+        let correctedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
+        UIGraphicsEndImageContext()
+        
+        return correctedImage
+    }
+    
+    /// Remove checkerboard transparency pattern from image
+    private func cleanCheckerboardPattern(from image: UIImage) -> UIImage {
+        guard let cgImage = image.cgImage else { return image }
+        
+        let size = image.size
+        let scale = image.scale
+        
+        // Create a new image context with alpha
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        guard let context = UIGraphicsGetCurrentContext() else { return image }
+        
+        // Set a white background to hide the checkerboard pattern
+        context.setFillColor(UIColor.white.cgColor)
+        context.fill(CGRect(origin: .zero, size: size))
+        
+        // Draw the original image on top
+        context.draw(cgImage, in: CGRect(origin: .zero, size: size))
+        
+        // Get the processed image
+        let processedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
+        UIGraphicsEndImageContext()
+        
+        return processedImage
     }
     
     /// Create platform icon programmatically with proper branding
