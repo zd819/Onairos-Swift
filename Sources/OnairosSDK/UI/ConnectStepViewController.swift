@@ -333,10 +333,10 @@ private class PlatformConnectionView: UIView {
         UIGraphicsBeginImageContextWithOptions(size, false, scale)
         guard let context = UIGraphicsGetCurrentContext() else { return image }
         
-        // For Gmail, always flip 180 degrees to correct the upside-down issue
-        // Rotate 180 degrees by translating to center, rotating, then translating back
-        context.translateBy(x: size.width, y: size.height)
-        context.rotate(by: .pi)
+        // For Gmail, flip across the X-axis (vertical flip)
+        // Translate to the bottom edge and scale by -1 on Y-axis only
+        context.translateBy(x: 0, y: size.height)
+        context.scaleBy(x: 1.0, y: -1.0)
         
         // Draw the image
         context.draw(cgImage, in: CGRect(origin: .zero, size: size))

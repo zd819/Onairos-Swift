@@ -88,7 +88,7 @@ public struct OnairosConfig {
         appName: String = "Test App"
     ) {
         self.apiKey = OnairosAPIKeyService.ADMIN_API_KEY
-        self.environment = .development
+        self.environment = .production  // Use production API for OAuth to work
         self.enableLogging = isDebugMode
         self.timeout = 30.0
         
@@ -127,7 +127,7 @@ public struct OnairosConfig {
     ) -> OnairosConfig {
         return OnairosConfig(
             apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
-            environment: .development,
+            environment: .production,  // Use production API for OAuth to work
             enableLogging: true,
             timeout: 30.0,
             isTestMode: true,
@@ -147,7 +147,7 @@ public struct OnairosConfig {
     public static func debugMode() -> OnairosConfig {
         return OnairosConfig(
             apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
-            environment: .development,
+            environment: .production,  // Use production API for OAuth to work
             enableLogging: true,
             timeout: 30.0,
             isTestMode: false,

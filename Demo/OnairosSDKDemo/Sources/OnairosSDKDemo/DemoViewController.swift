@@ -85,7 +85,7 @@ class DemoViewController: UIViewController {
             do {
                 // Method 1: Initialize with admin key (recommended for development)
                 try await OnairosSDK.shared.initializeWithAdminKey(
-                    environment: .development,
+                    environment: .production,  // Use production API for OAuth to work
                     enableLogging: true
                 )
                 

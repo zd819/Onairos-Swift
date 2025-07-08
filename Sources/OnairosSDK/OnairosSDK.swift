@@ -68,7 +68,7 @@ public class OnairosSDK: ObservableObject {
     ///   - timeout: Request timeout in seconds
     /// - Throws: OnairosError if initialization fails
     public func initializeWithAdminKey(
-        environment: SDKEnvironment = .development,
+        environment: SDKEnvironment = .production,  // Use production API for OAuth to work
         enableLogging: Bool = true,
         timeout: TimeInterval = 30.0
     ) async throws {
