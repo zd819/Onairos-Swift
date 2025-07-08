@@ -349,7 +349,7 @@ public class OnboardingCoordinator {
     }
     
     /// Store user data from verification response
-    private func storeUserData(_ user: EmailVerificationResponse.UserData, isNewUser: Bool) {
+    private func storeUserData(_ user: EmailVerificationResponse.EmailVerificationData.UserData, isNewUser: Bool) {
         // Store user data in UserDefaults for later use
         UserDefaults.standard.set(user.userId, forKey: "onairos_user_id")
         UserDefaults.standard.set(user.userName, forKey: "onairos_username")
