@@ -58,7 +58,7 @@ public class OnairosSDK: ObservableObject {
     ///   - timeout: Request timeout in seconds
     /// - Throws: OnairosError if initialization fails
     public func initializeWithAdminKey(
-        environment: Environment = .development,
+        environment: SDKEnvironment = .development,
         enableLogging: Bool = true,
         timeout: TimeInterval = 30.0
     ) async throws {
@@ -81,7 +81,7 @@ public class OnairosSDK: ObservableObject {
     /// - Throws: OnairosError if initialization fails
     public func initializeWithApiKey(
         _ apiKey: String,
-        environment: Environment = .production,
+        environment: SDKEnvironment = .production,
         enableLogging: Bool = false,
         timeout: TimeInterval = 30.0
     ) async throws {

@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 /// SDK Environment configuration
-public enum Environment: String, CaseIterable {
+public enum SDKEnvironment: String, CaseIterable {
     case production = "production"
     case development = "development"
     
@@ -26,7 +26,7 @@ public enum Environment: String, CaseIterable {
 /// SDK Configuration
 public struct OnairosConfig {
     public let apiKey: String
-    public let environment: Environment
+    public let environment: SDKEnvironment
     public let enableLogging: Bool
     public let timeout: TimeInterval
     
@@ -44,7 +44,7 @@ public struct OnairosConfig {
     
     public init(
         apiKey: String,
-        environment: Environment = .production,
+        environment: SDKEnvironment = .production,
         enableLogging: Bool = false,
         timeout: TimeInterval = 30.0,
         isTestMode: Bool = false,

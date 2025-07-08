@@ -201,7 +201,7 @@ public class OnairosAPIKeyService {
     
     /// Get current environment configuration
     /// - Returns: Current environment, or nil if not initialized
-    public var currentEnvironment: Environment? {
+    public var currentEnvironment: SDKEnvironment? {
         return config?.environment
     }
     
