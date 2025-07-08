@@ -7,7 +7,7 @@ import Combine
 public class OnairosSDK: ObservableObject {
     
     /// SDK version
-    public static let version = "1.2.5"
+    public static let version = "3.0.72"
     
     /// Shared singleton instance
     public static let shared = OnairosSDK()

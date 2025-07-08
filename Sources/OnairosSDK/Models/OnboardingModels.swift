@@ -388,40 +388,86 @@ public enum PINValidationResult {
     }
 }
 
-/// Email verification request
+/// Email verification request for unified API
 public struct EmailVerificationRequest: Codable {
     public let email: String
+    public let action: String
     public let code: String?
     
-    public init(email: String, code: String? = nil) {
+    public init(email: String, action: String, code: String? = nil) {
         self.email = email
+        self.action = action
         self.code = code
+    }
+    
+    /// Request verification code
+    public static func requestCode(email: String) -> EmailVerificationRequest {
+        return EmailVerificationRequest(email: email, action: "request")
+    }
+    
+    /// Verify email with code
+    public static func verifyCode(email: String, code: String) -> EmailVerificationRequest {
+        return EmailVerificationRequest(email: email, action: "verify", code: code)
     }
 }
 
-/// Email verification response
+/// Email verification response for unified API
 public struct EmailVerificationResponse: Codable {
     public let success: Bool
     public let message: String?
-    public let verified: Bool?
-    public let testingMode: Bool?
-    public let email: String?
-    public let isNewUser: Bool?
-    public let user: UserData?
+    public let data: EmailVerificationData?
     public let error: String?
-    public let code: Int?
-    public let attemptsRemaining: Int?
-    public let accountInfo: [String: AnyCodable]?
+    public let code: String?
     
-    /// User data structure from API response
-    public struct UserData: Codable {
-        public let id: String
-        public let userId: String
-        public let userName: String
-        public let name: String
-        public let email: String
-        public let verified: Bool
-        public let creationDate: String
+    /// Data structure for successful email verification responses
+    public struct EmailVerificationData: Codable {
+        public let verified: Bool?
+        public let testingMode: Bool?
+        public let email: String?
+        public let isNewUser: Bool?
+        public let user: UserData?
+        public let attemptsRemaining: Int?
+        public let accountInfo: [String: AnyCodable]?
+        
+        /// User data structure from API response
+        public struct UserData: Codable {
+            public let id: String
+            public let userId: String
+            public let userName: String
+            public let name: String
+            public let email: String
+            public let verified: Bool
+            public let creationDate: String
+        }
+    }
+    
+    /// Legacy computed properties for backward compatibility
+    public var verified: Bool? {
+        return data?.verified
+    }
+    
+    public var testingMode: Bool? {
+        return data?.testingMode
+    }
+    
+    public var email: String? {
+        return data?.email
+    }
+    
+    public var isNewUser: Bool? {
+        return data?.isNewUser
+    }
+    
+    public var user: EmailVerificationData.UserData? {
+        return data?.user
+    }
+    
+    public var attemptsRemaining: Int? {
+        return data?.attemptsRemaining
+    }
+    
+    public var accountInfo: [String: AnyCodable]? {
+        return data?.accountInfo
     }
 }
 

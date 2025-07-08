@@ -19,6 +19,7 @@ public enum OnairosError: Error, LocalizedError {
     case apiError(String, Int?)
     case serverError(Int, String)
     case socketConnectionFailed
+    case rateLimitExceeded(String)
     case unknownError(String)
     
     /// User-friendly error descriptions
@@ -63,6 +64,8 @@ public enum OnairosError: Error, LocalizedError {
             return "Server error (\(code)): \(message)"
         case .socketConnectionFailed:
             return "Failed to connect to training server."
+        case .rateLimitExceeded(let reason):
+            return "Rate limit exceeded: \(reason)"
         case .unknownError(let reason):
             return "An unexpected error occurred: \(reason)"
         }
@@ -102,6 +105,8 @@ public enum OnairosError: Error, LocalizedError {
             return "Try again or contact support if the problem persists."
         case .socketConnectionFailed:
             return "Check your internet connection and try again."
+        case .rateLimitExceeded:
+            return "Please wait a moment before making more requests."
         case .unknownError:
             return "Try again or contact support if the problem persists."
         }
@@ -134,7 +139,7 @@ public enum OnairosError: Error, LocalizedError {
             return .training
         case .userCancelled:
             return .userAction
-        case .apiError, .serverError:
+        case .apiError, .serverError, .rateLimitExceeded:
             return .api
         case .unknownError:
             return .unknown
@@ -203,7 +208,7 @@ public extension OnairosError {
         case 404:
             return .apiError("Not found", statusCode)
         case 429:
-            return .apiError("Too many requests", statusCode)
+            return .rateLimitExceeded("Too many requests")
         case 500...599:
             return .apiError("Server error", statusCode)
         default:

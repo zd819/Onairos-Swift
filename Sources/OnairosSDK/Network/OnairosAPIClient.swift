@@ -156,10 +156,10 @@ public class OnairosAPIClient {
     public func requestEmailVerification(email: String) async -> Result<Bool, OnairosError> {
         log("🚀 Requesting email verification for: \(email)", level: .info)
         
-        let request = EmailVerificationRequest(email: email)
+        let request = EmailVerificationRequest.requestCode(email: email)
         
         let result = await performRequest(
-            endpoint: "/email/verify",
+            endpoint: "/email/verification",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
@@ -192,10 +192,10 @@ public class OnairosAPIClient {
     public func verifyEmailCode(email: String, code: String) async -> Result<Bool, OnairosError> {
         log("🚀 Verifying email code for: \(email) with code: \(code)", level: .info)
         
-        let request = EmailVerificationRequest(email: email, code: code)
+        let request = EmailVerificationRequest.verifyCode(email: email, code: code)
         
         let result = await performRequest(
-            endpoint: "/email/verify/confirm",
+            endpoint: "/email/verification",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
@@ -239,10 +239,10 @@ public class OnairosAPIClient {
     public func requestEmailVerificationWithResponse(email: String) async -> Result<EmailVerificationResponse, OnairosError> {
         log("🚀 Requesting email verification with full response for: \(email)", level: .info)
         
-        let request = EmailVerificationRequest(email: email)
+        let request = EmailVerificationRequest.requestCode(email: email)
         
         return await performRequest(
-            endpoint: "/email/verify",
+            endpoint: "/email/verification",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
@@ -257,10 +257,10 @@ public class OnairosAPIClient {
     public func verifyEmailCodeWithResponse(email: String, code: String) async -> Result<EmailVerificationResponse, OnairosError> {
         log("🚀 Verifying email code with full response for: \(email) with code: \(code)", level: .info)
         
-        let request = EmailVerificationRequest(email: email, code: code)
+        let request = EmailVerificationRequest.verifyCode(email: email, code: code)
         
         return await performRequest(
-            endpoint: "/email/verify/confirm",
+            endpoint: "/email/verification",
             method: .POST,
             body: request,
             responseType: EmailVerificationResponse.self
@@ -516,6 +516,12 @@ public class OnairosAPIClient {
             // Check for HTTP errors
             if let httpResponse = response as? HTTPURLResponse {
                 guard 200...299 ~= httpResponse.statusCode else {
+                    // Handle rate limiting specifically
+                    if httpResponse.statusCode == 429 {
+                        log("⚠️ Rate limit exceeded", level: .error)
+                        return .failure(.rateLimitExceeded("Rate limit exceeded. Please wait before making more requests."))
+                    }
+                    
                     let error = OnairosError.fromHTTPResponse(data: data, response: response, error: nil)
                     log("❌ HTTP error \(httpResponse.statusCode): \(error.localizedDescription)", level: .error)
                     return .failure(error)
@@ -526,9 +532,34 @@ public class OnairosAPIClient {
             // Decode response
             do {
                 let decoder = JSONDecoder()
-                let result = try decoder.decode(responseType, from: data)
-                log("✅ Response decoded successfully", level: .debug)
-                return .success(result)
+                
+                // Try to decode as unified response format first
+                if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let success = jsonObject["success"] as? Bool {
+                    
+                    if success {
+                        // Success response - decode the expected type
+                        let result = try decoder.decode(responseType, from: data)
+                        log("✅ Response decoded successfully", level: .debug)
+                        return .success(result)
+                    } else {
+                        // Error response - extract error information
+                        let errorMessage = jsonObject["error"] as? String ?? "Unknown error"
+                        let errorCode = jsonObject["code"] as? String
+                        log("❌ API returned error: \(errorMessage)", level: .error)
+                        
+                        if let errorCode = errorCode {
+                            return .failure(.apiError("\(errorMessage) (Code: \(errorCode))", httpResponse.statusCode))
+                        } else {
+                            return .failure(.apiError(errorMessage, httpResponse.statusCode))
+                        }
+                    }
+                } else {
+                    // Fallback to direct decoding for legacy responses
+                    let result = try decoder.decode(responseType, from: data)
+                    log("✅ Response decoded successfully (legacy format)", level: .debug)
+                    return .success(result)
+                }
             } catch {
                 let errorMsg = "Failed to decode response: \(error.localizedDescription)"
                 log("❌ \(errorMsg)", level: .error)
@@ -565,7 +596,11 @@ public class OnairosAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("OnairosSDK/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        request.setValue("OnairosSwift/3.0.72", forHTTPHeaderField: "User-Agent")
+        request.setValue("3.0.72", forHTTPHeaderField: "X-SDK-Version")
+        request.setValue("production", forHTTPHeaderField: "X-SDK-Environment")
+        request.setValue("developer", forHTTPHeaderField: "X-API-Key-Type")
+        request.setValue(ISO8601DateFormatter().string(from: Date()), forHTTPHeaderField: "X-Timestamp")
         
         // Perform request
         do {
@@ -613,7 +648,11 @@ public class OnairosAPIClient {
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("OnairosSDK/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        request.setValue("OnairosSwift/3.0.72", forHTTPHeaderField: "User-Agent")
+        request.setValue("3.0.72", forHTTPHeaderField: "X-SDK-Version")
+        request.setValue("production", forHTTPHeaderField: "X-SDK-Environment")
+        request.setValue("developer", forHTTPHeaderField: "X-API-Key-Type")
+        request.setValue(ISO8601DateFormatter().string(from: Date()), forHTTPHeaderField: "X-Timestamp")
         
         // Add request body
         do {
@@ -725,7 +764,11 @@ public class OnairosAPIClient {
         log("🔄 Using legacy configuration (no API key service)", level: .debug)
         let fallbackHeaders = [
             "Content-Type": "application/json",
-            "User-Agent": "OnairosSDK/1.0 iOS"
+            "User-Agent": "OnairosSwift/3.0.72",
+            "X-SDK-Version": "3.0.72",
+            "X-SDK-Environment": "production",
+            "X-API-Key-Type": "developer",
+            "X-Timestamp": ISO8601DateFormatter().string(from: Date())
         ]
         
         let url = URL(string: baseURL + endpoint)

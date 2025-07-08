@@ -52,7 +52,9 @@ public class OnairosAPIKeyService {
         return [
             "Authorization": "Bearer \(config.apiKey)",
             "Content-Type": "application/json",
-            "User-Agent": "OnairosSwift/1.0.0",
+            "User-Agent": "OnairosSwift/3.0.72",
+            "X-SDK-Version": "3.0.72",
+            "X-SDK-Environment": config.environment == .production ? "production" : "development",
             "X-API-Key-Type": isAdminKey(config.apiKey) ? "admin" : "developer",
             "X-Timestamp": ISO8601DateFormatter().string(from: Date())
         ]
@@ -120,6 +122,14 @@ public class OnairosAPIKeyService {
         return key == Self.ADMIN_API_KEY
     }
     
+    /// Check if API key matches developer key format
+    /// - Parameter key: API key to check
+    /// - Returns: True if valid developer key format
+    private func isDeveloperKeyFormat(_ key: String) -> Bool {
+        guard key.count >= 32 else { return false }
+        return key.hasPrefix("ona_") || key.hasPrefix("dev_") || key.hasPrefix("pk_")
+    }
+    
     /// Validate API key with backend
     /// - Parameter apiKey: API key to validate
     /// - Returns: Validation result
@@ -129,6 +139,12 @@ public class OnairosAPIKeyService {
         if isAdminKey(apiKey) {
             log("🔑 Using admin API key - validation skipped", level: .info)
             return ValidationResult(isValid: true, error: nil)
+        }
+        
+        // Check developer key format
+        if !isDeveloperKeyFormat(apiKey) {
+            log("❌ Invalid developer key format", level: .error)
+            return ValidationResult(isValid: false, error: "Invalid API key format. Developer keys must be 32+ characters starting with 'ona_', 'dev_', or 'pk_'")
         }
         
         // For developer keys, validate with backend
@@ -144,6 +160,11 @@ public class OnairosAPIKeyService {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("OnairosSwift/3.0.72", forHTTPHeaderField: "User-Agent")
+            request.setValue("3.0.72", forHTTPHeaderField: "X-SDK-Version")
+            request.setValue(config.environment == .production ? "production" : "development", forHTTPHeaderField: "X-SDK-Environment")
+            request.setValue("developer", forHTTPHeaderField: "X-API-Key-Type")
+            request.setValue(ISO8601DateFormatter().string(from: Date()), forHTTPHeaderField: "X-Timestamp")
             
             let body = ["apiKey": apiKey]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -157,6 +178,9 @@ public class OnairosAPIKeyService {
             if httpResponse.statusCode == 200 {
                 log("✅ Developer API key validated successfully", level: .info)
                 return ValidationResult(isValid: true, error: nil)
+            } else if httpResponse.statusCode == 429 {
+                log("⚠️ Rate limit exceeded during API key validation", level: .error)
+                return ValidationResult(isValid: false, error: "Rate limit exceeded. Please wait before validating again.")
             } else {
                 let errorMessage = String(data: data, encoding: .utf8) ?? "Validation failed"
                 log("❌ Developer API key validation failed: \(errorMessage)", level: .error)

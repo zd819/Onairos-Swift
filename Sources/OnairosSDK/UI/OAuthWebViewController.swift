@@ -219,36 +219,55 @@ public class OAuthWebViewController: UIViewController {
         return url
     }
     
-    /// Build OAuth POST request with form data
+    /// Build OAuth POST request with JSON data
     /// - Parameter url: OAuth URL
     /// - Returns: URLRequest configured for POST
     private func buildOAuthRequest(url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         // Get the actual username from UserDefaults (saved during email verification)
         let username = UserDefaults.standard.string(forKey: "onairos_username") ?? extractUsername(from: userEmail)
         let redirectURI = "\(config.urlScheme)://oauth/callback"
         
-        // Build form data
-        let formData = [
+        // Build request body with session object containing username
+        let requestBody: [String: Any] = [
             "response_type": "code",
             "redirect_uri": redirectURI,
             "scope": platform.oauthScopes,
             "state": generateStateParameter(),
             "email": userEmail,
-            "username": username
+            "session": [
+                "username": username
+            ]
         ]
         
-        // Convert to form-encoded string
-        let formString = formData.map { key, value in
-            let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
-            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
-            return "\(encodedKey)=\(encodedValue)"
-        }.joined(separator: "&")
-        
-        request.httpBody = formString.data(using: .utf8)
+        // Convert to JSON data
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: requestBody)
+            request.httpBody = jsonData
+        } catch {
+            print("❌ [OAuth] Failed to serialize request body: \(error)")
+            // Fallback to form-encoded request if JSON serialization fails
+            let formData = [
+                "response_type": "code",
+                "redirect_uri": redirectURI,
+                "scope": platform.oauthScopes,
+                "state": generateStateParameter(),
+                "email": userEmail,
+                "username": username
+            ]
+            
+            let formString = formData.map { key, value in
+                let encodedKey = key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? key
+                let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+                return "\(encodedKey)=\(encodedValue)"
+            }.joined(separator: "&")
+            
+            request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            request.httpBody = formString.data(using: .utf8)
+        }
         
         return request
     }
