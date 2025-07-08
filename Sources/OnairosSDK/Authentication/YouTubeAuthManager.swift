@@ -1,11 +1,21 @@
 import Foundation
 import GoogleSignIn
+import UIKit
 
 /// YouTube authentication manager using Google Sign-In SDK
 public class YouTubeAuthManager {
     
     /// Shared instance
     public static let shared = YouTubeAuthManager()
+    
+    /// Configuration constants
+    private struct Config {
+        static let webClientId = "1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o.apps.googleusercontent.com"
+        static let iosClientId = "1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o.apps.googleusercontent.com"
+        static let scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
+        static let offlineAccess = true
+        static let forceCodeForRefreshToken = true
+    }
     
     /// Google client ID
     private var clientID: String?
@@ -16,17 +26,20 @@ public class YouTubeAuthManager {
     /// Private initializer
     private init() {}
     
-    /// Initialize Google Sign-In
-    /// - Parameter clientID: Google OAuth client ID
-    public func initialize(clientID: String) {
-        self.clientID = clientID
+    /// Initialize Google Sign-In with enhanced configuration
+    /// - Parameter clientID: Optional custom client ID (defaults to configured iOS client ID)
+    public func initialize(clientID: String? = nil) {
+        let finalClientID = clientID ?? Config.iosClientId
+        self.clientID = finalClientID
         
-        let configuration = GIDConfiguration(clientID: clientID)
+        // Configure Google Sign-In with enhanced settings
+        let configuration = GIDConfiguration(clientID: finalClientID, serverClientID: Config.webClientId)
+        
         GIDSignIn.sharedInstance.configuration = configuration
         isInitialized = true
     }
     
-    /// Authenticate with YouTube
+    /// Authenticate with YouTube using enhanced configuration
     /// - Returns: YouTube credentials
     public func authenticate() async throws -> YouTubeCredentials {
         guard isInitialized else {
@@ -41,23 +54,26 @@ public class YouTubeAuthManager {
             let result = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: presentingViewController,
                 hint: nil,
-                additionalScopes: ["https://www.googleapis.com/auth/youtube.readonly"]
+                additionalScopes: Config.scopes
             )
             
             let user = result.user
             let accessToken = user.accessToken.tokenString
             
+            // Enhanced credential creation with additional properties
             let credentials = YouTubeCredentials(
                 accessToken: accessToken,
                 refreshToken: user.refreshToken.tokenString,
                 idToken: user.idToken?.tokenString,
                 expiresAt: user.accessToken.expirationDate,
+                serverAuthCode: result.serverAuthCode, // For offline access
                 userInfo: [
                     "email": user.profile?.email ?? "",
                     "name": user.profile?.name ?? "",
                     "given_name": user.profile?.givenName ?? "",
                     "family_name": user.profile?.familyName ?? "",
-                    "picture": user.profile?.imageURL(withDimension: 200)?.absoluteString ?? ""
+                    "picture": user.profile?.imageURL(withDimension: 200)?.absoluteString ?? "",
+                    "user_id": user.userID ?? ""
                 ]
             )
             
@@ -93,12 +109,14 @@ public class YouTubeAuthManager {
             refreshToken: user.refreshToken.tokenString,
             idToken: user.idToken?.tokenString,
             expiresAt: user.accessToken.expirationDate,
+            serverAuthCode: nil, // Server auth code not available in current user
             userInfo: [
                 "email": user.profile?.email ?? "",
                 "name": user.profile?.name ?? "",
                 "given_name": user.profile?.givenName ?? "",
                 "family_name": user.profile?.familyName ?? "",
-                "picture": user.profile?.imageURL(withDimension: 200)?.absoluteString ?? ""
+                "picture": user.profile?.imageURL(withDimension: 200)?.absoluteString ?? "",
+                "user_id": user.userID ?? ""
             ]
         )
     }
@@ -120,12 +138,14 @@ public class YouTubeAuthManager {
                 refreshToken: user.refreshToken.tokenString,
                 idToken: user.idToken?.tokenString,
                 expiresAt: user.accessToken.expirationDate,
+                serverAuthCode: nil, // Server auth code not available during token refresh
                 userInfo: [
                     "email": user.profile?.email ?? "",
                     "name": user.profile?.name ?? "",
                     "given_name": user.profile?.givenName ?? "",
                     "family_name": user.profile?.familyName ?? "",
-                    "picture": user.profile?.imageURL(withDimension: 200)?.absoluteString ?? ""
+                    "picture": user.profile?.imageURL(withDimension: 200)?.absoluteString ?? "",
+                    "user_id": user.userID ?? ""
                 ]
             )
             
@@ -145,6 +165,21 @@ public class YouTubeAuthManager {
     /// - Returns: True if Google Sign-In is configured
     public func isAvailable() -> Bool {
         return isInitialized && GIDSignIn.sharedInstance.configuration != nil
+    }
+    
+    /// Restore previous sign-in state
+    /// - Returns: True if previous session was restored
+    public func restorePreviousSignIn() async -> Bool {
+        guard let user = GIDSignIn.sharedInstance.currentUser else {
+            return false
+        }
+        
+        do {
+            try await user.refreshTokensIfNeeded()
+            return true
+        } catch {
+            return false
+        }
     }
     
     /// Get presenting view controller
@@ -172,6 +207,7 @@ public struct YouTubeCredentials {
     public let refreshToken: String?
     public let idToken: String?
     public let expiresAt: Date?
+    public let serverAuthCode: String?
     public let userInfo: [String: String]
     
     public init(
@@ -179,12 +215,14 @@ public struct YouTubeCredentials {
         refreshToken: String? = nil,
         idToken: String? = nil,
         expiresAt: Date? = nil,
+        serverAuthCode: String? = nil,
         userInfo: [String: String] = [:]
     ) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
         self.idToken = idToken
         self.expiresAt = expiresAt
+        self.serverAuthCode = serverAuthCode
         self.userInfo = userInfo
     }
     
@@ -201,6 +239,12 @@ public struct YouTubeCredentials {
         guard let expiresAt = expiresAt else { return false }
         return Date().addingTimeInterval(300) >= expiresAt // 5 minutes
     }
+    
+    /// Check if offline access is available
+    /// - Returns: True if server auth code is available for offline access
+    public var hasOfflineAccess: Bool {
+        return serverAuthCode != nil || refreshToken != nil
+    }
 }
 
 /// YouTube authentication error
@@ -210,6 +254,7 @@ public enum YouTubeAuthError: Error, LocalizedError {
     case tokenRefreshFailed(String)
     case userCancelled
     case networkError(String)
+    case offlineAccessNotAvailable
     
     public var errorDescription: String? {
         switch self {
@@ -223,6 +268,8 @@ public enum YouTubeAuthError: Error, LocalizedError {
             return "YouTube authentication was cancelled by the user."
         case .networkError(let reason):
             return "Network error during YouTube authentication: \(reason)"
+        case .offlineAccessNotAvailable:
+            return "Offline access is not available. Please re-authenticate."
         }
     }
 } 
