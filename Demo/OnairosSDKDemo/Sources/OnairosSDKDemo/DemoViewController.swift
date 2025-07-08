@@ -1,338 +1,277 @@
 import UIKit
 import OnairosSDK
 
-/// Demo view controller showing Onairos SDK integration
 class DemoViewController: UIViewController {
     
-    /// Onairos connect button
-    private var connectButton: UIButton!
-    
-    /// Custom text button
-    private var customButton: UIButton!
-    
-    /// Status label
-    private let statusLabel = UILabel()
-    
-    /// Result text view
-    private let resultTextView = UITextView()
+    private var connectButton: UIButton?
+    private var statusLabel: UILabel!
+    private var initButton: UIButton!
+    private var clearButton: UIButton!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
-        configureSDK()
+        
+        // Initialize SDK on app launch
+        initializeSDK()
     }
     
-    /// Setup UI components
     private func setupUI() {
         view.backgroundColor = .systemBackground
-        title = "Onairos SDK Demo"
+        
+        // Title
+        let titleLabel = UILabel()
+        titleLabel.text = "Onairos SDK Demo"
+        titleLabel.font = .systemFont(ofSize: 24, weight: .bold)
+        titleLabel.textAlignment = .center
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(titleLabel)
         
         // Status label
-        statusLabel.text = "Ready to connect data"
-        statusLabel.font = .systemFont(ofSize: 18, weight: .medium)
+        statusLabel = UILabel()
+        statusLabel.text = "SDK Status: Not Initialized"
+        statusLabel.font = .systemFont(ofSize: 16)
         statusLabel.textAlignment = .center
-        statusLabel.textColor = .label
+        statusLabel.numberOfLines = 0
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Result text view
-        resultTextView.font = .systemFont(ofSize: 14)
-        resultTextView.backgroundColor = .systemGray6
-        resultTextView.layer.cornerRadius = 8
-        resultTextView.isEditable = false
-        resultTextView.text = "Onboarding results will appear here..."
-        resultTextView.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Create buttons
-        createConnectButtons()
-        
-        // Add subviews
         view.addSubview(statusLabel)
-        view.addSubview(connectButton)
-        view.addSubview(customButton)
-        view.addSubview(resultTextView)
         
-        // Setup constraints
-        setupConstraints()
-    }
-    
-    /// Create connect buttons using SDK
-    private func createConnectButtons() {
-        // Default button
-        connectButton = OnairosSDK.shared.createConnectButton(
-            completion: handleOnboardingResult
-        )
+        // Initialize button
+        initButton = UIButton(type: .system)
+        initButton.setTitle("Initialize SDK", for: .normal)
+        initButton.backgroundColor = .systemBlue
+        initButton.setTitleColor(.white, for: .normal)
+        initButton.layer.cornerRadius = 12
+        initButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        initButton.translatesAutoresizingMaskIntoConstraints = false
+        initButton.addTarget(self, action: #selector(initializeSDKTapped), for: .touchUpInside)
+        view.addSubview(initButton)
         
-        // Custom text button
-        customButton = OnairosSDK.shared.createConnectButton(
-            text: "Start Onboarding",
-            completion: handleOnboardingResult
-        )
-    }
-    
-    /// Setup Auto Layout constraints
-    private func setupConstraints() {
+        // Clear session button
+        clearButton = UIButton(type: .system)
+        clearButton.setTitle("Clear Session", for: .normal)
+        clearButton.backgroundColor = .systemRed
+        clearButton.setTitleColor(.white, for: .normal)
+        clearButton.layer.cornerRadius = 12
+        clearButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        clearButton.translatesAutoresizingMaskIntoConstraints = false
+        clearButton.addTarget(self, action: #selector(clearSessionTapped), for: .touchUpInside)
+        view.addSubview(clearButton)
+        
+        // Constraints
         NSLayoutConstraint.activate([
-            // Status label
-            statusLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 40),
+            titleLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 40),
+            titleLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            titleLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            statusLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 30),
             statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
             statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             
-            // Connect button
-            connectButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 40),
-            connectButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            initButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 30),
+            initButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            initButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
+            initButton.heightAnchor.constraint(equalToConstant: 50),
             
-            // Custom button
-            customButton.topAnchor.constraint(equalTo: connectButton.bottomAnchor, constant: 20),
-            customButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            
-            // Result text view
-            resultTextView.topAnchor.constraint(equalTo: customButton.bottomAnchor, constant: 40),
-            resultTextView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-            resultTextView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-            resultTextView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20)
+            clearButton.topAnchor.constraint(equalTo: initButton.bottomAnchor, constant: 20),
+            clearButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            clearButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
+            clearButton.heightAnchor.constraint(equalToConstant: 50)
         ])
     }
     
-    /// Configure Onairos SDK
-    private func configureSDK() {
-        // ✅ CORRECT CONFIGURATION FOR DEVELOPMENT:
-        // Use testMode() to prevent modal dismissal issues and API failures
-        let config = OnairosConfig.testMode(
-            urlScheme: "onairos-demo",
-            appName: "Onairos Demo App"
-        )
-        
-        // 🚨 INCORRECT CONFIGURATIONS (commented out to show what NOT to use):
-        /*
-        // ❌ DON'T USE: Debug mode with production API - may cause modal dismissal
-        let badConfig1 = OnairosConfig(
-            isDebugMode: true,
-            urlScheme: "onairos-demo",
-            appName: "Onairos Demo App"
-        )
-        
-        // ❌ DON'T USE: Production mode during development - requires real platform connections
-        let badConfig2 = OnairosConfig(
-            isDebugMode: false,
-            isTestMode: false,
-            urlScheme: "onairos-demo",
-            appName: "Onairos Demo App"
-        )
-        */
-        
-        print("🔧 [DEMO] Initializing SDK with test mode configuration...")
-        OnairosSDK.shared.initialize(config: config)
-        print("✅ [DEMO] SDK initialized - this configuration prevents modal dismissal issues")
-        
-        // Check for existing session
-        if OnairosSDK.shared.hasExistingSession() {
-            statusLabel.text = "Welcome back! Session found."
-            statusLabel.textColor = .systemGreen
-            
-            // Add reset session button for demo purposes
-            addResetSessionButton()
-        } else {
-            statusLabel.text = "Ready to connect data"
-            statusLabel.textColor = .label
-        }
-        
-        // Add configuration info to result view
-        let configInfo = """
-        ✅ DEMO CONFIGURATION:
-        
-        🧪 Test Mode: Enabled
-        🔄 Simulates all API calls locally
-        📧 Accepts any email address
-        🔐 Accepts any verification code
-        🚀 Prevents modal dismissal issues
-        
-        🔧 For your app, use:
-        OnairosConfig.testMode(
-            urlScheme: "your-app-scheme",
-            appName: "Your App Name"
-        )
-        
-        📚 See integration guide for production setup
-        """
-        
-        resultTextView.text = configInfo
-    }
-    
-    /// Add reset session button for demo purposes
-    private func addResetSessionButton() {
-        let resetButton = UIButton(type: .system)
-        resetButton.setTitle("Clear Saved Session", for: .normal)
-        resetButton.backgroundColor = .systemRed.withAlphaComponent(0.1)
-        resetButton.setTitleColor(.systemRed, for: .normal)
-        resetButton.titleLabel?.font = .systemFont(ofSize: 14, weight: .medium)
-        resetButton.layer.cornerRadius = 8
-        resetButton.translatesAutoresizingMaskIntoConstraints = false
-        
-        resetButton.addTarget(self, action: #selector(resetSessionTapped), for: .touchUpInside)
-        
-        view.addSubview(resetButton)
-        
-        NSLayoutConstraint.activate([
-            resetButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
-            resetButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            resetButton.heightAnchor.constraint(equalToConstant: 32),
-            resetButton.widthAnchor.constraint(equalToConstant: 160)
-        ])
-        
-        // Update other constraints to account for the new button
-        connectButton.topAnchor.constraint(equalTo: resetButton.bottomAnchor, constant: 30).isActive = true
-    }
-    
-    /// Handle reset session button tap
-    @objc private func resetSessionTapped() {
-        OnairosSDK.shared.clearSession()
-        
-        // Update UI
-        statusLabel.text = "Session cleared. Ready to connect data."
-        statusLabel.textColor = .label
-        
-        // Remove the reset button
-        view.subviews.first { $0 is UIButton && ($0 as? UIButton)?.titleLabel?.text == "Clear Saved Session" }?.removeFromSuperview()
-    }
-    
-    /// Handle onboarding completion result
-    /// - Parameter result: Onboarding result
-    private func handleOnboardingResult(_ result: Result<OnboardingResult, OnairosError>) {
-        DispatchQueue.main.async {
-            switch result {
-            case .success(let data):
-                self.handleSuccess(data)
-            case .failure(let error):
-                self.handleError(error)
+    private func initializeSDK() {
+        Task {
+            do {
+                // Method 1: Initialize with admin key (recommended for development)
+                try await OnairosSDK.shared.initializeWithAdminKey(
+                    environment: .development,
+                    enableLogging: true
+                )
+                
+                await MainActor.run {
+                    self.statusLabel.text = "✅ SDK Status: Initialized with Admin Key"
+                    self.addConnectButton()
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.statusLabel.text = "❌ SDK Status: Failed to initialize\n\(error.localizedDescription)"
+                }
+                
+                // Fallback to legacy method
+                self.initializeSDKLegacy()
             }
         }
     }
     
-    /// Handle successful onboarding
-    /// - Parameter data: Onboarding result data
-    private func handleSuccess(_ data: OnboardingResult) {
-        statusLabel.text = "Onboarding completed successfully! 🎉"
-        statusLabel.textColor = .systemGreen
+    private func initializeSDKLegacy() {
+        // Method 2: Legacy initialization (always works)
+        let config = OnairosLegacyConfig(
+            isDebugMode: true,
+            isTestMode: true, // This prevents API calls during development
+            allowEmptyConnections: true,
+            simulateTraining: true,
+            urlScheme: "onairos-demo",
+            appName: "Onairos Demo App"
+        )
         
-        switch data {
-        case .success(let onboardingData):
-            let resultText = """
-            ✅ ONBOARDING COMPLETED
-            
-            📧 Email: \(onboardingData.userData["email"]?.value as? String ?? "N/A")
-            🔗 Connected Platforms: \(onboardingData.connectedPlatforms.keys.joined(separator: ", "))
-            💾 Session Saved: \(onboardingData.sessionSaved ? "Yes" : "No")
-            🤖 AI Training: Completed
-            
-            📊 User Data:
-            \(formatUserData(onboardingData.userData.mapValues { $0.value }))
-            
-            🔗 Platform Data:
-            \(formatPlatformData(onboardingData.connectedPlatforms.mapValues { $0.platform }))
-            
-            👤 Account Info:
-            \(formatAccountInfo(onboardingData.accountInfo?.mapValues { $0.value }))
-            
-            🔗 API URL: \(onboardingData.apiURL)
-            🔑 Token: \(onboardingData.token.prefix(20))...
-            """
-            
-            resultTextView.text = resultText
-            
-        case .failure(let error):
-            // This shouldn't happen since we're in handleSuccess, but handle it anyway
-            handleError(error)
+        OnairosSDK.shared.initialize(config: config)
+        
+        statusLabel.text = "✅ SDK Status: Initialized with Legacy Config (Test Mode)"
+        addConnectButton()
+    }
+    
+    @objc private func initializeSDKTapped() {
+        // Show different initialization options
+        let alert = UIAlertController(title: "Initialize SDK", message: "Choose initialization method", preferredStyle: .actionSheet)
+        
+        alert.addAction(UIAlertAction(title: "Admin Key (Async)", style: .default) { _ in
+            self.initializeWithAdminKey()
+        })
+        
+        alert.addAction(UIAlertAction(title: "Legacy Config (Test Mode)", style: .default) { _ in
+            self.initializeSDKLegacy()
+        })
+        
+        alert.addAction(UIAlertAction(title: "Custom API Key", style: .default) { _ in
+            self.showCustomAPIKeyInput()
+        })
+        
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func initializeWithAdminKey() {
+        Task {
+            do {
+                try await OnairosSDK.shared.initializeWithAdminKey(
+                    environment: .development,
+                    enableLogging: true
+                )
+                
+                await MainActor.run {
+                    self.statusLabel.text = "✅ SDK Status: Initialized with Admin Key"
+                    self.addConnectButton()
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.statusLabel.text = "❌ SDK Status: Failed\n\(error.localizedDescription)"
+                }
+            }
         }
     }
     
-    /// Handle onboarding error
-    /// - Parameter error: Onboarding error
-    private func handleError(_ error: OnairosError) {
-        statusLabel.text = "Onboarding failed"
-        statusLabel.textColor = .systemRed
+    private func showCustomAPIKeyInput() {
+        let alert = UIAlertController(title: "Custom API Key", message: "Enter your API key", preferredStyle: .alert)
         
-        let resultText = """
-        ❌ ONBOARDING FAILED
+        alert.addTextField { textField in
+            textField.placeholder = "Enter API Key"
+            textField.isSecureTextEntry = true
+        }
         
-        Error: \(error.localizedDescription)
+        alert.addAction(UIAlertAction(title: "Initialize", style: .default) { _ in
+            guard let apiKey = alert.textFields?.first?.text, !apiKey.isEmpty else {
+                self.statusLabel.text = "❌ SDK Status: No API key provided"
+                return
+            }
+            
+            self.initializeWithCustomKey(apiKey)
+        })
         
-        Category: \(error.category.rawValue)
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
-        Recovery Suggestion:
-        \(error.recoverySuggestion)
-        
-        Please try again or contact support.
-        """
-        
-        resultTextView.text = resultText
-        
-        // Show alert for critical errors
-        if error.category == .critical {
-            showErrorAlert(error)
+        present(alert, animated: true)
+    }
+    
+    private func initializeWithCustomKey(_ apiKey: String) {
+        Task {
+            do {
+                try await OnairosSDK.shared.initializeWithApiKey(
+                    apiKey,
+                    environment: .development,
+                    enableLogging: true
+                )
+                
+                await MainActor.run {
+                    self.statusLabel.text = "✅ SDK Status: Initialized with Custom Key"
+                    self.addConnectButton()
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.statusLabel.text = "❌ SDK Status: Failed\n\(error.localizedDescription)"
+                }
+            }
         }
     }
     
-    /// Format user data for display
-    /// - Parameter userData: User data dictionary
-    /// - Returns: Formatted string
-    private func formatUserData(_ userData: [String: Any]) -> String {
-        var formatted = ""
-        for (key, value) in userData {
-            formatted += "  • \(key): \(value)\n"
-        }
-        return formatted.isEmpty ? "  No user data" : formatted
-    }
-    
-    /// Format platform data for display
-    /// - Parameter platformData: Platform data dictionary
-    /// - Returns: Formatted string
-    private func formatPlatformData(_ platformData: [String: Any]) -> String {
-        var formatted = ""
-        for (platform, data) in platformData {
-            formatted += "  • \(platform.capitalized): Connected\n"
-        }
-        return formatted.isEmpty ? "  No platforms connected" : formatted
-    }
-    
-    /// Format account info for display
-    /// - Parameter accountInfo: Account info dictionary
-    /// - Returns: Formatted string
-    private func formatAccountInfo(_ accountInfo: [String: Any]?) -> String {
-        guard let accountInfo = accountInfo else {
-            return "  No existing account info"
+    private func addConnectButton() {
+        // Remove existing connect button if any
+        connectButton?.removeFromSuperview()
+        
+        // Create new connect button using SDK
+        connectButton = OnairosSDK.shared.createConnectButton(text: "Connect Your Data") { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let data):
+                    self.handleOnboardingSuccess(data)
+                case .failure(let error):
+                    self.handleOnboardingError(error)
+                }
+            }
         }
         
-        var formatted = ""
-        for (key, value) in accountInfo {
-            formatted += "  • \(key): \(value)\n"
-        }
-        return formatted.isEmpty ? "  No account info" : formatted
+        guard let connectButton = connectButton else { return }
+        
+        view.addSubview(connectButton)
+        
+        NSLayoutConstraint.activate([
+            connectButton.topAnchor.constraint(equalTo: clearButton.bottomAnchor, constant: 40),
+            connectButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 40),
+            connectButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -40),
+            connectButton.heightAnchor.constraint(equalToConstant: 60)
+        ])
     }
     
-    /// Show error alert
-    /// - Parameter error: Error to display
-    private func showErrorAlert(_ error: OnairosError) {
+    @objc private func clearSessionTapped() {
+        OnairosSDK.shared.clearSession()
+        statusLabel.text = "🧹 Session cleared"
+        
+        // Show alert
+        let alert = UIAlertController(title: "Session Cleared", message: "User session has been cleared", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private func handleOnboardingSuccess(_ data: OnboardingData) {
+        print("🎉 Onboarding completed successfully!")
+        print("Connected platforms: \(data.connectedPlatforms.keys.joined(separator: ", "))")
+        
         let alert = UIAlertController(
-            title: "Onboarding Error",
+            title: "Success! 🎉",
+            message: "Onboarding completed successfully!\n\nConnected platforms: \(data.connectedPlatforms.keys.joined(separator: ", "))",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Awesome!", style: .default))
+        present(alert, animated: true)
+        
+        statusLabel.text = "✅ Onboarding completed successfully!"
+    }
+    
+    private func handleOnboardingError(_ error: OnairosError) {
+        print("❌ Onboarding failed: \(error.localizedDescription)")
+        
+        let alert = UIAlertController(
+            title: "Onboarding Failed",
             message: error.localizedDescription,
             preferredStyle: .alert
         )
-        
         alert.addAction(UIAlertAction(title: "OK", style: .default))
-        
-        if !error.recoverySuggestion.isEmpty {
-            alert.addAction(UIAlertAction(title: "Help", style: .default) { _ in
-                // Show recovery suggestion
-                let helpAlert = UIAlertController(
-                    title: "How to Fix",
-                    message: error.recoverySuggestion,
-                    preferredStyle: .alert
-                )
-                helpAlert.addAction(UIAlertAction(title: "OK", style: .default))
-                self.present(helpAlert, animated: true)
-            })
-        }
-        
         present(alert, animated: true)
+        
+        statusLabel.text = "❌ Onboarding failed: \(error.localizedDescription)"
     }
 } 
