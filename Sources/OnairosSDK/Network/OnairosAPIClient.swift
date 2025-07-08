@@ -846,57 +846,15 @@ public class OnairosAPIClient {
     public func submitPIN(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
         log("📤 Submitting PIN to backend for user: \(request.username)", level: .info)
         
-        // TODO: JWT token should be retrieved from secure storage or user session
-        // For now, using placeholder - implement proper JWT token management
-        let jwtToken = "placeholder_jwt_token"
-        
-        return await makeRequestWithAuth(
-            endpoint: "/store-pin/web",
+        return await performRequest(
+            endpoint: "/store-pin/mobile",
             method: .POST,
             body: request,
-            jwtToken: jwtToken,
             responseType: PINSubmissionResponse.self
         )
     }
     
-    /// Make authenticated request with JWT token
-    private func makeRequestWithAuth<T: Codable>(
-        endpoint: String,
-        method: HTTPMethod,
-        body: Codable,
-        jwtToken: String,
-        responseType: T.Type
-    ) async -> Result<T, OnairosError> {
-        guard let url = URL(string: baseURL + endpoint) else {
-            return .failure(.configurationError("Invalid URL: \(baseURL + endpoint)"))
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = method.rawValue
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        
-        do {
-            let jsonData = try JSONEncoder().encode(body)
-            request.httpBody = jsonData
-            
-            let (data, response) = try await session.data(for: request)
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                return .failure(.networkError("Invalid response"))
-            }
-            
-            guard httpResponse.statusCode == 200 else {
-                return .failure(.apiError("PIN submission failed", httpResponse.statusCode))
-            }
-            
-            let decodedResponse = try JSONDecoder().decode(responseType, from: data)
-            return .success(decodedResponse)
-            
-        } catch {
-            return .failure(.networkError("PIN submission failed: \(error.localizedDescription)"))
-        }
-    }
+
     
     /// Get request URL and headers, preferring API key service if available
     /// - Parameter endpoint: API endpoint

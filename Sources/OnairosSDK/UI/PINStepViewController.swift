@@ -51,10 +51,11 @@ public class PINStepViewController: BaseStepViewController {
         pinInputContainer.layer.borderColor = UIColor.systemGray4.cgColor
         
         // Text field
-        pinTextField.placeholder = "Enter your PIN (min 8 characters)"
+        pinTextField.placeholder = "Enter your 4-6 digit PIN"
         pinTextField.isSecureTextEntry = true
         pinTextField.font = .systemFont(ofSize: 16)
         pinTextField.textColor = .label
+        pinTextField.keyboardType = .numberPad
         pinTextField.addTarget(self, action: #selector(pinTextChanged), for: .editingChanged)
         pinTextField.delegate = self
         
@@ -108,9 +109,8 @@ public class PINStepViewController: BaseStepViewController {
         
         // Create requirement labels
         let requirements = [
-            "At least 8 characters",
-            "Contains numbers",
-            "Contains special characters"
+            "4-6 digits",
+            "Numbers only"
         ]
         
         for requirement in requirements {
@@ -285,7 +285,13 @@ public class PINStepViewController: BaseStepViewController {
     public override func primaryButtonTapped() {
         // Validate PIN before proceeding
         guard state.validateCurrentStep() else {
-            state.errorMessage = "Please create a PIN that meets all requirements"
+            state.errorMessage = "Please create a PIN that meets all requirements (4-6 digits, numbers only)"
+            return
+        }
+        
+        // Additional validation for digit-only PIN
+        guard state.pin.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil else {
+            state.errorMessage = "PIN must contain only numbers"
             return
         }
         
@@ -305,88 +311,97 @@ public class PINStepViewController: BaseStepViewController {
     
     /// Store PIN securely with biometric authentication and send to backend
     private func storePINSecurely() async {
-        do {
-            // Store PIN with biometric authentication
-            let result = await BiometricPINManager.shared.storePIN(state.pin)
+        print("🔐 [PIN] Starting secure PIN storage process")
+        
+        // Store PIN with biometric authentication
+        let result = await BiometricPINManager.shared.storePIN(state.pin)
+        
+        switch result {
+        case .success:
+            print("✅ [PIN] PIN stored securely with biometric protection")
             
-            switch result {
-            case .success:
-                print("✅ [PIN] PIN stored securely with biometric protection")
+            // Send PIN to backend
+            await submitPINToBackend()
+            
+        case .failure(let error):
+            await MainActor.run {
+                print("❌ [PIN] Failed to store PIN securely: \(error.localizedDescription)")
                 
-                // Send PIN to backend
-                await submitPINToBackend()
-                
-            case .failure(let error):
-                await MainActor.run {
-                    print("❌ [PIN] Failed to store PIN securely: \(error.localizedDescription)")
-                    
-                    // Show user-friendly error message
-                    state.errorMessage = "Failed to secure your PIN: \(error.localizedDescription)"
-                    
-                    // Restore button state
-                    primaryButton.setTitle("Create PIN", for: .normal)
-                    primaryButton.isEnabled = true
-                    setLoading(false)
+                // Show user-friendly error message based on error type
+                let errorMessage: String
+                switch error {
+                case .biometricNotAvailable:
+                    errorMessage = "Biometric authentication is not available on this device"
+                case .authenticationFailed:
+                    errorMessage = "Biometric authentication failed. Please try again."
+                case .authenticationCancelled:
+                    errorMessage = "Authentication was cancelled. Please try again."
+                case .keychainError(let message):
+                    errorMessage = "Security error: \(message)"
+                case .invalidPIN:
+                    errorMessage = "Invalid PIN format"
+                case .pinNotFound:
+                    errorMessage = "PIN not found"
                 }
+                
+                state.errorMessage = errorMessage
+                
+                // Restore button state
+                primaryButton.setTitle("Create PIN", for: .normal)
+                primaryButton.isEnabled = true
+                setLoading(false)
             }
         }
     }
     
     /// Submit PIN to backend endpoint
     private func submitPINToBackend() async {
-        do {
-            // Get username from stored user data
-            let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
-            
-            print("📤 [PIN SUBMISSION] Sending PIN to backend:")
-            print("   - Username: \(username)")
-            print("   - PIN: [REDACTED]")
-            
-            // Create PIN submission request
-            let pinRequest = PINSubmissionRequest(
-                username: username,
-                pin: state.pin
-            )
-            
-            // Submit PIN to backend
-            let result = await OnairosAPIClient.shared.submitPIN(pinRequest)
-            
-            switch result {
-            case .success(let response):
-                await MainActor.run {
-                    print("✅ [PIN SUBMISSION] PIN submitted successfully: \(response.message)")
-                    
-                    // Restore button state and proceed
-                    primaryButton.setTitle("Create PIN", for: .normal)
-                    primaryButton.isEnabled = true
-                    setLoading(false)
-                    
-                    // Proceed to next step
-                    coordinator?.proceedToNextStep()
-                }
+        // Get username from stored user data
+        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
+        
+        guard !username.isEmpty else {
+            await MainActor.run {
+                print("❌ [PIN SUBMISSION] No username found in UserDefaults")
+                state.errorMessage = "Username not found. Please restart the onboarding process."
                 
-            case .failure(let error):
-                await MainActor.run {
-                    print("❌ [PIN SUBMISSION] Failed to submit PIN: \(error.localizedDescription)")
-                    
-                    // Show error but still proceed (PIN is stored locally)
-                    state.errorMessage = "PIN secured locally but failed to sync with server. You can continue."
-                    
-                    // Restore button state and proceed anyway
-                    primaryButton.setTitle("Create PIN", for: .normal)
-                    primaryButton.isEnabled = true
-                    setLoading(false)
-                    
-                    // Proceed to next step after short delay
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        self.coordinator?.proceedToNextStep()
-                    }
-                }
+                // Restore button state
+                primaryButton.setTitle("Create PIN", for: .normal)
+                primaryButton.isEnabled = true
+                setLoading(false)
+            }
+            return
+        }
+        
+        print("📤 [PIN SUBMISSION] Sending PIN to backend:")
+        print("   - Username: \(username)")
+        print("   - PIN: [REDACTED - \(state.pin.count) digits]")
+        
+        // Create PIN submission request
+        let pinRequest = PINSubmissionRequest(
+            username: username,
+            pin: state.pin
+        )
+        
+        // Submit PIN to backend
+        let result = await OnairosAPIClient.shared.submitPIN(pinRequest)
+        
+        switch result {
+        case .success(let response):
+            await MainActor.run {
+                print("✅ [PIN SUBMISSION] PIN submitted successfully: \(response.message)")
+                
+                // Restore button state and proceed
+                primaryButton.setTitle("Create PIN", for: .normal)
+                primaryButton.isEnabled = true
+                setLoading(false)
+                
+                // Proceed to next step
+                coordinator?.proceedToNextStep()
             }
             
-        } catch {
+        case .failure(let error):
             await MainActor.run {
-                print("❌ [PIN SUBMISSION] Unexpected error: \(error.localizedDescription)")
+                print("❌ [PIN SUBMISSION] Failed to submit PIN: \(error.localizedDescription)")
                 
                 // Show error but still proceed (PIN is stored locally)
                 state.errorMessage = "PIN secured locally but failed to sync with server. You can continue."
@@ -432,9 +447,15 @@ extension PINStepViewController: UITextFieldDelegate {
     }
     
     public func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
-        // Allow reasonable PIN length (up to 50 characters)
+        // Only allow digits and limit to 6 characters
         let currentText = textField.text ?? ""
         let newLength = currentText.count + string.count - range.length
-        return newLength <= 50
+        
+        // Check if replacement string contains only digits
+        if !string.isEmpty && string.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) != nil {
+            return false
+        }
+        
+        return newLength <= 6
     }
 } 
