@@ -582,7 +582,7 @@ public class OnboardingCoordinator {
         }
     }
     
-    /// Authenticate with YouTube using Google Sign-In
+    /// Authenticate with YouTube platform
     /// - Returns: YouTube platform data
     private func authenticateYouTube() async throws -> PlatformData {
         // Placeholder - would use Google Sign-In SDK
@@ -591,10 +591,12 @@ public class OnboardingCoordinator {
         /*
         // Example implementation when Google Sign-In is available:
         let credentials = try await YouTubeAuthManager.shared.authenticate()
+        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
         let result = await apiClient.authenticateYouTube(
             accessToken: credentials.accessToken,
             refreshToken: credentials.refreshToken,
-            idToken: credentials.idToken
+            idToken: credentials.idToken,
+            username: username
         )
         
         switch result {
@@ -622,9 +624,11 @@ public class OnboardingCoordinator {
         /*
         // Example implementation:
         let authCode = try await OAuthManager.shared.authenticate(platform: platform)
+        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
         let request = PlatformAuthRequest(
             platform: platform.rawValue,
-            authCode: authCode
+            authCode: authCode,
+            username: username
         )
         
         let result = await apiClient.authenticatePlatform(request)
