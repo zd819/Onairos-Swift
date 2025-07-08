@@ -634,7 +634,13 @@ private class PlatformConnectionView: UIView {
     
     /// Handle OAuth authentication failure
     private func handleOAuthFailure(error: OnairosError) {
-        // Show user-friendly error message
+        // Don't show error message for user cancellation - just return to previous state
+        if case .userCancelled = error {
+            print("ℹ️ [INFO] OAuth cancelled by user for \(platform.displayName)")
+            return
+        }
+        
+        // Show user-friendly error message for other errors
         showErrorMessage(for: error)
         
         print("❌ [ERROR] OAuth failed for \(platform.displayName): \(error.localizedDescription)")
@@ -720,8 +726,6 @@ private class PlatformConnectionView: UIView {
         let errorMessage: String
         
         switch error {
-        case .userCancelled:
-            errorMessage = "Authentication cancelled"
         case .networkError(let details):
             errorMessage = "Network error: \(details)"
         case .authenticationFailed(let reason):

@@ -73,6 +73,9 @@ public class OAuthWebViewController: UIViewController {
     /// Loading label
     private var loadingLabel: UILabel?
     
+    /// Flag to track if we're currently loading
+    private var isLoading = false
+    
     /// Initialize OAuth WebView controller
     /// - Parameters:
     ///   - platform: Platform to authenticate
@@ -289,6 +292,7 @@ public class OAuthWebViewController: UIViewController {
     
     /// Start OAuth authentication flow
     private func startOAuthFlow() {
+        isLoading = true
         loadingIndicator.startAnimating()
         
         // YouTube uses native SDK, not webview OAuth
@@ -523,6 +527,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        isLoading = true
         loadingIndicator.startAnimating()
         loadingLabel?.text = "Loading authorization page..."
         
@@ -537,6 +542,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = ""
         
@@ -558,6 +564,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to load authorization page"
         
@@ -581,6 +588,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to connect to authorization server"
         
@@ -630,13 +638,15 @@ extension OAuthWebViewController: WKNavigationDelegate {
             return
         }
         
-        // Update loading message based on URL
-        if url.absoluteString.contains("authorize") {
-            loadingLabel?.text = "Preparing authorization..."
-        } else if url.absoluteString.contains("login") {
-            loadingLabel?.text = "Loading sign-in page..."
-        } else if url.absoluteString.contains("callback") {
-            loadingLabel?.text = "Processing authorization..."
+        // Update loading message based on URL only if we're currently loading
+        if isLoading {
+            if url.absoluteString.contains("authorize") {
+                loadingLabel?.text = "Preparing authorization..."
+            } else if url.absoluteString.contains("login") {
+                loadingLabel?.text = "Loading sign-in page..."
+            } else if url.absoluteString.contains("callback") {
+                loadingLabel?.text = "Processing authorization..."
+            }
         }
         
         // Allow all other navigation
