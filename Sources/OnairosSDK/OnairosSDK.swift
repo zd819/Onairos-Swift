@@ -13,7 +13,7 @@ public class OnairosSDK: ObservableObject {
     public static let shared = OnairosSDK()
     
     /// SDK configuration
-    private var config: OnairosLegacyConfig?
+    private var config: OnairosConfig?
     
     /// Completion callback for onboarding
     private var completionCallback: ((Result<OnboardingResult, OnairosError>) -> Void)?
@@ -35,18 +35,8 @@ public class OnairosSDK: ObservableObject {
         // Initialize the API key service
         try await OnairosAPIKeyService.shared.initializeApiKey(config: config)
         
-        // Create legacy config for backward compatibility
-        let legacyConfig = OnairosLegacyConfig(
-            urlScheme: "onairos", // Default scheme
-            appName: "iOS App",   // Default name
-            apiBaseURL: config.environment.baseURL,
-            isTestMode: config.environment == .development && config.enableLogging,
-            isDebugMode: config.enableLogging,
-            allowEmptyConnections: true, // More permissive for API key mode
-            simulateTraining: config.environment == .development
-        )
-        
-        self.config = legacyConfig
+        // Store the configuration directly
+        self.config = config
         
         // Configure API client to use the API key service
         OnairosAPIClient.shared.configure(
@@ -108,10 +98,23 @@ public class OnairosSDK: ObservableObject {
     /// Initialize the SDK with configuration (legacy method)
     /// - Parameter config: SDK configuration
     public func initialize(config: OnairosLegacyConfig) {
-        self.config = config
+        // Convert legacy config to new format
+        let newConfig = OnairosConfig(
+            apiKey: "legacy-config-key", // Placeholder for legacy configs
+            environment: config.apiBaseURL.contains("dev") ? .development : .production,
+            enableLogging: config.isDebugMode,
+            timeout: 30.0,
+            isTestMode: config.isTestMode,
+            isDebugMode: config.isDebugMode,
+            allowEmptyConnections: config.allowEmptyConnections,
+            urlScheme: config.urlScheme,
+            appName: config.appName
+        )
+        
+        self.config = newConfig
         
         // Validate configuration and provide guidance
-        validateConfiguration(config)
+        validateConfiguration(newConfig)
         
         // Configure API client logging based on mode
         let logLevel: APILogLevel
@@ -150,7 +153,7 @@ public class OnairosSDK: ObservableObject {
     
     /// Validate configuration and provide helpful guidance
     /// - Parameter config: Configuration to validate
-    private func validateConfiguration(_ config: OnairosLegacyConfig) {
+    private func validateConfiguration(_ config: OnairosConfig) {
         var warnings: [String] = []
         var recommendations: [String] = []
         
@@ -662,11 +665,11 @@ public class OnairosConnectButton: UIButton {
 /// Data request overlay for existing users
 private class DataRequestOverlayController: UIViewController {
     
-    private let config: OnairosLegacyConfig
+    private let config: OnairosConfig
     private let onConfirm: () -> Void
     private let onCancel: () -> Void
     
-    init(config: OnairosLegacyConfig, onConfirm: @escaping () -> Void, onCancel: @escaping () -> Void) {
+    init(config: OnairosConfig, onConfirm: @escaping () -> Void, onCancel: @escaping () -> Void) {
         self.config = config
         self.onConfirm = onConfirm
         self.onCancel = onCancel

@@ -15,6 +15,8 @@ final class OnairosSDKTests: XCTestCase {
     
     func testSDKInitialization() throws {
         let config = OnairosConfig(
+            apiKey: "test-api-key",
+            environment: .production,
             isDebugMode: true,
             urlScheme: "test-scheme",
             appName: "Test App"

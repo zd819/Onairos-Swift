@@ -30,16 +30,69 @@ public struct OnairosConfig {
     public let enableLogging: Bool
     public let timeout: TimeInterval
     
+    // Additional properties for backward compatibility
+    public let apiBaseURL: String
+    public let isTestMode: Bool
+    public let isDebugMode: Bool
+    public let allowEmptyConnections: Bool
+    public let urlScheme: String
+    public let appName: String
+    
     public init(
         apiKey: String,
         environment: Environment = .production,
         enableLogging: Bool = false,
-        timeout: TimeInterval = 30.0
+        timeout: TimeInterval = 30.0,
+        isTestMode: Bool = false,
+        isDebugMode: Bool = false,
+        allowEmptyConnections: Bool = false,
+        urlScheme: String = "onairos",
+        appName: String = "iOS App"
     ) {
         self.apiKey = apiKey
         self.environment = environment
         self.enableLogging = enableLogging
         self.timeout = timeout
+        
+        // Derive additional properties from environment and flags
+        self.apiBaseURL = environment.baseURL
+        self.isTestMode = isTestMode
+        self.isDebugMode = isDebugMode || enableLogging
+        self.allowEmptyConnections = allowEmptyConnections || isTestMode
+        self.urlScheme = urlScheme
+        self.appName = appName
+    }
+    
+    /// Create a test configuration for development
+    /// - Returns: Test configuration that bypasses all API calls
+    public static func testMode() -> OnairosConfig {
+        return OnairosConfig(
+            apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
+            environment: .development,
+            enableLogging: true,
+            timeout: 30.0,
+            isTestMode: true,
+            isDebugMode: true,
+            allowEmptyConnections: true,
+            urlScheme: "onairos-test",
+            appName: "Test App"
+        )
+    }
+    
+    /// Create a debug configuration for development
+    /// - Returns: Debug configuration with enhanced logging
+    public static func debugMode() -> OnairosConfig {
+        return OnairosConfig(
+            apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
+            environment: .development,
+            enableLogging: true,
+            timeout: 30.0,
+            isTestMode: false,
+            isDebugMode: true,
+            allowEmptyConnections: true,
+            urlScheme: "onairos-debug",
+            appName: "Debug App"
+        )
     }
 }
 
