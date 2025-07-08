@@ -2,7 +2,7 @@ import Foundation
 import OnairosSDK
 
 print("🎉 OnairosSDK imported successfully!")
-print("📦 SDK Version: 1.2.4")
+print("📦 SDK Version: 1.2.5")
 print("✅ Repository is now public and accessible!")
 
 // Test creating a config

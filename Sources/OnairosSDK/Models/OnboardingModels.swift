@@ -75,6 +75,36 @@ public struct OnairosConfig {
         self.appName = appName
     }
     
+    /// Convenience initializer for test scenarios without API key
+    /// - Parameters:
+    ///   - isTestMode: Enable test mode
+    ///   - isDebugMode: Enable debug mode
+    ///   - urlScheme: URL scheme for OAuth redirects
+    ///   - appName: Application name
+    public init(
+        isTestMode: Bool = true,
+        isDebugMode: Bool = true,
+        urlScheme: String = "onairos-test",
+        appName: String = "Test App"
+    ) {
+        self.apiKey = OnairosAPIKeyService.ADMIN_API_KEY
+        self.environment = .development
+        self.enableLogging = isDebugMode
+        self.timeout = 30.0
+        
+        // Derive additional properties from environment and flags
+        self.apiBaseURL = environment.baseURL
+        self.isTestMode = isTestMode
+        self.isDebugMode = isDebugMode
+        self.allowEmptyConnections = isTestMode
+        self.simulateTraining = isTestMode
+        self.platforms = [.linkedin, .youtube, .reddit, .pinterest, .gmail]
+        self.linkedInClientID = nil
+        self.googleClientID = nil
+        self.urlScheme = urlScheme
+        self.appName = appName
+    }
+    
     /// Computed log level based on mode
     public var logLevel: APILogLevel {
         if isTestMode {
@@ -87,8 +117,14 @@ public struct OnairosConfig {
     }
     
     /// Create a test configuration for development
+    /// - Parameters:
+    ///   - urlScheme: URL scheme for OAuth redirects
+    ///   - appName: Application name
     /// - Returns: Test configuration that bypasses all API calls
-    public static func testMode() -> OnairosConfig {
+    public static func testMode(
+        urlScheme: String = "onairos-test",
+        appName: String = "Test App"
+    ) -> OnairosConfig {
         return OnairosConfig(
             apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
             environment: .development,
@@ -101,8 +137,8 @@ public struct OnairosConfig {
             platforms: [.linkedin, .youtube, .reddit, .pinterest, .gmail],
             linkedInClientID: nil,
             googleClientID: nil,
-            urlScheme: "onairos-test",
-            appName: "Test App"
+            urlScheme: urlScheme,
+            appName: appName
         )
     }
     
