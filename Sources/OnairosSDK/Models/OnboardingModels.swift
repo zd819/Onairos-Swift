@@ -247,7 +247,7 @@ public enum Platform: String, CaseIterable, Hashable {
         case .youtube: return "YouTubeicon1.png"
         case .reddit: return "RedditIcon.png"
         case .pinterest: return "pinterest.png"
-        case .gmail: return "gmailtransparent.png"
+        case .gmail: return "propergmailicon.png"
         }
     }
 }

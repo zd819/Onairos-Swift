@@ -310,43 +310,15 @@ private class PlatformConnectionView: UIView {
     
     /// Process image to handle transparency issues (remove checkerboard patterns)
     private func processImageForTransparency(_ image: UIImage, platform: Platform) -> UIImage {
-        // For Gmail, fix orientation issues and clean up transparency
-        if platform == .gmail {
-            let orientationFixedImage = fixImageOrientation(image)
-            return cleanCheckerboardPattern(from: orientationFixedImage)
-        }
         // For YouTube, which may have checkerboard patterns, we'll clean them up
-        else if platform == .youtube {
+        if platform == .youtube {
             return cleanCheckerboardPattern(from: image)
         }
+        // Gmail now uses properly oriented icon, no processing needed
         return image
     }
     
-    /// Fix image orientation issues (especially for Gmail)
-    private func fixImageOrientation(_ image: UIImage) -> UIImage {
-        guard let cgImage = image.cgImage else { return image }
-        
-        let size = image.size
-        let scale = image.scale
-        
-        // Create a new image context
-        UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        guard let context = UIGraphicsGetCurrentContext() else { return image }
-        
-        // For Gmail, flip across the X-axis (vertical flip)
-        // Translate to the bottom edge and scale by -1 on Y-axis only
-        context.translateBy(x: 0, y: size.height)
-        context.scaleBy(x: 1.0, y: -1.0)
-        
-        // Draw the image
-        context.draw(cgImage, in: CGRect(origin: .zero, size: size))
-        
-        // Get the corrected image
-        let correctedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
-        UIGraphicsEndImageContext()
-        
-        return correctedImage
-    }
+
     
     /// Remove checkerboard transparency pattern from image
     private func cleanCheckerboardPattern(from image: UIImage) -> UIImage {
