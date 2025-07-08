@@ -300,6 +300,63 @@ public class OnairosAPIClient {
     
     // MARK: - Platform Authentication
     
+    /// Get authorization URL for platform
+    /// - Parameters:
+    ///   - platform: Platform to get authorization URL for
+    ///   - userEmail: User email for the request
+    /// - Returns: Authorization URL response
+    public func getAuthorizationURL(platform: Platform, userEmail: String) async -> Result<AuthorizationURLResponse, OnairosError> {
+        log("🚀 Requesting authorization URL for platform: \(platform.rawValue)", level: .info)
+        
+        // Enable detailed logging for debugging
+        let originalDetailedLogging = enableDetailedLogging
+        enableDetailedLogging = true
+        
+        // Get the actual username from UserDefaults (saved during email verification)
+        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? extractUsername(from: userEmail)
+        
+        // Build complete OAuth request parameters that the backend expects
+        let requestBody: [String: Any] = [
+            "response_type": "code",
+            "redirect_uri": "onairos://oauth/callback", // Default redirect URI
+            "scope": platform.oauthScopes,
+            "state": generateStateParameter(),
+            "email": userEmail,
+            "session": [
+                "username": username
+            ]
+        ]
+        
+        log("📤 Sending authorization URL request with body: \(requestBody)", level: .debug)
+        
+        let result = await performRequestWithDictionary(
+            endpoint: "/\(platform.rawValue)/authorize",
+            method: .POST,
+            body: requestBody,
+            responseType: AuthorizationURLResponse.self
+        )
+        
+        // Restore original logging setting
+        enableDetailedLogging = originalDetailedLogging
+        
+        return result
+    }
+    
+    /// Generate state parameter for OAuth security
+    /// - Returns: Random state string
+    private func generateStateParameter() -> String {
+        let characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0..<32).map { _ in characters.randomElement() ?? "a" })
+    }
+    
+    /// Extract username from email address
+    /// - Parameter email: Full email address
+    /// - Returns: Username (part before @)
+    private func extractUsername(from email: String) -> String {
+        let components = email.components(separatedBy: "@")
+        return components.first ?? email
+    }
+    
     /// Authenticate with platform
     /// - Parameter request: Platform authentication request
     /// - Returns: Authentication response
@@ -438,7 +495,28 @@ public class OnairosAPIClient {
         }
     }
     
-    // MARK: - Health Check
+    /// Test the API client connection (for debugging)
+    /// - Returns: Simple test response
+    public func testConnection() async -> Result<[String: Any], OnairosError> {
+        log("🧪 Testing API connection", level: .info)
+        
+        // Enable detailed logging for debugging
+        let originalDetailedLogging = enableDetailedLogging
+        enableDetailedLogging = true
+        
+        let result = await performRequestWithoutBody(
+            endpoint: "/health",
+            method: .GET,
+            responseType: [String: AnyCodable].self
+        ).map { response in
+            response.mapValues { $0.value }
+        }
+        
+        // Restore original logging setting
+        enableDetailedLogging = originalDetailedLogging
+        
+        return result
+    }
     
     /// Check API health
     /// - Returns: Health status
@@ -513,8 +591,10 @@ public class OnairosAPIClient {
             // Log response details
             logResponse(response, data: data, error: nil)
             
-            // Check for HTTP errors
+            // Check for HTTP errors and get status code
+            var statusCode: Int = 0
             if let httpResponse = response as? HTTPURLResponse {
+                statusCode = httpResponse.statusCode
                 guard 200...299 ~= httpResponse.statusCode else {
                     // Handle rate limiting specifically
                     if httpResponse.statusCode == 429 {
@@ -549,9 +629,9 @@ public class OnairosAPIClient {
                         log("❌ API returned error: \(errorMessage)", level: .error)
                         
                         if let errorCode = errorCode {
-                            return .failure(.apiError("\(errorMessage) (Code: \(errorCode))", httpResponse.statusCode))
+                            return .failure(.apiError("\(errorMessage) (Code: \(errorCode))", statusCode))
                         } else {
-                            return .failure(.apiError(errorMessage, httpResponse.statusCode))
+                            return .failure(.apiError(errorMessage, statusCode))
                         }
                     }
                 } else {
@@ -641,48 +721,122 @@ public class OnairosAPIClient {
         responseType: U.Type
     ) async -> Result<U, OnairosError> {
         
-        guard let url = URL(string: baseURL + endpoint) else {
-            return .failure(.configurationError("Invalid URL: \(baseURL + endpoint)"))
+        log("🚀 Starting dictionary request to \(endpoint)", level: .info)
+        
+        // Try to get URL and headers from API key service first
+        let (requestURL, requestHeaders) = getRequestURLAndHeaders(endpoint: endpoint)
+        
+        guard let url = requestURL else {
+            let error = OnairosError.configurationError("Invalid URL configuration")
+            log("❌ Invalid URL configuration for endpoint: \(endpoint)", level: .error)
+            return .failure(error)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("OnairosSwift/3.0.72", forHTTPHeaderField: "User-Agent")
-        request.setValue("3.0.72", forHTTPHeaderField: "X-SDK-Version")
-        request.setValue("production", forHTTPHeaderField: "X-SDK-Environment")
-        request.setValue("developer", forHTTPHeaderField: "X-API-Key-Type")
-        request.setValue(ISO8601DateFormatter().string(from: Date()), forHTTPHeaderField: "X-Timestamp")
+        
+        // Add headers (from API key service or default)
+        for (key, value) in requestHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
         
         // Add request body
+        var requestBodyData: Data?
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            requestBodyData = try JSONSerialization.data(withJSONObject: body)
+            request.httpBody = requestBodyData
+            log("✅ Request body encoded successfully", level: .debug)
         } catch {
-            return .failure(.unknownError("Failed to encode request body: \(error.localizedDescription)"))
+            let errorMsg = "Failed to encode request body: \(error.localizedDescription)"
+            log("❌ \(errorMsg)", level: .error)
+            return .failure(.unknownError(errorMsg))
         }
+        
+        // Log request details
+        logRequest(request, body: requestBodyData)
         
         // Perform request
         do {
+            log("⏳ Sending HTTP request...", level: .debug)
             let (data, response) = try await session.data(for: request)
             
-            // Check for HTTP errors
+            // Log response details
+            logResponse(response, data: data, error: nil)
+            
+            // Check for HTTP errors and get status code
+            var statusCode: Int = 0
             if let httpResponse = response as? HTTPURLResponse {
+                statusCode = httpResponse.statusCode
                 guard 200...299 ~= httpResponse.statusCode else {
-                    return .failure(OnairosError.fromHTTPResponse(data: data, response: response, error: nil))
+                    // Handle rate limiting specifically
+                    if httpResponse.statusCode == 429 {
+                        log("⚠️ Rate limit exceeded", level: .error)
+                        return .failure(.rateLimitExceeded("Rate limit exceeded. Please wait before making more requests."))
+                    }
+                    
+                    let error = OnairosError.fromHTTPResponse(data: data, response: response, error: nil)
+                    log("❌ HTTP error \(httpResponse.statusCode): \(error.localizedDescription)", level: .error)
+                    return .failure(error)
                 }
+                log("✅ HTTP request successful (\(httpResponse.statusCode))", level: .info)
+            }
+            
+            // Check if we have any data
+            guard !data.isEmpty else {
+                log("❌ Empty response data received", level: .error)
+                return .failure(.unknownError("Empty response data"))
+            }
+            
+            // Log raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                log("📥 Raw response: \(responseString)", level: .debug)
             }
             
             // Decode response
             do {
                 let decoder = JSONDecoder()
-                let result = try decoder.decode(responseType, from: data)
-                return .success(result)
+                
+                // Try to decode as unified response format first
+                if let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let success = jsonObject["success"] as? Bool {
+                    
+                    if success {
+                        // Success response - decode the expected type
+                        let result = try decoder.decode(responseType, from: data)
+                        log("✅ Response decoded successfully", level: .debug)
+                        return .success(result)
+                    } else {
+                        // Error response - extract error information
+                        let errorMessage = jsonObject["error"] as? String ?? "Unknown error"
+                        let errorCode = jsonObject["code"] as? String
+                        log("❌ API returned error: \(errorMessage)", level: .error)
+                        
+                        if let errorCode = errorCode {
+                            return .failure(.apiError("\(errorMessage) (Code: \(errorCode))", statusCode))
+                        } else {
+                            return .failure(.apiError(errorMessage, statusCode))
+                        }
+                    }
+                } else {
+                    // Fallback to direct decoding for legacy responses
+                    let result = try decoder.decode(responseType, from: data)
+                    log("✅ Response decoded successfully (legacy format)", level: .debug)
+                    return .success(result)
+                }
             } catch {
-                return .failure(.unknownError("Failed to decode response: \(error.localizedDescription)"))
+                let errorMsg = "Failed to decode response: \(error.localizedDescription)"
+                log("❌ \(errorMsg)", level: .error)
+                if enableDetailedLogging, let dataString = String(data: data, encoding: .utf8) {
+                    log("   Raw response: \(dataString)", level: .error)
+                }
+                return .failure(.unknownError(errorMsg))
             }
             
         } catch {
-            return .failure(OnairosError.fromHTTPResponse(data: nil, response: nil, error: error))
+            let onairosError = OnairosError.fromHTTPResponse(data: nil, response: nil, error: error)
+            log("❌ Network request failed: \(error.localizedDescription)", level: .error)
+            logResponse(nil, data: nil, error: error)
+            return .failure(onairosError)
         }
     }
     

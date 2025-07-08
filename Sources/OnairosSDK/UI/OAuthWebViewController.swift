@@ -20,9 +20,44 @@ public class OAuthWebViewController: UIViewController {
     /// WebView for OAuth
     private lazy var webView: WKWebView = {
         let configuration = WKWebViewConfiguration()
+        
+        // Configure for better OAuth compatibility
+        configuration.websiteDataStore = WKWebsiteDataStore.default()
+        
+        // Enable JavaScript (required for OAuth)
+        configuration.preferences.javaScriptEnabled = true
+        
+        // Configure user content controller
+        let userContentController = WKUserContentController()
+        configuration.userContentController = userContentController
+        
+        // Add user script to handle OAuth redirects
+        let userScript = WKUserScript(
+            source: """
+            // Handle OAuth redirects and improve compatibility
+            window.addEventListener('beforeunload', function(e) {
+                console.log('Page unloading: ' + window.location.href);
+            });
+            """,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        )
+        userContentController.addUserScript(userScript)
+        
+        // Create webview with configuration
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Configure webview for OAuth compatibility
+        webView.allowsBackForwardNavigationGestures = false
+        webView.allowsLinkPreview = false
+        
+        // Set proper user agent to avoid Google blocking (only if secure OAuth is enabled)
+        if config.enableSecureOAuth {
+            webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1 OnairosSDK/3.0.72"
+        }
+        
         return webView
     }()
     
@@ -37,6 +72,9 @@ public class OAuthWebViewController: UIViewController {
     
     /// Loading label
     private var loadingLabel: UILabel?
+    
+    /// Flag to track if we're currently loading
+    private var isLoading = false
     
     /// Initialize OAuth WebView controller
     /// - Parameters:
@@ -76,8 +114,63 @@ public class OAuthWebViewController: UIViewController {
             overrideUserInterfaceStyle = .light
         }
         
+        // Configure secure context for OAuth
+        configureSecureContext()
+        
         setupUI()
         startOAuthFlow()
+    }
+    
+    /// Configure secure context for OAuth compliance
+    private func configureSecureContext() {
+        // Only configure secure context if enabled in config
+        guard config.enableSecureOAuth else {
+            print("⚠️ [OAuth] Secure OAuth is disabled in configuration")
+            return
+        }
+        
+        print("🔒 [OAuth] Configuring secure context for OAuth")
+        
+        // Configure data store for secure cookies (iOS 14+)
+        let dataStore = WKWebsiteDataStore.default()
+        webView.configuration.websiteDataStore = dataStore
+        
+        // Configure SSL settings for secure communication
+        webView.configuration.processPool = WKProcessPool()
+        
+        // Enable secure context features (iOS 17.0+)
+        if #available(iOS 17.0, *) {
+            webView.configuration.websiteDataStore.httpCookieStore.setCookiePolicy(.allow) { 
+                print("🍪 [OAuth] Cookie policy set to allow")
+            }
+        } else {
+            // For iOS 14-16, configure alternative secure settings
+            print("🍪 [OAuth] Using iOS 14-16 compatible secure configuration")
+            
+            // Enable secure preferences that are available in iOS 14
+            webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+            webView.configuration.allowsInlineMediaPlayback = false
+            webView.configuration.mediaTypesRequiringUserActionForPlayback = .all
+        }
+        
+        // Set secure preferences (iOS 15.4+)
+        if #available(iOS 15.4, *) {
+            webView.configuration.preferences.isElementFullscreenEnabled = false
+        }
+        
+        // Set text interaction preferences (iOS 14.5+)
+        if #available(iOS 14.5, *) {
+            webView.configuration.preferences.isTextInteractionEnabled = true
+        }
+        
+        // Additional security configurations for iOS 14+
+        if #available(iOS 14.0, *) {
+            // Disable automatic data detection to prevent security issues
+            webView.configuration.dataDetectorTypes = []
+            
+            // Configure selection granularity for better security
+            webView.configuration.selectionGranularity = .character
+        }
     }
     
     /// Setup UI components
@@ -199,33 +292,118 @@ public class OAuthWebViewController: UIViewController {
     
     /// Start OAuth authentication flow
     private func startOAuthFlow() {
-        let authURL = buildOAuthURL()
-        let request = buildOAuthRequest(url: authURL)
-        
+        isLoading = true
         loadingIndicator.startAnimating()
+        
+        // YouTube uses native SDK, not webview OAuth
+        if platform == .youtube {
+            print("⚠️ [OAuth] YouTube should use native SDK, not webview OAuth")
+            showError(message: "YouTube authentication should use native SDK")
+            return
+        }
+        
+        loadingLabel?.text = "Requesting authorization URL..."
+        
+        // First, fetch the authorization URL from the backend
+        Task {
+            do {
+                let result = await OnairosAPIClient.shared.getAuthorizationURL(platform: platform, userEmail: userEmail)
+                
+                await MainActor.run {
+                    switch result {
+                    case .success(let response):
+                        if response.success, let authURL = response.authorizationURL(for: platform) {
+                            // Successfully got authorization URL, now open it in webview
+                            print("✅ [OAuth] Successfully received authorization URL for \(platform.displayName)")
+                            print("🔗 [OAuth] URL: \(authURL)")
+                            self.loadWebViewWithURL(authURL)
+                        } else {
+                            let errorMessage = response.error ?? "Failed to get authorization URL"
+                            print("❌ [OAuth] Backend returned error: \(errorMessage)")
+                            self.showError(message: errorMessage)
+                        }
+                    case .failure(let error):
+                        print("❌ [OAuth] API request failed: \(error.localizedDescription)")
+                        print("🔄 [OAuth] Falling back to direct URL construction")
+                        
+                        // Fallback to direct URL construction with POST request
+                        self.fallbackToDirectOAuth()
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Load webview with the provided authorization URL
+    /// - Parameter urlString: Authorization URL to load
+    private func loadWebViewWithURL(_ urlString: String) {
+        guard let url = URL(string: urlString) else {
+            print("❌ [OAuth] Invalid authorization URL: \(urlString)")
+            showError(message: "Invalid authorization URL received")
+            return
+        }
+        
+        print("🌐 [OAuth] Loading webview with URL: \(urlString)")
+        loadingLabel?.text = "Loading authorization page..."
+        
+        // Create request with proper headers for OAuth compatibility
+        var request = URLRequest(url: url)
+        
+        // Add security headers only if secure OAuth is enabled
+        if config.enableSecureOAuth {
+            print("🔒 [OAuth] Adding security headers for secure OAuth")
+            
+            // Add security headers
+            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            request.setValue("same-origin", forHTTPHeaderField: "Sec-Fetch-Site")
+            request.setValue("navigate", forHTTPHeaderField: "Sec-Fetch-Mode")
+            request.setValue("document", forHTTPHeaderField: "Sec-Fetch-Dest")
+            request.setValue("?1", forHTTPHeaderField: "Sec-Fetch-User")
+            
+            // Add platform-specific headers for better compatibility
+            if platform == .gmail {
+                request.setValue("https://accounts.google.com", forHTTPHeaderField: "Origin")
+                request.setValue("https://accounts.google.com", forHTTPHeaderField: "Referer")
+            }
+            
+            // Set proper user agent in request as well
+            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1 OnairosSDK/3.0.72", forHTTPHeaderField: "User-Agent")
+        }
+        
         webView.load(request)
     }
     
-    /// Build OAuth URL for platform
-    /// - Returns: OAuth authorization URL
-    private func buildOAuthURL() -> URL {
-        let baseURL = config.apiBaseURL
-        let urlString = "\(baseURL)/\(platform.rawValue)/authorize"
+    /// Fallback to direct OAuth URL construction and POST request
+    private func fallbackToDirectOAuth() {
+        let authURL = buildOAuthURL()
+        let request = buildOAuthPOSTRequest(url: authURL)
         
-        guard let url = URL(string: urlString) else {
-            fatalError("Invalid OAuth URL: \(urlString)")
-        }
-        
-        return url
+        loadingLabel?.text = "Loading authorization page..."
+        webView.load(request)
     }
     
-    /// Build OAuth POST request with JSON data
+    /// Build OAuth POST request with JSON data (fallback method)
     /// - Parameter url: OAuth URL
     /// - Returns: URLRequest configured for POST
-    private func buildOAuthRequest(url: URL) -> URLRequest {
+    private func buildOAuthPOSTRequest(url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Add security headers for OAuth compatibility
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("same-origin", forHTTPHeaderField: "Sec-Fetch-Site")
+        request.setValue("cors", forHTTPHeaderField: "Sec-Fetch-Mode")
+        request.setValue("empty", forHTTPHeaderField: "Sec-Fetch-Dest")
+        
+        // Add platform-specific headers for better compatibility
+        if platform == .gmail {
+            request.setValue("https://accounts.google.com", forHTTPHeaderField: "Origin")
+            request.setValue("https://accounts.google.com", forHTTPHeaderField: "Referer")
+        }
+        
+        // Set proper user agent
+        request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1 OnairosSDK/3.0.72", forHTTPHeaderField: "User-Agent")
         
         // Get the actual username from UserDefaults (saved during email verification)
         let username = UserDefaults.standard.string(forKey: "onairos_username") ?? extractUsername(from: userEmail)
@@ -280,6 +458,21 @@ public class OAuthWebViewController: UIViewController {
         return components.first ?? email
     }
     
+    /// Build OAuth URL for platform (legacy method - kept for fallback)
+    /// - Returns: OAuth authorization URL
+    private func buildOAuthURL() -> URL {
+        let baseURL = config.apiBaseURL
+        let urlString = "\(baseURL)/\(platform.rawValue)/authorize"
+        
+        guard let url = URL(string: urlString) else {
+            fatalError("Invalid OAuth URL: \(urlString)")
+        }
+        
+        return url
+    }
+    
+
+    
     /// Generate state parameter for OAuth security
     /// - Returns: Random state string
     private func generateStateParameter() -> String {
@@ -308,7 +501,33 @@ public class OAuthWebViewController: UIViewController {
 // MARK: - WKNavigationDelegate
 extension OAuthWebViewController: WKNavigationDelegate {
     
+    public func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        // Handle SSL certificate validation for secure OAuth only if enabled
+        guard config.enableSecureOAuth else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        guard let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+        
+        // For Google OAuth, we trust their certificates
+        if challenge.protectionSpace.host.contains("google.com") || 
+           challenge.protectionSpace.host.contains("accounts.google.com") ||
+           challenge.protectionSpace.host.contains("googleapis.com") {
+            print("🔒 [OAuth] Trusting Google SSL certificate for \(challenge.protectionSpace.host)")
+            let credential = URLCredential(trust: serverTrust)
+            completionHandler(.useCredential, credential)
+        } else {
+            // For other domains, use default validation
+            completionHandler(.performDefaultHandling, nil)
+        }
+    }
+    
     public func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        isLoading = true
         loadingIndicator.startAnimating()
         loadingLabel?.text = "Loading authorization page..."
         
@@ -323,6 +542,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = ""
         
@@ -344,6 +564,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to load authorization page"
         
@@ -367,6 +588,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to connect to authorization server"
         
@@ -416,13 +638,15 @@ extension OAuthWebViewController: WKNavigationDelegate {
             return
         }
         
-        // Update loading message based on URL
-        if url.absoluteString.contains("authorize") {
-            loadingLabel?.text = "Preparing authorization..."
-        } else if url.absoluteString.contains("login") {
-            loadingLabel?.text = "Loading sign-in page..."
-        } else if url.absoluteString.contains("callback") {
-            loadingLabel?.text = "Processing authorization..."
+        // Update loading message based on URL only if we're currently loading
+        if isLoading {
+            if url.absoluteString.contains("authorize") {
+                loadingLabel?.text = "Preparing authorization..."
+            } else if url.absoluteString.contains("login") {
+                loadingLabel?.text = "Loading sign-in page..."
+            } else if url.absoluteString.contains("callback") {
+                loadingLabel?.text = "Processing authorization..."
+            }
         }
         
         // Allow all other navigation

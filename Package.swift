@@ -8,7 +8,8 @@ import PackageDescription
 let package = Package(
     name: "OnairosSDK",
     platforms: [
-        .iOS(.v14)
+        .iOS(.v14),
+        .macOS(.v10_15)
     ],
     products: [
         .library(

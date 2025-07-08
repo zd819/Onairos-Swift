@@ -161,10 +161,17 @@ public class OnairosSDK: ObservableObject {
             enableDetailedLogging: enableDetailedLogging
         )
         
+        // Initialize YouTube authentication if YouTube platform is enabled
+        if config.platforms.contains(.youtube) {
+            YouTubeAuthManager.shared.initialize()
+            print("✅ [OnairosSDK] YouTube authentication initialized")
+        }
+        
         print("✅ [OnairosSDK] SDK initialized successfully")
         print("   Mode: \(config.isTestMode ? "Test" : config.isDebugMode ? "Debug" : "Production")")
         print("   API Base URL: \(config.apiBaseURL)")
         print("   Logging Level: \(logLevel)")
+        print("   YouTube Auth: \(config.platforms.contains(.youtube) ? "Enabled" : "Disabled")")
     }
     
     /// Initialize the SDK with configuration (legacy method)
@@ -229,10 +236,17 @@ public class OnairosSDK: ObservableObject {
             enableDetailedLogging: enableDetailedLogging
         )
         
+        // Initialize YouTube authentication if YouTube platform is enabled
+        if config.platforms.contains(.youtube) {
+            YouTubeAuthManager.shared.initialize()
+            print("✅ [OnairosSDK] YouTube authentication initialized")
+        }
+        
         print("✅ [OnairosSDK] SDK initialized successfully")
         print("   Mode: \(config.isTestMode ? "Test" : config.isDebugMode ? "Debug" : "Production")")
         print("   API Base URL: \(config.apiBaseURL)")
         print("   Logging Level: \(logLevel)")
+        print("   YouTube Auth: \(config.platforms.contains(.youtube) ? "Enabled" : "Disabled")")
     }
     
     /// Validate configuration and provide helpful guidance

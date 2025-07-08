@@ -585,22 +585,26 @@ public class OnboardingCoordinator {
     /// Authenticate with YouTube platform
     /// - Returns: YouTube platform data
     private func authenticateYouTube() async throws -> PlatformData {
-        // Placeholder - would use Google Sign-In SDK
-        throw OnairosError.googleSignInFailed("Google Sign-In not configured")
+        // Initialize YouTube authentication manager
+        YouTubeAuthManager.shared.initialize()
         
-        /*
-        // Example implementation when Google Sign-In is available:
+        // Authenticate with YouTube using native SDK
         let credentials = try await YouTubeAuthManager.shared.authenticate()
-        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
+        
+        // Get username from stored user data or use email
+        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? extractUsername(from: state.email)
+        
+        // Send credentials to backend for verification and data sync
         let result = await apiClient.authenticateYouTube(
             accessToken: credentials.accessToken,
-            refreshToken: credentials.refreshToken,
+            refreshToken: credentials.refreshToken ?? "",
             idToken: credentials.idToken,
             username: username
         )
         
         switch result {
         case .success(let response):
+            print("✅ [YouTube Auth] Successfully authenticated with backend")
             return PlatformData(
                 platform: "youtube",
                 accessToken: credentials.accessToken,
@@ -609,9 +613,17 @@ public class OnboardingCoordinator {
                 userData: response.userData?.mapValues { $0.value }
             )
         case .failure(let error):
+            print("❌ [YouTube Auth] Backend authentication failed: \(error.localizedDescription)")
             throw error
         }
-        */
+    }
+    
+    /// Extract username from email address
+    /// - Parameter email: Email address
+    /// - Returns: Username (part before @)
+    private func extractUsername(from email: String) -> String {
+        let components = email.components(separatedBy: "@")
+        return components.first ?? email
     }
     
     /// Authenticate with OAuth platform
@@ -820,19 +832,38 @@ public class OnboardingCoordinator {
         print("✅ [OnboardingCoordinator] Successfully stored platform data for \(platform.displayName)")
     }
     
-    /// Connect to platform (legacy method for backward compatibility)
+    /// Connect to platform (called from UI)
     /// - Parameter platform: Platform to connect to
     public func connectToPlatform(_ platform: Platform) {
         print("🔗 [OnboardingCoordinator] Connecting to platform: \(platform.displayName)")
         
-        // This method can be used for non-OAuth platforms or additional setup
-        // For OAuth platforms, the connection is handled by the webview flow
+        // Set loading state
+        state.isLoading = true
         
-        switch platform.authMethod {
-        case .oauth:
-            print("ℹ️ [OnboardingCoordinator] OAuth platforms handled by webview")
-        case .nativeSDK:
-            print("ℹ️ [OnboardingCoordinator] Native SDK platforms need additional setup")
+        Task {
+            do {
+                let platformData = try await authenticatePlatform(platform)
+                
+                await MainActor.run {
+                    // Store platform data
+                    self.connectedPlatformData[platform.rawValue] = platformData
+                    
+                    // Add to connected platforms
+                    self.state.connectedPlatforms.insert(platform.rawValue)
+                    
+                    // Clear loading state
+                    self.state.isLoading = false
+                    
+                    print("✅ [OnboardingCoordinator] Successfully connected to \(platform.displayName)")
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.state.isLoading = false
+                    self.state.errorMessage = "Failed to connect to \(platform.displayName): \(error.localizedDescription)"
+                    print("❌ [OnboardingCoordinator] Failed to connect to \(platform.displayName): \(error.localizedDescription)")
+                }
+            }
         }
     }
 } 
