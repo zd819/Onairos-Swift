@@ -162,15 +162,33 @@ OnairosSDK.shared.initialize(config: debugConfig)
 
 ### YouTube Authentication
 
-For YouTube authentication, you need to configure Google Sign-In:
+**⚠️ IMPORTANT: YouTube authentication is required for YouTube data access.**
+
+For YouTube authentication, you need to configure Google Sign-In with your Google Cloud Console project:
+
+#### Prerequisites
+
+1. **Google Cloud Console Project Setup**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+   - Enable the **YouTube Data API v3**
+
+2. **Create OAuth 2.0 Credentials**
+   - Navigate to "Credentials" in the Google Cloud Console
+   - Click "Create Credentials" → "OAuth 2.0 Client IDs"
+   - Select "iOS" as the application type
+   - Enter your app's bundle identifier
+   - Download the `GoogleService-Info.plist` file
+
+#### Project Configuration
 
 1. **Add Google Services Configuration**:
-   - Download `GoogleService-Info.plist` from Firebase Console
-   - Add it to your Xcode project
+   - Add the `GoogleService-Info.plist` file to your Xcode project
+   - Make sure it's included in your target
 
 2. **Configure URL Schemes**:
+   Add the following to your `Info.plist`:
    ```xml
-   <!-- In your Info.plist -->
    <key>CFBundleURLTypes</key>
    <array>
        <dict>
@@ -182,11 +200,67 @@ For YouTube authentication, you need to configure Google Sign-In:
        </dict>
    </array>
    ```
+   *(Replace `YOUR_REVERSED_CLIENT_ID` with the value from your `GoogleService-Info.plist`)*
 
-3. **Initialize YouTube Authentication**:
+3. **Handle URL Callbacks**:
+   Add this to your `AppDelegate.swift`:
    ```swift
-   YouTubeAuthManager.shared.initialize(clientID: "your-google-client-id")
+   import GoogleSignIn
+
+   func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+       return GIDSignIn.sharedInstance.handle(url)
+   }
    ```
+
+#### SDK Integration
+
+Initialize the SDK with your Google client ID:
+
+```swift
+// Method 1: Admin Key with YouTube
+try await OnairosSDK.shared.initializeWithAdminKey(
+    environment: .production,
+    enableLogging: true,
+    googleClientID: "YOUR_GOOGLE_CLIENT_ID"
+)
+
+// Method 2: Custom API Key with YouTube
+try await OnairosSDK.shared.initializeWithApiKey(
+    "your-api-key",
+    environment: .production,
+    enableLogging: false,
+    googleClientID: "YOUR_GOOGLE_CLIENT_ID"
+)
+
+// Method 3: Extract from GoogleService-Info.plist
+guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+      let plist = NSDictionary(contentsOfFile: path),
+      let clientId = plist["CLIENT_ID"] as? String else {
+    fatalError("GoogleService-Info.plist not found or CLIENT_ID missing")
+}
+
+try await OnairosSDK.shared.initializeWithAdminKey(
+    googleClientID: clientId
+)
+```
+
+#### Testing YouTube Authentication
+
+```swift
+// Test YouTube authentication
+let credentials = try await YouTubeAuthManager.shared.authenticate()
+print("YouTube authentication successful!")
+print("Access token: \(credentials.accessToken)")
+```
+
+#### Important Notes
+
+- **YouTube authentication requires a Google client ID** - without it, YouTube connections will fail
+- The SDK will automatically detect if YouTube authentication is configured
+- If no Google client ID is provided, you'll see a warning message but other platforms will still work
+- Make sure your Google Cloud project has the YouTube Data API v3 enabled
+- YouTube uses Google Sign-In SDK (not OAuth web flow like other platforms)
+```
 
 ### LinkedIn Authentication
 

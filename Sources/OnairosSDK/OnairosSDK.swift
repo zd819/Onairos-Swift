@@ -37,69 +37,80 @@ public class OnairosSDK: ObservableObject {
     }
     
     /// Initialize the SDK with API key configuration
-    /// - Parameter config: API key configuration (includes API key, environment, etc.)
+    /// - Parameter config: API key configuration
     /// - Throws: OnairosError if initialization fails
     public func initializeApiKey(config: OnairosConfig) async throws {
-        print("🔑 [OnairosSDK] Initializing SDK with API key system...")
-        
-        // Initialize the API key service
         try await OnairosAPIKeyService.shared.initializeApiKey(config: config)
         
         // Store the configuration directly
         self.config = config
         
+        // Initialize YouTube authentication if Google client ID is provided
+        if let googleClientID = config.googleClientID {
+            YouTubeAuthManager.shared.initialize(clientID: googleClientID)
+            print("✅ [OnairosSDK] YouTube authentication initialized with Google client ID")
+        } else {
+            print("⚠️ [OnairosSDK] YouTube authentication not configured - no Google client ID provided")
+        }
+        
         // Configure API client to use the API key service
         OnairosAPIClient.shared.configure(
-            baseURL: nil, // Will be handled by API key service
-            logLevel: config.enableLogging ? .debug : .info,
+            baseURL: config.environment.baseURL,
+            logLevel: config.logLevel,
             enableDetailedLogging: config.enableLogging
         )
         
-        print("✅ [OnairosSDK] SDK initialized successfully with API key system")
-        print("   Environment: \(config.environment.displayName)")
-        print("   Base URL: \(config.environment.baseURL)")
-        print("   Logging: \(config.enableLogging ? "Enabled" : "Disabled")")
+        print("✅ [OnairosSDK] SDK initialized successfully with API key")
+        print("   Environment: \(config.environment.rawValue)")
+        print("   API Base URL: \(config.environment.baseURL)")
+        print("   Logging Level: \(config.logLevel)")
     }
     
-    /// Initialize SDK with admin API key for testing
+    /// Initialize the SDK with admin key (for testing and development)
     /// - Parameters:
-    ///   - environment: Environment to use (.development or .production)
-    ///   - enableLogging: Whether to enable detailed logging
-    ///   - timeout: Request timeout in seconds
+    ///   - environment: API environment (production or development)
+    ///   - enableLogging: Enable detailed logging
+    ///   - timeout: Request timeout
+    ///   - googleClientID: Google client ID for YouTube authentication
     /// - Throws: OnairosError if initialization fails
     public func initializeWithAdminKey(
         environment: SDKEnvironment = .production,  // Use production API for OAuth to work
         enableLogging: Bool = true,
-        timeout: TimeInterval = 30.0
+        timeout: TimeInterval = 30.0,
+        googleClientID: String? = nil
     ) async throws {
         let config = OnairosConfig(
             apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
             environment: environment,
             enableLogging: enableLogging,
-            timeout: timeout
+            timeout: timeout,
+            googleClientID: googleClientID
         )
         
         try await initializeApiKey(config: config)
     }
     
-    /// Initialize SDK with custom API key
+    /// Initialize the SDK with a custom API key
     /// - Parameters:
-    ///   - apiKey: Your developer API key
-    ///   - environment: Environment to use (.development or .production)
-    ///   - enableLogging: Whether to enable detailed logging
-    ///   - timeout: Request timeout in seconds
+    ///   - apiKey: Your API key
+    ///   - environment: API environment (production or development)
+    ///   - enableLogging: Enable detailed logging
+    ///   - timeout: Request timeout
+    ///   - googleClientID: Google client ID for YouTube authentication
     /// - Throws: OnairosError if initialization fails
     public func initializeWithApiKey(
         _ apiKey: String,
         environment: SDKEnvironment = .production,
         enableLogging: Bool = false,
-        timeout: TimeInterval = 30.0
+        timeout: TimeInterval = 30.0,
+        googleClientID: String? = nil
     ) async throws {
         let config = OnairosConfig(
             apiKey: apiKey,
             environment: environment,
             enableLogging: enableLogging,
-            timeout: timeout
+            timeout: timeout,
+            googleClientID: googleClientID
         )
         
         try await initializeApiKey(config: config)
@@ -109,6 +120,14 @@ public class OnairosSDK: ObservableObject {
     /// - Parameter config: SDK configuration
     public func initialize(config: OnairosConfig) {
         self.config = config
+        
+        // Initialize YouTube authentication if Google client ID is provided
+        if let googleClientID = config.googleClientID {
+            YouTubeAuthManager.shared.initialize(clientID: googleClientID)
+            print("✅ [OnairosSDK] YouTube authentication initialized with Google client ID")
+        } else {
+            print("⚠️ [OnairosSDK] YouTube authentication not configured - no Google client ID provided")
+        }
         
         // Validate configuration and provide guidance
         validateConfiguration(config)
@@ -169,6 +188,14 @@ public class OnairosSDK: ObservableObject {
         )
         
         self.config = newConfig
+        
+        // Initialize YouTube authentication if Google client ID is provided
+        if let googleClientID = config.googleClientID {
+            YouTubeAuthManager.shared.initialize(clientID: googleClientID)
+            print("✅ [OnairosSDK] YouTube authentication initialized with Google client ID")
+        } else {
+            print("⚠️ [OnairosSDK] YouTube authentication not configured - no Google client ID provided")
+        }
         
         // Validate configuration and provide guidance
         validateConfiguration(newConfig)
