@@ -51,11 +51,15 @@ public class YouTubeAuthManager {
         }
         
         do {
+            print("🔍 [YouTubeAuth] Starting Google Sign-In authentication...")
+            
             let result = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: presentingViewController,
                 hint: nil,
                 additionalScopes: Config.scopes
             )
+            
+            print("✅ [YouTubeAuth] Google Sign-In completed successfully")
             
             let user = result.user
             let accessToken = user.accessToken.tokenString
@@ -80,6 +84,15 @@ public class YouTubeAuthManager {
             return credentials
             
         } catch {
+            print("❌ [YouTubeAuth] Google Sign-In failed: \(error.localizedDescription)")
+            
+            // Check if this is a timeout-related error
+            if error.localizedDescription.contains("timeout") || 
+               error.localizedDescription.contains("timed out") ||
+               error.localizedDescription.contains("cancelled") {
+                throw OnairosError.googleSignInFailed("YouTube authentication timed out or was cancelled")
+            }
+            
             throw OnairosError.googleSignInFailed(error.localizedDescription)
         }
     }

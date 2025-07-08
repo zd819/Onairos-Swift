@@ -1,6 +1,13 @@
 import UIKit
 import Foundation
 
+/// Timeout error for async operations
+struct TimeoutError: Error, LocalizedError {
+    var errorDescription: String? {
+        return "Operation timed out"
+    }
+}
+
 /// Coordinates the onboarding flow through all steps
 @MainActor
 public class OnboardingCoordinator {
@@ -842,7 +849,15 @@ public class OnboardingCoordinator {
         
         Task {
             do {
-                let platformData = try await authenticatePlatform(platform)
+                // Add timeout specifically for YouTube to prevent freezing
+                let platformData: PlatformData
+                if platform == .youtube {
+                    platformData = try await withTimeout(seconds: 5) {
+                        try await self.authenticatePlatform(platform)
+                    }
+                } else {
+                    platformData = try await self.authenticatePlatform(platform)
+                }
                 
                 await MainActor.run {
                     // Store platform data
@@ -860,10 +875,48 @@ public class OnboardingCoordinator {
             } catch {
                 await MainActor.run {
                     self.state.isLoading = false
-                    self.state.errorMessage = "Failed to connect to \(platform.displayName): \(error.localizedDescription)"
-                    print("❌ [OnboardingCoordinator] Failed to connect to \(platform.displayName): \(error.localizedDescription)")
+                    
+                    // Handle timeout specifically for YouTube
+                    if platform == .youtube && error is TimeoutError {
+                        self.state.errorMessage = "YouTube connection timed out. Please try again or check your connection."
+                        print("⏰ [OnboardingCoordinator] YouTube connection timed out after 5 seconds")
+                    } else {
+                        self.state.errorMessage = "Failed to connect to \(platform.displayName): \(error.localizedDescription)"
+                        print("❌ [OnboardingCoordinator] Failed to connect to \(platform.displayName): \(error.localizedDescription)")
+                    }
                 }
             }
+        }
+    }
+    
+    /// Execute async operation with timeout
+    /// - Parameters:
+    ///   - seconds: Timeout duration in seconds
+    ///   - operation: Async operation to execute
+    /// - Returns: Result of the operation
+    /// - Throws: TimeoutError if operation times out
+    private func withTimeout<T>(seconds: Double, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the main operation
+            group.addTask {
+                try await operation()
+            }
+            
+            // Add timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw TimeoutError()
+            }
+            
+            // Return the first result (either success or timeout)
+            guard let result = try await group.next() else {
+                throw TimeoutError()
+            }
+            
+            // Cancel remaining tasks
+            group.cancelAll()
+            
+            return result
         }
     }
 } 
