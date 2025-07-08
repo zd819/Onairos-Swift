@@ -555,32 +555,12 @@ extension OAuthWebViewController: WKNavigationDelegate {
             self.progressView?.alpha = 0.0
         }
         
-        // Check if we've finished loading a callback or success page
+        // Check if we've finished loading onairos.uk (successful OAuth)
         if let url = webView.url {
             let urlString = url.absoluteString
             
-            // Check for various callback patterns
-            let callbackPatterns = [
-                "callback",
-                "onairos://",
-                "redirect",
-                "success",
-                "authorized",
-                "oauth/complete"
-            ]
-            
-            for pattern in callbackPatterns {
-                if urlString.contains(pattern) {
-                    print("✅ [OAuth] OAuth callback page loaded (pattern: \(pattern)) - treating as successful")
-                    loadingLabel?.text = "✅ Authorization successful!"
-                    handleSuccessfulRedirect()
-                    return
-                }
-            }
-            
-            // Check for backend success page
-            if urlString.contains("onairos.uk/Home") {
-                print("✅ [OAuth] Backend success page loaded")
+            if urlString.contains("onairos.uk") {
+                print("✅ [OAuth] Finished loading onairos.uk - OAuth completed successfully")
                 loadingLabel?.text = "✅ Authorization successful!"
                 handleSuccessfulRedirect()
             }
@@ -647,7 +627,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
         
         print("🔍 [OAuth] Navigating to: \(url.absoluteString)")
         
-        // Check if this is our custom URL scheme callback
+        // Check if this is our custom URL scheme callback (for legacy support)
         if url.scheme == config.urlScheme && url.host == "oauth" {
             print("✅ [OAuth] Detected custom URL scheme callback - treating as successful")
             handleOAuthCallback(url: url)
@@ -655,33 +635,12 @@ extension OAuthWebViewController: WKNavigationDelegate {
             return
         }
         
-        // Check if this is an OAuth callback redirect (multiple patterns)
-        let urlString = url.absoluteString
-        let callbackPatterns = [
-            "callback",
-            "onairos://",
-            "redirect",
-            "success",
-            "authorized",
-            "oauth/complete"
-        ]
-        
-        for pattern in callbackPatterns {
-            if urlString.contains(pattern) {
-                print("✅ [OAuth] Detected OAuth callback redirect (pattern: \(pattern)) - treating as successful")
-                loadingLabel?.text = "✅ Authorization successful!"
-                handleSuccessfulRedirect()
-                decisionHandler(.cancel)
-                return
-            }
-        }
-        
-        // Check if this is the backend success redirect (fallback)
-        if url.absoluteString.contains("onairos.uk/Home") {
-            print("✅ [OAuth] Detected backend success redirect")
-            loadingLabel?.text = "Completing authorization..."
-            // Allow the navigation to complete, then handle success
-            decisionHandler(.allow)
+        // Check if this is a redirect to onairos.uk domain (successful OAuth)
+        if url.absoluteString.contains("onairos.uk") {
+            print("✅ [OAuth] Detected redirect to onairos.uk - treating as successful OAuth")
+            loadingLabel?.text = "✅ Authorization successful!"
+            handleSuccessfulRedirect()
+            decisionHandler(.cancel)
             return
         }
         
@@ -740,37 +699,12 @@ extension OAuthWebViewController: WKNavigationDelegate {
     private func handleOAuthCallback(url: URL) {
         print("🔍 [OAuth] Processing callback URL: \(url.absoluteString)")
         
-        // For mobile OAuth flows, we treat any callback redirect as successful
-        // since the backend has already processed the OAuth flow
-        if url.absoluteString.contains("callback") || url.scheme == config.urlScheme {
-            print("✅ [OAuth] Callback URL detected - treating as successful connection")
-            loadingLabel?.text = "✅ Authorization complete!"
-            
-            // Generate success token for the platform connection
-            let successToken = generateStateParameter()
-            completion(.success(successToken))
-            
-            // Dismiss with a slight delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.dismiss(animated: true)
-            }
-            return
-        }
-        
-        // Legacy handling for URLs with query parameters
+        // For custom URL scheme callbacks, extract auth code if present
         guard let urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let queryItems = urlComponents.queryItems else {
-            print("⚠️ [OAuth] No query items found in callback URL - treating as successful anyway")
-            loadingLabel?.text = "✅ Authorization complete!"
-            
-            // Generate success token for the platform connection
-            let successToken = generateStateParameter()
-            completion(.success(successToken))
-            
-            // Dismiss with a slight delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.dismiss(animated: true)
-            }
+            print("⚠️ [OAuth] No query items found in callback URL")
+            completion(.failure(.authenticationFailed("Invalid callback URL")))
+            dismiss(animated: true)
             return
         }
         
@@ -790,17 +724,9 @@ extension OAuthWebViewController: WKNavigationDelegate {
             completion(.failure(.authenticationFailed(errorDescription)))
             dismiss(animated: true)
         } else {
-            print("✅ [OAuth] No specific parameters found - treating callback as successful")
-            loadingLabel?.text = "✅ Authorization complete!"
-            
-            // Generate success token for the platform connection
-            let successToken = generateStateParameter()
-            completion(.success(successToken))
-            
-            // Dismiss with a slight delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.dismiss(animated: true)
-            }
+            print("❌ [OAuth] No authorization code found in callback")
+            completion(.failure(.authenticationFailed("No authorization code received")))
+            dismiss(animated: true)
         }
     }
 }
