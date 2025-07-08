@@ -41,6 +41,7 @@ public struct OnairosConfig {
     public let googleClientID: String?
     public let urlScheme: String
     public let appName: String
+    public let enableSecureOAuth: Bool
     
     public init(
         apiKey: String,
@@ -55,7 +56,8 @@ public struct OnairosConfig {
         linkedInClientID: String? = nil,
         googleClientID: String? = nil,
         urlScheme: String = "onairos",
-        appName: String = "iOS App"
+        appName: String = "iOS App",
+        enableSecureOAuth: Bool = true
     ) {
         self.apiKey = apiKey
         self.environment = environment
@@ -73,6 +75,7 @@ public struct OnairosConfig {
         self.googleClientID = googleClientID
         self.urlScheme = urlScheme
         self.appName = appName
+        self.enableSecureOAuth = enableSecureOAuth
     }
     
     /// Convenience initializer for test scenarios without API key
@@ -103,6 +106,7 @@ public struct OnairosConfig {
         self.googleClientID = nil
         self.urlScheme = urlScheme
         self.appName = appName
+        self.enableSecureOAuth = true // Default to true for test mode
     }
     
     /// Computed log level based on mode
@@ -138,7 +142,8 @@ public struct OnairosConfig {
             linkedInClientID: nil,
             googleClientID: nil,
             urlScheme: urlScheme,
-            appName: appName
+            appName: appName,
+            enableSecureOAuth: true
         )
     }
     
@@ -158,7 +163,8 @@ public struct OnairosConfig {
             linkedInClientID: nil,
             googleClientID: nil,
             urlScheme: "onairos-debug",
-            appName: "Debug App"
+            appName: "Debug App",
+            enableSecureOAuth: true
         )
     }
 }
@@ -542,6 +548,70 @@ public struct PlatformAuthResponse: Codable {
     public let message: String?
     public let token: String?
     public let userData: [String: AnyCodable]?
+}
+
+/// Authorization URL response from backend
+public struct AuthorizationURLResponse: Codable {
+    public let success: Bool
+    public let linkedinURL: String?
+    public let redditURL: String?
+    public let pinterestURL: String?
+    public let gmailURL: String?
+    public let youtubeURL: String?
+    public let note: String?
+    public let scopes: String?
+    public let error: String?
+    
+    /// Custom initializer to handle different response formats
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Try to decode success field, default to true if not present
+        self.success = try container.decodeIfPresent(Bool.self, forKey: .success) ?? true
+        
+        // Decode URL fields
+        self.linkedinURL = try container.decodeIfPresent(String.self, forKey: .linkedinURL)
+        self.redditURL = try container.decodeIfPresent(String.self, forKey: .redditURL)
+        self.pinterestURL = try container.decodeIfPresent(String.self, forKey: .pinterestURL)
+        self.gmailURL = try container.decodeIfPresent(String.self, forKey: .gmailURL)
+        self.youtubeURL = try container.decodeIfPresent(String.self, forKey: .youtubeURL)
+        
+        // Decode optional fields
+        self.note = try container.decodeIfPresent(String.self, forKey: .note)
+        self.scopes = try container.decodeIfPresent(String.self, forKey: .scopes)
+        self.error = try container.decodeIfPresent(String.self, forKey: .error)
+    }
+    
+    /// Get the authorization URL for a specific platform
+    /// - Parameter platform: Platform to get URL for
+    /// - Returns: Authorization URL if available
+    public func authorizationURL(for platform: Platform) -> String? {
+        switch platform {
+        case .linkedin:
+            return linkedinURL
+        case .reddit:
+            return redditURL
+        case .pinterest:
+            return pinterestURL
+        case .gmail:
+            return gmailURL
+        case .youtube:
+            return youtubeURL
+        }
+    }
+    
+    /// Coding keys for the response
+    private enum CodingKeys: String, CodingKey {
+        case success
+        case linkedinURL
+        case redditURL
+        case pinterestURL
+        case gmailURL
+        case youtubeURL
+        case note
+        case scopes
+        case error
+    }
 }
 
 /// User registration request
