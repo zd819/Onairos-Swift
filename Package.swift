@@ -19,8 +19,6 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/socketio/socket.io-client-swift", from: "16.0.0"),
         .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0"),
-        // Note: OpacitySDK would need to be added as a binary framework or through CocoaPods
-        // .package(url: "https://github.com/opacity/opacity-ios-sdk", from: "1.0.0"), // Placeholder
     ],
     targets: [
         .target(
@@ -28,7 +26,6 @@ let package = Package(
             dependencies: [
                 .product(name: "SocketIO", package: "socket.io-client-swift"),
                 .product(name: "GoogleSignIn", package: "GoogleSignIn-iOS"),
-                // "OpacitySDK", // Placeholder - would be added when available
             ],
             path: "Sources/OnairosSDK",
             resources: [

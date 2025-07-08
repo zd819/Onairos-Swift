@@ -26,6 +26,16 @@ public class OnairosSDK: ObservableObject {
     
     private init() {}
     
+    /// Initialize the SDK with default configuration for testing
+    /// This method provides a simple initialization for basic testing scenarios
+    public func initialize() {
+        let config = OnairosConfig.testMode(
+            urlScheme: "onairos-sdk",
+            appName: "OnairosSDK"
+        )
+        initialize(config: config)
+    }
+    
     /// Initialize the SDK with API key configuration
     /// - Parameter config: API key configuration (includes API key, environment, etc.)
     /// - Throws: OnairosError if initialization fails
