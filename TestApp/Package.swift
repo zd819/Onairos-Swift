@@ -10,10 +10,8 @@ let package = Package(
         .executable(name: "TestApp", targets: ["TestApp"])
     ],
     dependencies: [
-        // Add your published package here
-        .package(url: "https://github.com/YOUR_USERNAME/onairos-swift-sdk.git", from: "1.0.0"),
-        // Or for local testing:
-        // .package(path: "../")
+        // Remote dependency - SDK hosted on GitHub
+        .package(url: "https://github.com/YOUR_USERNAME/onairos-swift-sdk.git", from: "1.0.0")
     ],
     targets: [
         .executableTarget(
