@@ -1,6 +1,59 @@
 import Foundation
 import UIKit
 
+/// SDK Environment configuration
+public enum Environment: String, CaseIterable {
+    case production = "production"
+    case development = "development"
+    
+    /// Base URL for API requests
+    public var baseURL: String {
+        switch self {
+        case .production: return "https://api2.onairos.uk"
+        case .development: return "https://dev-api.onairos.uk"
+        }
+    }
+    
+    /// Display name for environment
+    public var displayName: String {
+        switch self {
+        case .production: return "Production"
+        case .development: return "Development"
+        }
+    }
+}
+
+/// SDK Configuration
+public struct OnairosConfig {
+    public let apiKey: String
+    public let environment: Environment
+    public let enableLogging: Bool
+    public let timeout: TimeInterval
+    
+    public init(
+        apiKey: String,
+        environment: Environment = .production,
+        enableLogging: Bool = false,
+        timeout: TimeInterval = 30.0
+    ) {
+        self.apiKey = apiKey
+        self.environment = environment
+        self.enableLogging = enableLogging
+        self.timeout = timeout
+    }
+}
+
+/// API Key validation result
+public struct ValidationResult {
+    public let isValid: Bool
+    public let error: String?
+    
+    public init(isValid: Bool, error: String? = nil) {
+        self.isValid = isValid
+        self.error = error
+    }
+}
+
 /// Onboarding step enumeration
 public enum OnboardingStep: String, CaseIterable {
     case email = "email"

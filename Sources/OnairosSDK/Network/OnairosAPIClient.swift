@@ -40,16 +40,23 @@ public class OnairosAPIClient {
     
     /// Configure the API client
     /// - Parameters:
-    ///   - baseURL: Base URL for API requests
+    ///   - baseURL: Base URL for API requests (optional, will be overridden by API key service if initialized)
     ///   - logLevel: Logging level for debugging
     ///   - enableDetailedLogging: Whether to log request/response bodies
-    public func configure(baseURL: String, logLevel: APILogLevel = .error, enableDetailedLogging: Bool = false) {
-        self.baseURL = baseURL
+    public func configure(baseURL: String? = nil, logLevel: APILogLevel = .error, enableDetailedLogging: Bool = false) {
+        // Use base URL from API key service if available, otherwise use provided URL
+        if let keyService = try? OnairosAPIKeyService.shared.getAuthHeaders() {
+            // API key service is initialized, get base URL from it
+            // Note: We'll get the actual base URL in the request methods
+            log("🔧 OnairosAPIClient using API key service configuration", level: .info)
+        } else if let baseURL = baseURL {
+            self.baseURL = baseURL
+        }
+        
         self.logLevel = logLevel
         self.enableDetailedLogging = enableDetailedLogging
         
         log("🔧 OnairosAPIClient configured:", level: .info)
-        log("   Base URL: \(baseURL)", level: .info)
         log("   Log Level: \(logLevel)", level: .info)
         log("   Detailed Logging: \(enableDetailedLogging)", level: .info)
     }
@@ -463,16 +470,22 @@ public class OnairosAPIClient {
         
         log("🚀 Starting API request to \(endpoint)", level: .info)
         
-        guard let url = URL(string: baseURL + endpoint) else {
-            let error = OnairosError.configurationError("Invalid URL: \(baseURL + endpoint)")
-            log("❌ Invalid URL configuration: \(baseURL + endpoint)", level: .error)
+        // Try to get URL and headers from API key service first
+        let (requestURL, requestHeaders) = getRequestURLAndHeaders(endpoint: endpoint)
+        
+        guard let url = requestURL else {
+            let error = OnairosError.configurationError("Invalid URL configuration")
+            log("❌ Invalid URL configuration for endpoint: \(endpoint)", level: .error)
             return .failure(error)
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("OnairosSDK/1.0 iOS", forHTTPHeaderField: "User-Agent")
+        
+        // Add headers (from API key service or default)
+        for (key, value) in requestHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
         
         var requestBodyData: Data?
         
@@ -690,6 +703,33 @@ public class OnairosAPIClient {
         } catch {
             return .failure(.networkError("PIN submission failed: \(error.localizedDescription)"))
         }
+    }
+    
+    /// Get request URL and headers, preferring API key service if available
+    /// - Parameter endpoint: API endpoint
+    /// - Returns: Tuple of URL and headers
+    private func getRequestURLAndHeaders(endpoint: String) -> (URL?, [String: String]) {
+        let apiKeyService = OnairosAPIKeyService.shared
+        
+        // Try to use API key service first
+        if apiKeyService.isSDKInitialized,
+           let authHeaders = try? apiKeyService.getAuthHeaders(),
+           let baseURL = apiKeyService.currentBaseURL {
+            
+            log("🔑 Using API key service for authentication", level: .debug)
+            let url = URL(string: baseURL + endpoint)
+            return (url, authHeaders)
+        }
+        
+        // Fallback to legacy configuration
+        log("🔄 Using legacy configuration (no API key service)", level: .debug)
+        let fallbackHeaders = [
+            "Content-Type": "application/json",
+            "User-Agent": "OnairosSDK/1.0 iOS"
+        ]
+        
+        let url = URL(string: baseURL + endpoint)
+        return (url, fallbackHeaders)
     }
 }
 

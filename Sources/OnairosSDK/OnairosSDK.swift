@@ -13,7 +13,7 @@ public class OnairosSDK: ObservableObject {
     public static let shared = OnairosSDK()
     
     /// SDK configuration
-    private var config: OnairosConfig?
+    private var config: OnairosLegacyConfig?
     
     /// Completion callback for onboarding
     private var completionCallback: ((Result<OnboardingResult, OnairosError>) -> Void)?
@@ -26,9 +26,88 @@ public class OnairosSDK: ObservableObject {
     
     private init() {}
     
-    /// Initialize the SDK with configuration
+    /// Initialize the SDK with API key configuration
+    /// - Parameter config: API key configuration (includes API key, environment, etc.)
+    /// - Throws: OnairosError if initialization fails
+    public func initializeApiKey(config: OnairosConfig) async throws {
+        print("🔑 [OnairosSDK] Initializing SDK with API key system...")
+        
+        // Initialize the API key service
+        try await OnairosAPIKeyService.shared.initializeApiKey(config: config)
+        
+        // Create legacy config for backward compatibility
+        let legacyConfig = OnairosLegacyConfig(
+            urlScheme: "onairos", // Default scheme
+            appName: "iOS App",   // Default name
+            apiBaseURL: config.environment.baseURL,
+            isTestMode: config.environment == .development && config.enableLogging,
+            isDebugMode: config.enableLogging,
+            allowEmptyConnections: true, // More permissive for API key mode
+            simulateTraining: config.environment == .development
+        )
+        
+        self.config = legacyConfig
+        
+        // Configure API client to use the API key service
+        OnairosAPIClient.shared.configure(
+            baseURL: nil, // Will be handled by API key service
+            logLevel: config.enableLogging ? .debug : .info,
+            enableDetailedLogging: config.enableLogging
+        )
+        
+        print("✅ [OnairosSDK] SDK initialized successfully with API key system")
+        print("   Environment: \(config.environment.displayName)")
+        print("   Base URL: \(config.environment.baseURL)")
+        print("   Logging: \(config.enableLogging ? "Enabled" : "Disabled")")
+    }
+    
+    /// Initialize SDK with admin API key for testing
+    /// - Parameters:
+    ///   - environment: Environment to use (.development or .production)
+    ///   - enableLogging: Whether to enable detailed logging
+    ///   - timeout: Request timeout in seconds
+    /// - Throws: OnairosError if initialization fails
+    public func initializeWithAdminKey(
+        environment: Environment = .development,
+        enableLogging: Bool = true,
+        timeout: TimeInterval = 30.0
+    ) async throws {
+        let config = OnairosConfig(
+            apiKey: OnairosAPIKeyService.ADMIN_API_KEY,
+            environment: environment,
+            enableLogging: enableLogging,
+            timeout: timeout
+        )
+        
+        try await initializeApiKey(config: config)
+    }
+    
+    /// Initialize SDK with custom API key
+    /// - Parameters:
+    ///   - apiKey: Your developer API key
+    ///   - environment: Environment to use (.development or .production)
+    ///   - enableLogging: Whether to enable detailed logging
+    ///   - timeout: Request timeout in seconds
+    /// - Throws: OnairosError if initialization fails
+    public func initializeWithApiKey(
+        _ apiKey: String,
+        environment: Environment = .production,
+        enableLogging: Bool = false,
+        timeout: TimeInterval = 30.0
+    ) async throws {
+        let config = OnairosConfig(
+            apiKey: apiKey,
+            environment: environment,
+            enableLogging: enableLogging,
+            timeout: timeout
+        )
+        
+        try await initializeApiKey(config: config)
+    }
+    
+    /// Initialize the SDK with configuration (legacy method)
     /// - Parameter config: SDK configuration
-    public func initialize(config: OnairosConfig) {
+    public func initialize(config: OnairosLegacyConfig) {
         self.config = config
         
         // Validate configuration and provide guidance
@@ -71,7 +150,7 @@ public class OnairosSDK: ObservableObject {
     
     /// Validate configuration and provide helpful guidance
     /// - Parameter config: Configuration to validate
-    private func validateConfiguration(_ config: OnairosConfig) {
+    private func validateConfiguration(_ config: OnairosLegacyConfig) {
         var warnings: [String] = []
         var recommendations: [String] = []
         
@@ -583,11 +662,11 @@ public class OnairosConnectButton: UIButton {
 /// Data request overlay for existing users
 private class DataRequestOverlayController: UIViewController {
     
-    private let config: OnairosConfig
+    private let config: OnairosLegacyConfig
     private let onConfirm: () -> Void
     private let onCancel: () -> Void
     
-    init(config: OnairosConfig, onConfirm: @escaping () -> Void, onCancel: @escaping () -> Void) {
+    init(config: OnairosLegacyConfig, onConfirm: @escaping () -> Void, onCancel: @escaping () -> Void) {
         self.config = config
         self.onConfirm = onConfirm
         self.onCancel = onCancel
@@ -686,8 +765,8 @@ private class DataRequestOverlayController: UIViewController {
     }
 }
 
-/// SDK Configuration
-public struct OnairosConfig {
+/// SDK Configuration (Legacy)
+public struct OnairosLegacyConfig {
     /// Debug mode enables testing features
     public let isDebugMode: Bool
     
@@ -756,8 +835,8 @@ public struct OnairosConfig {
     
     /// Create a test configuration for development with default values
     /// - Returns: Test configuration that bypasses all API calls
-    public static func testMode() -> OnairosConfig {
-        return OnairosConfig(
+    public static func testMode() -> OnairosLegacyConfig {
+        return OnairosLegacyConfig(
             isDebugMode: true,
             isTestMode: true,
             allowEmptyConnections: true,
@@ -770,8 +849,8 @@ public struct OnairosConfig {
     
     /// Create a debug configuration for development
     /// - Returns: Debug configuration with enhanced logging
-    public static func debugMode() -> OnairosConfig {
-        return OnairosConfig(
+    public static func debugMode() -> OnairosLegacyConfig {
+        return OnairosLegacyConfig(
             isDebugMode: true,
             isTestMode: false,
             allowEmptyConnections: true,
@@ -787,8 +866,8 @@ public struct OnairosConfig {
     ///   - urlScheme: Your app's URL scheme
     ///   - appName: Your app's name
     /// - Returns: Test configuration that bypasses all API calls
-    public static func testMode(urlScheme: String, appName: String) -> OnairosConfig {
-        return OnairosConfig(
+    public static func testMode(urlScheme: String, appName: String) -> OnairosLegacyConfig {
+        return OnairosLegacyConfig(
             isDebugMode: true,
             isTestMode: true,
             allowEmptyConnections: true,
