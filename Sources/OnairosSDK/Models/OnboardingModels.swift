@@ -35,6 +35,10 @@ public struct OnairosConfig {
     public let isTestMode: Bool
     public let isDebugMode: Bool
     public let allowEmptyConnections: Bool
+    public let simulateTraining: Bool
+    public let platforms: Set<Platform>
+    public let linkedInClientID: String?
+    public let googleClientID: String?
     public let urlScheme: String
     public let appName: String
     
@@ -46,6 +50,10 @@ public struct OnairosConfig {
         isTestMode: Bool = false,
         isDebugMode: Bool = false,
         allowEmptyConnections: Bool = false,
+        simulateTraining: Bool = false,
+        platforms: Set<Platform> = [.linkedin, .youtube, .reddit, .pinterest, .gmail],
+        linkedInClientID: String? = nil,
+        googleClientID: String? = nil,
         urlScheme: String = "onairos",
         appName: String = "iOS App"
     ) {
@@ -59,8 +67,23 @@ public struct OnairosConfig {
         self.isTestMode = isTestMode
         self.isDebugMode = isDebugMode || enableLogging
         self.allowEmptyConnections = allowEmptyConnections || isTestMode
+        self.simulateTraining = isTestMode ? true : simulateTraining
+        self.platforms = platforms
+        self.linkedInClientID = linkedInClientID
+        self.googleClientID = googleClientID
         self.urlScheme = urlScheme
         self.appName = appName
+    }
+    
+    /// Computed log level based on mode
+    public var logLevel: APILogLevel {
+        if isTestMode {
+            return .verbose
+        } else if isDebugMode {
+            return .debug
+        } else {
+            return .info
+        }
     }
     
     /// Create a test configuration for development
@@ -74,6 +97,10 @@ public struct OnairosConfig {
             isTestMode: true,
             isDebugMode: true,
             allowEmptyConnections: true,
+            simulateTraining: true,
+            platforms: [.linkedin, .youtube, .reddit, .pinterest, .gmail],
+            linkedInClientID: nil,
+            googleClientID: nil,
             urlScheme: "onairos-test",
             appName: "Test App"
         )
@@ -90,6 +117,10 @@ public struct OnairosConfig {
             isTestMode: false,
             isDebugMode: true,
             allowEmptyConnections: true,
+            simulateTraining: true,
+            platforms: [.linkedin, .youtube, .reddit, .pinterest, .gmail],
+            linkedInClientID: nil,
+            googleClientID: nil,
             urlScheme: "onairos-debug",
             appName: "Debug App"
         )

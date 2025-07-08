@@ -17,7 +17,15 @@ final class OnairosSDKTests: XCTestCase {
         let config = OnairosConfig(
             apiKey: "test-api-key",
             environment: .production,
+            enableLogging: false,
+            timeout: 30.0,
+            isTestMode: false,
             isDebugMode: true,
+            allowEmptyConnections: false,
+            simulateTraining: false,
+            platforms: [.linkedin, .youtube, .reddit, .pinterest, .gmail],
+            linkedInClientID: nil,
+            googleClientID: nil,
             urlScheme: "test-scheme",
             appName: "Test App"
         )

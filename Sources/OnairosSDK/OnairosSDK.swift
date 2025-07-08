@@ -107,6 +107,10 @@ public class OnairosSDK: ObservableObject {
             isTestMode: config.isTestMode,
             isDebugMode: config.isDebugMode,
             allowEmptyConnections: config.allowEmptyConnections,
+            simulateTraining: config.simulateTraining,
+            platforms: config.platforms,
+            linkedInClientID: config.linkedInClientID,
+            googleClientID: config.googleClientID,
             urlScheme: config.urlScheme,
             appName: config.appName
         )
