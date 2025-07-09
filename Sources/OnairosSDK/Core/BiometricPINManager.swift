@@ -47,6 +47,8 @@ public class BiometricPINManager {
             return .failure(.invalidPIN)
         }
         
+        print("🔐 [BiometricPINManager] Starting PIN storage with biometric authentication")
+        
         // Check biometric availability
         let context = LAContext()
         var error: NSError?
@@ -58,6 +60,8 @@ public class BiometricPINManager {
         
         // Request biometric authentication
         do {
+            print("🔐 [BiometricPINManager] Requesting Face ID authentication...")
+            
             let success = try await context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
                 localizedReason: "Authenticate to securely store your PIN"
@@ -66,8 +70,11 @@ public class BiometricPINManager {
             guard success else {
                 return .failure(.authenticationFailed)
             }
+            
+            print("✅ [BiometricPINManager] Face ID authentication successful")
+            
         } catch {
-            print("🚨 [BiometricPINManager] Biometric authentication failed: \(error.localizedDescription)")
+            print("🚨 [BiometricPINManager] Face ID authentication failed: \(error.localizedDescription)")
             return .failure(.authenticationFailed)
         }
         
@@ -128,7 +135,7 @@ public class BiometricPINManager {
                 return .failure(.authenticationFailed)
             }
         } catch {
-            print("🚨 [BiometricPINManager] Biometric authentication failed: \(error.localizedDescription)")
+            print("🚨 [BiometricPINManager] Face ID authentication failed: \(error.localizedDescription)")
             return .failure(.authenticationFailed)
         }
         
