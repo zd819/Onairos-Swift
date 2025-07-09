@@ -150,10 +150,10 @@ public class OnairosAPIClient {
         return false
     }
     
-    /// Request email verification
+    /// Request email verification code
     /// - Parameter email: Email address to verify
-    /// - Returns: Success status
-    public func requestEmailVerification(email: String) async -> Result<Bool, OnairosError> {
+    /// - Returns: Full email verification response
+    public func requestEmailVerification(email: String) async -> Result<EmailVerificationResponse, OnairosError> {
         log("🚀 Requesting email verification for: \(email)", level: .info)
         
         let request = EmailVerificationRequest.requestCode(email: email)
@@ -168,13 +168,16 @@ public class OnairosAPIClient {
         switch result {
         case .success(let response):
             log("✅ Email verification request successful: \(response.success)", level: .info)
+            if let requestId = response.requestId {
+                log("📋 Request ID: \(requestId)", level: .info)
+            }
             if let testingMode = response.testingMode {
                 log("🧪 Testing mode enabled: \(testingMode)", level: .info)
             }
             if let accountInfo = response.accountInfo {
                 log("📋 Account info received: \(accountInfo)", level: .info)
             }
-            return .success(response.success)
+            return .success(response)
         case .failure(let error):
             log("❌ Email verification request failed: \(error.localizedDescription)", level: .error)
             
@@ -184,12 +187,12 @@ public class OnairosAPIClient {
         }
     }
     
-    /// Verify email with code
+    /// Verify email with code and get JWT token
     /// - Parameters:
     ///   - email: Email address
     ///   - code: Verification code
-    /// - Returns: Verification success status
-    public func verifyEmailCode(email: String, code: String) async -> Result<Bool, OnairosError> {
+    /// - Returns: Full email verification response with JWT token
+    public func verifyEmailCode(email: String, code: String) async -> Result<EmailVerificationResponse, OnairosError> {
         log("🚀 Verifying email code for: \(email) with code: \(code)", level: .info)
         
         let request = EmailVerificationRequest.verifyCode(email: email, code: code)
@@ -203,41 +206,55 @@ public class OnairosAPIClient {
         
         switch result {
         case .success(let response):
-            let verified = response.verified ?? false
-            log("✅ Email verification code check completed: \(verified)", level: .info)
+            log("✅ Email verification response received: \(response.success)", level: .info)
             
-            // Store JWT token if verification is successful and token is present
-            if verified, let jwtToken = response.userJWTToken {
+            // Handle JWT token if verification is successful
+            if response.isSuccessfulVerification {
                 log("🔐 JWT token received from verification response", level: .info)
-                let success = JWTTokenManager.shared.storeJWTToken(jwtToken)
                 
-                if success {
-                    log("✅ JWT token stored successfully in keychain", level: .info)
+                if let jwtToken = response.userJWTToken {
+                    let success = JWTTokenManager.shared.storeJWTToken(jwtToken)
                     
-                    // Log user info from JWT token (if available)
-                    if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
-                        log("📋 User info from JWT token: User ID: \(userInfo["userId"] ?? "N/A"), Email: \(userInfo["email"] ?? "N/A"), Verified: \(userInfo["verified"] ?? "N/A")", level: .info)
-                        if let exp = userInfo["exp"] as? TimeInterval {
-                            let expDate = Date(timeIntervalSince1970: exp)
-                            log("📅 JWT token expires: \(expDate)", level: .info)
+                    if success {
+                        log("✅ JWT token stored successfully in keychain", level: .info)
+                        
+                        // Log user info from JWT token (if available)
+                        if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
+                            log("📋 User info from JWT token:", level: .info)
+                            log("   - User ID: \(userInfo["userId"] ?? "N/A")", level: .info)
+                            log("   - Email: \(userInfo["email"] ?? "N/A")", level: .info)
+                            log("   - Verified: \(userInfo["verified"] ?? "N/A")", level: .info)
+                            if let exp = userInfo["exp"] as? TimeInterval {
+                                let expDate = Date(timeIntervalSince1970: exp)
+                                log("   - Expires: \(expDate)", level: .info)
+                            }
                         }
+                    } else {
+                        log("❌ Failed to store JWT token in keychain", level: .error)
                     }
-                } else {
-                    log("❌ Failed to store JWT token in keychain", level: .error)
                 }
-            } else if verified {
+                
+                log("✅ Email verification successful - JWT token available", level: .info)
+            } else if response.success {
                 log("⚠️ Email verification successful but no JWT token received", level: .warning)
+            } else {
+                log("❌ Email verification failed", level: .error)
             }
             
+            // Log additional response info
+            if let existingUser = response.existingUser {
+                log("👤 User status: \(existingUser ? "Existing" : "New") user", level: .info)
+            }
             if let testingMode = response.testingMode {
                 log("🧪 Testing mode enabled: \(testingMode)", level: .info)
             }
             if let accountInfo = response.accountInfo {
                 log("📋 Account info received: \(accountInfo)", level: .info)
             }
-            return .success(verified)
+            
+            return .success(response)
         case .failure(let error):
-            log("❌ Email verification code check failed: \(error.localizedDescription)", level: .error)
+            log("❌ Email verification failed: \(error.localizedDescription)", level: .error)
             
             // Provide more specific error context for debugging
             let contextualError = enhanceEmailVerificationError(error, operation: "verify")
@@ -254,40 +271,6 @@ public class OnairosAPIClient {
             method: .POST, 
             body: ["email": email], 
             responseType: EmailVerificationStatusResponse.self
-        )
-    }
-    
-    /// Request email verification with full response
-    /// - Parameter email: Email address to verify
-    /// - Returns: Full email verification response including account info
-    public func requestEmailVerificationWithResponse(email: String) async -> Result<EmailVerificationResponse, OnairosError> {
-        log("🚀 Requesting email verification with full response for: \(email)", level: .info)
-        
-        let request = EmailVerificationRequest.requestCode(email: email)
-        
-        return await performRequest(
-            endpoint: "/email/verification",
-            method: .POST,
-            body: request,
-            responseType: EmailVerificationResponse.self
-        )
-    }
-    
-    /// Verify email with code and get full response
-    /// - Parameters:
-    ///   - email: Email address
-    ///   - code: Verification code
-    /// - Returns: Full email verification response including account info
-    public func verifyEmailCodeWithResponse(email: String, code: String) async -> Result<EmailVerificationResponse, OnairosError> {
-        log("🚀 Verifying email code with full response for: \(email) with code: \(code)", level: .info)
-        
-        let request = EmailVerificationRequest.verifyCode(email: email, code: code)
-        
-        return await performRequest(
-            endpoint: "/email/verification",
-            method: .POST,
-            body: request,
-            responseType: EmailVerificationResponse.self
         )
     }
     

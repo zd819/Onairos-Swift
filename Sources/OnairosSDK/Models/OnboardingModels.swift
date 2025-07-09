@@ -453,14 +453,17 @@ public struct EmailVerificationRequest: Codable {
 public struct EmailVerificationResponse: Codable {
     public let success: Bool
     public let message: String?
+    public let requestId: String?        // For "request" action responses
+    
+    // JWT token fields (received when email verification succeeds with "verify" action)
+    public let token: String?            // JWT token for user authentication
+    public let jwtToken: String?         // Same JWT token (both fields for compatibility)
+    public let existingUser: Bool?       // Whether this is an existing user
+    
+    // Legacy fields for backward compatibility
     public let data: EmailVerificationData?
     public let error: String?
     public let code: String?
-    
-    // JWT token fields (received when email verification succeeds)
-    public let token: String?          // JWT token for user authentication
-    public let jwtToken: String?       // Same JWT token (both fields for compatibility)
-    public let existingUser: Bool?     // Whether this is an existing user
     
     /// Data structure for successful email verification responses
     public struct EmailVerificationData: Codable {
@@ -498,7 +501,7 @@ public struct EmailVerificationResponse: Codable {
     }
     
     public var isNewUser: Bool? {
-        return data?.isNewUser
+        return data?.isNewUser ?? (existingUser == false)
     }
     
     public var user: EmailVerificationData.UserData? {
@@ -515,12 +518,17 @@ public struct EmailVerificationResponse: Codable {
     
     /// JWT token for user authentication (convenience property)
     public var userJWTToken: String? {
-        return token ?? self.jwtToken
+        return token ?? jwtToken
     }
     
     /// Check if JWT token is present
     public var hasJWTToken: Bool {
-        return token != nil || self.jwtToken != nil
+        return token != nil || jwtToken != nil
+    }
+    
+    /// Check if this is a successful verification (has JWT token)
+    public var isSuccessfulVerification: Bool {
+        return success && hasJWTToken
     }
 }
 

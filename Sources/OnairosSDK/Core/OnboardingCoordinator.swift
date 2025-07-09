@@ -206,7 +206,7 @@ public class OnboardingCoordinator {
         
         print("🔍 [DEBUG] Making API call for email verification...")
         Task {
-            let result = await apiClient.requestEmailVerificationWithResponse(email: state.email)
+            let result = await apiClient.requestEmailVerification(email: state.email)
             print("🔍 [DEBUG] API call completed with result: \(result)")
             
             await MainActor.run {
@@ -302,7 +302,7 @@ public class OnboardingCoordinator {
         }
         
         Task {
-            let result = await apiClient.verifyEmailCodeWithResponse(
+            let result = await apiClient.verifyEmailCode(
                 email: state.email,
                 code: state.verificationCode
             )
@@ -312,34 +312,22 @@ public class OnboardingCoordinator {
                 
                 switch result {
                 case .success(let response):
-                    let verified = response.verified ?? false
-                    if verified {
-                        print("✅ [EMAIL VERIFICATION] Code validated successfully")
+                    if response.isSuccessfulVerification {
+                        print("✅ [EMAIL VERIFICATION] Code validated successfully with JWT token")
                         
-                        // Store JWT token if available
-                        if let jwtToken = response.userJWTToken {
-                            print("🔐 [JWT TOKEN] JWT token received from verification response")
-                            let success = JWTTokenManager.shared.storeJWTToken(jwtToken)
-                            
-                            if success {
-                                print("✅ [JWT TOKEN] JWT token stored successfully in keychain")
-                                
-                                // Log user info from JWT token (if available)
-                                if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
-                                    print("📋 [JWT USER INFO] User info from JWT token:")
-                                    print("   - User ID: \(userInfo["userId"] ?? "N/A")")
-                                    print("   - Email: \(userInfo["email"] ?? "N/A")")
-                                    print("   - Verified: \(userInfo["verified"] ?? "N/A")")
-                                    if let exp = userInfo["exp"] as? TimeInterval {
-                                        let expDate = Date(timeIntervalSince1970: exp)
-                                        print("   - Expires: \(expDate)")
-                                    }
-                                }
-                            } else {
-                                print("❌ [JWT TOKEN] Failed to store JWT token")
+                        // JWT token is already handled by the API client
+                        print("🔐 [JWT TOKEN] JWT token processed by API client")
+                        
+                        // Log user info from JWT token (if available)
+                        if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
+                            print("📋 [JWT USER INFO] User info from stored JWT token:")
+                            print("   - User ID: \(userInfo["userId"] ?? "N/A")")
+                            print("   - Email: \(userInfo["email"] ?? "N/A")")
+                            print("   - Verified: \(userInfo["verified"] ?? "N/A")")
+                            if let exp = userInfo["exp"] as? TimeInterval {
+                                let expDate = Date(timeIntervalSince1970: exp)
+                                print("   - Expires: \(expDate)")
                             }
-                        } else {
-                            print("⚠️ [JWT TOKEN] No JWT token received in verification response")
                         }
                         
                         // Handle user data from the new API response
@@ -351,15 +339,15 @@ public class OnboardingCoordinator {
                             print("   - Creation Date: \(user.creationDate)")
                             
                             // Store user data in onboarding state
-                            storeUserData(user, isNewUser: response.isNewUser ?? false)
+                            storeUserData(user, isNewUser: !(response.existingUser ?? true))
                         }
                         
-                        // Check if this is a new user
-                        if let isNewUser = response.isNewUser {
-                            if isNewUser {
-                                print("🆕 [NEW USER] Account created successfully")
-                            } else {
+                        // Check if this is a new user (using existingUser field from API schema)
+                        if let existingUser = response.existingUser {
+                            if existingUser {
                                 print("👤 [EXISTING USER] Account verified successfully")
+                            } else {
+                                print("🆕 [NEW USER] Account created successfully")
                             }
                         }
                         
@@ -369,6 +357,9 @@ public class OnboardingCoordinator {
                         }
                         
                         state.currentStep = .connect
+                    } else if response.success {
+                        print("⚠️ [EMAIL VERIFICATION] Code validation successful but no JWT token received")
+                        handleVerificationFailure(response: response)
                     } else {
                         print("❌ [EMAIL VERIFICATION] Code validation failed")
                         handleVerificationFailure(response: response)
