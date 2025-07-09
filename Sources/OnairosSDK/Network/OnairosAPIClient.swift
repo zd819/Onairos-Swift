@@ -357,16 +357,42 @@ public class OnairosAPIClient {
         return components.first ?? email
     }
     
-    /// Authenticate with platform
+    /// Authenticate with platform (user-authenticated operation)
     /// - Parameter request: Platform authentication request
     /// - Returns: Authentication response
     public func authenticatePlatform(_ request: PlatformAuthRequest) async -> Result<PlatformAuthResponse, OnairosError> {
+        log("📤 Authenticating platform with JWT authentication: \(request.platform)", level: .info)
+        
         let endpoint = "/\(request.platform)/authorize"
         
-        return await performRequest(
+        // Convert PlatformAuthRequest to dictionary for JWT authentication
+        var requestBody: [String: Any] = [
+            "platform": request.platform
+        ]
+        
+        if let accessToken = request.accessToken {
+            requestBody["accessToken"] = accessToken
+        }
+        if let refreshToken = request.refreshToken {
+            requestBody["refreshToken"] = refreshToken
+        }
+        if let idToken = request.idToken {
+            requestBody["idToken"] = idToken
+        }
+        if let authCode = request.authCode {
+            requestBody["authCode"] = authCode
+        }
+        if let userData = request.userData {
+            requestBody["userData"] = userData.mapValues { $0.value }
+        }
+        if let session = request.session {
+            requestBody["session"] = ["username": session.username]
+        }
+        
+        return await performUserAuthenticatedRequestWithDictionary(
             endpoint: endpoint,
             method: .POST,
-            body: request,
+            body: requestBody,
             responseType: PlatformAuthResponse.self
         )
     }
@@ -397,7 +423,7 @@ public class OnairosAPIClient {
         return await authenticatePlatform(request)
     }
     
-    /// Authenticate YouTube with native tokens
+    /// Authenticate YouTube with native tokens (user-authenticated operation)
     /// - Parameters:
     ///   - accessToken: YouTube access token
     ///   - refreshToken: YouTube refresh token
@@ -410,29 +436,41 @@ public class OnairosAPIClient {
         idToken: String?,
         username: String? = nil
     ) async -> Result<PlatformAuthResponse, OnairosError> {
-        let request = PlatformAuthRequest(
-            platform: "youtube",
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-            idToken: idToken,
-            username: username
-        )
+        log("📤 Authenticating YouTube with JWT authentication for user", level: .info)
         
-        return await performRequest(
+        // Create request body for JWT-authenticated YouTube connection
+        var requestBody: [String: Any] = [
+            "platform": "youtube",
+            "accessToken": accessToken,
+            "refreshToken": refreshToken
+        ]
+        
+        if let idToken = idToken {
+            requestBody["idToken"] = idToken
+        }
+        
+        if let username = username {
+            requestBody["session"] = ["username": username]
+        }
+        
+        // Use JWT-authenticated request method
+        return await performUserAuthenticatedRequestWithDictionary(
             endpoint: "/youtube/native-auth",
             method: .POST,
-            body: request,
+            body: requestBody,
             responseType: PlatformAuthResponse.self
         )
     }
     
-    /// Refresh YouTube token
+    /// Refresh YouTube token (user-authenticated operation)
     /// - Parameter refreshToken: Refresh token
     /// - Returns: New access token
     public func refreshYouTubeToken(refreshToken: String) async -> Result<String, OnairosError> {
+        log("📤 Refreshing YouTube token with JWT authentication for user", level: .info)
+        
         let body = ["refresh_token": refreshToken]
         
-        return await performRequestWithDictionary(
+        return await performUserAuthenticatedRequestWithDictionary(
             endpoint: "/youtube/refresh-token",
             method: .POST,
             body: body,
@@ -442,13 +480,15 @@ public class OnairosAPIClient {
         }
     }
     
-    /// Revoke platform connection
+    /// Revoke platform connection (user-authenticated operation)
     /// - Parameter platform: Platform to revoke
     /// - Returns: Success status
     public func revokePlatform(_ platform: String) async -> Result<Bool, OnairosError> {
+        log("📤 Revoking platform connection with JWT authentication for user: \(platform)", level: .info)
+        
         let body = ["platform": platform]
         
-        return await performRequestWithDictionary(
+        return await performUserAuthenticatedRequestWithDictionary(
             endpoint: "/revoke",
             method: .POST,
             body: body,
@@ -460,14 +500,44 @@ public class OnairosAPIClient {
     
     // MARK: - User Registration
     
-    /// Register user with Enoch system
+    /// Register user with Enoch system (user-authenticated operation)
     /// - Parameter request: User registration request
     /// - Returns: Registration response
     public func registerUser(_ request: UserRegistrationRequest) async -> Result<[String: Any], OnairosError> {
-        return await performRequest(
+        log("📤 Registering user with Enoch system using JWT authentication", level: .info)
+        
+        // Convert UserRegistrationRequest to dictionary for JWT authentication
+        var requestBody: [String: Any] = [
+            "email": request.email,
+            "pin": request.pin
+        ]
+        
+        // Convert connected platforms data
+        if !request.connectedPlatforms.isEmpty {
+            requestBody["connectedPlatforms"] = request.connectedPlatforms.mapValues { platformData in
+                var dict: [String: Any] = [
+                    "platform": platformData.platform,
+                    "accessToken": platformData.accessToken
+                ]
+                
+                if let refreshToken = platformData.refreshToken {
+                    dict["refreshToken"] = refreshToken
+                }
+                if let expiresAt = platformData.expiresAt {
+                    dict["expiresAt"] = expiresAt.timeIntervalSince1970
+                }
+                if let userData = platformData.userData {
+                    dict["userData"] = userData
+                }
+                
+                return dict
+            }
+        }
+        
+        return await performUserAuthenticatedRequestWithDictionary(
             endpoint: "/register/enoch",
             method: .POST,
-            body: request,
+            body: requestBody,
             responseType: [String: AnyCodable].self
         ).map { response in
             response.mapValues { $0.value }
@@ -476,16 +546,18 @@ public class OnairosAPIClient {
     
     // MARK: - AI Training
     
-    /// Start AI model training
+    /// Start AI model training (user-authenticated operation)
     /// - Parameters:
     ///   - socketId: Socket.IO connection ID
     ///   - userData: User data for training
     /// - Returns: Training start response
     public func startAITraining(socketId: String, userData: [String: Any]) async -> Result<[String: Any], OnairosError> {
+        log("📤 Starting AI training with JWT authentication for user", level: .info)
+        
         var body = userData
         body["socket_id"] = socketId
         
-        return await performRequestWithDictionary(
+        return await performUserAuthenticatedRequestWithDictionary(
             endpoint: "/enoch/trainModel/mobile",
             method: .POST,
             body: body,
