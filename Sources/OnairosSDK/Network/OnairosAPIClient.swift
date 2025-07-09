@@ -199,9 +199,43 @@ public class OnairosAPIClient {
             // Handle JWT token if verification is successful
             if response.isSuccessfulVerification {
                 if let jwtToken = response.userJWTToken {
-                    let success = JWTTokenManager.shared.storeJWTToken(jwtToken)
-                    log("🔐 JWT token stored: \(success ? "✅ Success" : "❌ Failed")", level: success ? .info : .error)
+                    let success = await JWTTokenManager.shared.storeJWTToken(jwtToken)
+                    
+                    if success {
+                        log("✅ JWT token stored successfully in keychain", level: .info)
+                        
+                        // Log user info from JWT token (if available)
+                        if let userInfo = await JWTTokenManager.shared.getUserInfoFromToken() {
+                            log("📋 User info from JWT token:", level: .info)
+                            log("   - User ID: \(userInfo["userId"] ?? "N/A")", level: .info)
+                            log("   - Email: \(userInfo["email"] ?? "N/A")", level: .info)
+                            log("   - Verified: \(userInfo["verified"] ?? "N/A")", level: .info)
+                            if let exp = userInfo["exp"] as? TimeInterval {
+                                let expDate = Date(timeIntervalSince1970: exp)
+                                log("   - Expires: \(expDate)", level: .info)
+                            }
+                        }
+                    } else {
+                        log("❌ Failed to store JWT token in keychain", level: .error)
+                    }
                 }
+                
+                log("✅ Email verification successful - JWT token available", level: .info)
+            } else if response.success {
+                log("⚠️ Email verification successful but no JWT token received", level: .error)
+            } else {
+                log("❌ Email verification failed", level: .error)
+            }
+            
+            // Log additional response info
+            if let existingUser = response.existingUser {
+                log("👤 User status: \(existingUser ? "Existing" : "New") user", level: .info)
+            }
+            if let testingMode = response.testingMode {
+                log("🧪 Testing mode enabled: \(testingMode)", level: .info)
+            }
+            if let accountInfo = response.accountInfo {
+                log("📋 Account info received: \(accountInfo)", level: .info)
             }
             
             return .success(response)
@@ -976,7 +1010,7 @@ public class OnairosAPIClient {
     /// Get request URL and headers with JWT authentication for user-specific operations
     /// - Parameter endpoint: API endpoint
     /// - Returns: Tuple of URL, headers, and JWT token status
-    private func getRequestURLAndJWTHeaders(endpoint: String) -> (URL?, [String: String], Bool) {
+    private func getRequestURLAndJWTHeaders(endpoint: String) async -> (URL?, [String: String], Bool) {
         let apiKeyService = OnairosAPIKeyService.shared
         let jwtManager = JWTTokenManager.shared
         
@@ -985,13 +1019,13 @@ public class OnairosAPIClient {
         let url = URL(string: baseURL + endpoint)
         
         // Check if JWT token is available and valid
-        guard let jwtToken = jwtManager.getJWTToken() else {
+        guard let jwtToken = await jwtManager.getJWTToken() else {
             log("❌ No JWT token available for user authentication", level: .error)
             return (url, [:], false)
         }
         
         // Check if token is expired
-        if let isExpired = jwtManager.isTokenExpired(), isExpired {
+        if let isExpired = await jwtManager.isTokenExpired(), isExpired {
             log("⚠️ JWT token is expired", level: .error)
             return (url, [:], false)
         }
@@ -1032,7 +1066,7 @@ public class OnairosAPIClient {
     ) async -> Result<U, OnairosError> {
         
         // Get URL and JWT headers
-        let (requestURL, requestHeaders, hasValidJWT) = getRequestURLAndJWTHeaders(endpoint: endpoint)
+        let (requestURL, requestHeaders, hasValidJWT) = await getRequestURLAndJWTHeaders(endpoint: endpoint)
         
         // Check if JWT is valid
         guard hasValidJWT else {
@@ -1084,7 +1118,7 @@ public class OnairosAPIClient {
                     log("⚠️ JWT authentication failed - token may be expired or invalid", level: .error)
                     
                     // Clear expired token
-                    _ = JWTTokenManager.shared.clearJWTToken()
+                    _ = await JWTTokenManager.shared.clearJWTToken()
                     
                     return .failure(.authenticationFailed("Authentication expired. Please verify email again."))
                 }
@@ -1128,7 +1162,7 @@ public class OnairosAPIClient {
     ) async -> Result<U, OnairosError> {
         
         // Get URL and JWT headers
-        let (requestURL, requestHeaders, hasValidJWT) = getRequestURLAndJWTHeaders(endpoint: endpoint)
+        let (requestURL, requestHeaders, hasValidJWT) = await getRequestURLAndJWTHeaders(endpoint: endpoint)
         
         // Check if JWT is valid
         guard hasValidJWT else {
@@ -1180,7 +1214,7 @@ public class OnairosAPIClient {
                     log("⚠️ JWT authentication failed - token may be expired or invalid", level: .error)
                     
                     // Clear expired token
-                    _ = JWTTokenManager.shared.clearJWTToken()
+                    _ = await JWTTokenManager.shared.clearJWTToken()
                     
                     return .failure(.authenticationFailed("Authentication expired. Please verify email again."))
                 }
