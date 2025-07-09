@@ -555,12 +555,12 @@ extension OAuthWebViewController: WKNavigationDelegate {
             self.progressView?.alpha = 0.0
         }
         
-        // Check if we've finished loading onairos.uk (successful OAuth)
+        // Check if we've finished loading the success page onairos.uk/Home
         if let url = webView.url {
             let urlString = url.absoluteString
             
-            if urlString.contains("onairos.uk") {
-                print("✅ [OAuth] Finished loading onairos.uk - OAuth completed successfully")
+            if urlString.contains("onairos.uk/Home") {
+                print("✅ [OAuth] Finished loading onairos.uk/Home - OAuth completed successfully")
                 loadingLabel?.text = "✅ Authorization successful!"
                 handleSuccessfulRedirect()
             }
@@ -635,9 +635,9 @@ extension OAuthWebViewController: WKNavigationDelegate {
             return
         }
         
-        // Check if this is a redirect to onairos.uk domain (successful OAuth)
-        if url.absoluteString.contains("onairos.uk") {
-            print("✅ [OAuth] Detected redirect to onairos.uk - treating as successful OAuth")
+        // Check if this is the specific success redirect to onairos.uk/Home
+        if url.absoluteString.contains("onairos.uk/Home") {
+            print("✅ [OAuth] Detected redirect to onairos.uk/Home - OAuth completed successfully")
             loadingLabel?.text = "✅ Authorization successful!"
             handleSuccessfulRedirect()
             decisionHandler(.cancel)
