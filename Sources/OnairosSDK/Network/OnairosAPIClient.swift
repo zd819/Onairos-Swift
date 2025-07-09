@@ -844,209 +844,40 @@ public class OnairosAPIClient {
     /// - Parameter request: PIN submission request with username and pin
     /// - Returns: Result with PIN submission response
     public func submitPIN(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
-        log("📤 Submitting PIN to backend for user: \(request.username)", level: .info)
+        log("📤 Submitting PIN to backend for user: \(request.username) using JWT authentication", level: .info)
         
-        // Retry configuration for PIN submission
-        let maxRetries = 3
-        let retryDelay: TimeInterval = 2.0
+        // Create request body for JWT-authenticated PIN submission
+        let requestBody: [String: Any] = [
+            "username": request.username,
+            "pin": request.pin
+        ]
         
-        for attempt in 1...maxRetries {
-            log("🔄 PIN submission attempt \(attempt)/\(maxRetries)", level: .info)
+        // Use JWT-authenticated request method
+        let result = await performUserAuthenticatedRequestWithDictionary(
+            endpoint: "/store-pin/mobile",
+            method: .POST,
+            body: requestBody,
+            responseType: PINSubmissionResponse.self
+        )
+        
+        switch result {
+        case .success(let response):
+            log("✅ PIN submission successful with JWT authentication", level: .info)
+            return .success(response)
             
-            // Create a longer timeout specifically for PIN submission
-            let result = await performPINSubmissionWithTimeout(request)
+        case .failure(let error):
+            log("❌ PIN submission failed with JWT authentication: \(error.localizedDescription)", level: .error)
             
-            switch result {
-            case .success(let response):
-                log("✅ PIN submission successful on attempt \(attempt)", level: .info)
-                return .success(response)
-                
-            case .failure(let error):
-                log("❌ PIN submission failed on attempt \(attempt): \(error.localizedDescription)", level: .error)
-                
-                // Don't retry for certain errors
-                if shouldRetryPINSubmission(error: error) && attempt < maxRetries {
-                    log("⏳ Retrying PIN submission in \(retryDelay) seconds...", level: .info)
-                    try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
-                    continue
-                } else {
-                    // Final failure or non-retryable error
-                    let enhancedError = enhancePINSubmissionError(error, attempt: attempt)
-                    log("💥 PIN submission failed permanently: \(enhancedError.localizedDescription)", level: .error)
-                    return .failure(enhancedError)
-                }
+            // Handle JWT-specific errors
+            if case .authenticationFailed(let message) = error {
+                log("🔐 JWT authentication failed during PIN submission: \(message)", level: .error)
+                return .failure(.authenticationFailed("User authentication expired. Please verify your email again."))
             }
-        }
-        
-        // This should never be reached, but just in case
-        return .failure(.unknownError("PIN submission failed after \(maxRetries) attempts"))
-    }
-    
-    /// Perform PIN submission with extended timeout
-    /// - Parameter request: PIN submission request
-    /// - Returns: Result with PIN submission response
-    private func performPINSubmissionWithTimeout(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
-        // Create a custom session with longer timeout for PIN submission
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 60.0  // 60 seconds for PIN submission
-        config.timeoutIntervalForResource = 120.0  // 2 minutes total resource timeout
-        let pinSession = URLSession(configuration: config)
-        
-        log("⏱️ Using extended timeout for PIN submission (60s request, 120s resource)", level: .debug)
-        
-        // Get URL and headers
-        let (requestURL, requestHeaders) = getRequestURLAndHeaders(endpoint: "/store-pin/mobile")
-        
-        guard let url = requestURL else {
-            let error = OnairosError.configurationError("Invalid URL configuration for PIN submission")
-            log("❌ Invalid URL configuration for PIN endpoint", level: .error)
+            
             return .failure(error)
         }
-        
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        
-        // Add headers
-        for (key, value) in requestHeaders {
-            urlRequest.setValue(value, forHTTPHeaderField: key)
-        }
-        
-        // Encode request body
-        var requestBodyData: Data?
-        do {
-            requestBodyData = try JSONEncoder().encode(request)
-            urlRequest.httpBody = requestBodyData
-            log("✅ PIN request body encoded successfully", level: .debug)
-        } catch {
-            let errorMsg = "Failed to encode PIN request body: \(error.localizedDescription)"
-            log("❌ \(errorMsg)", level: .error)
-            return .failure(.unknownError(errorMsg))
-        }
-        
-        // Log request details
-        logRequest(urlRequest, body: requestBodyData)
-        
-        // Perform request with timeout protection
-        do {
-            log("⏳ Sending PIN submission request with extended timeout...", level: .info)
-            let (data, response) = try await pinSession.data(for: urlRequest)
-            
-            // Log response details
-            logResponse(response, data: data, error: nil)
-            
-            // Check for HTTP errors
-            if let httpResponse = response as? HTTPURLResponse {
-                let statusCode = httpResponse.statusCode
-                
-                guard 200...299 ~= statusCode else {
-                    log("❌ PIN submission HTTP error: \(statusCode)", level: .error)
-                    
-                    // Handle specific status codes
-                    switch statusCode {
-                    case 400:
-                        return .failure(.validationFailed("Invalid PIN format or missing data"))
-                    case 401:
-                        return .failure(.invalidCredentials)
-                    case 404:
-                        return .failure(.apiError("User not found", statusCode))
-                    case 429:
-                        return .failure(.rateLimitExceeded("Too many PIN submission attempts"))
-                    case 500...599:
-                        return .failure(.serverError(statusCode, "Server error during PIN storage"))
-                    default:
-                        return .failure(.apiError("HTTP error \(statusCode)", statusCode))
-                    }
-                }
-                
-                log("✅ PIN submission HTTP request successful (\(statusCode))", level: .info)
-            }
-            
-            // Check if we have response data
-            guard !data.isEmpty else {
-                log("❌ Empty response data from PIN submission", level: .error)
-                return .failure(.unknownError("Empty response from PIN submission"))
-            }
-            
-            // Log raw response for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
-                log("📥 PIN submission raw response: \(responseString)", level: .debug)
-            }
-            
-            // Decode response
-            do {
-                let decoder = JSONDecoder()
-                let response = try decoder.decode(PINSubmissionResponse.self, from: data)
-                
-                // Validate response
-                if response.success {
-                    log("✅ PIN submission response decoded successfully", level: .info)
-                    return .success(response)
-                } else {
-                    let errorMessage = response.message.isEmpty ? "PIN submission failed" : response.message
-                    log("❌ PIN submission failed: \(errorMessage)", level: .error)
-                    return .failure(.apiError(errorMessage, nil))
-                }
-                
-            } catch {
-                let errorMsg = "Failed to decode PIN submission response: \(error.localizedDescription)"
-                log("❌ \(errorMsg)", level: .error)
-                if enableDetailedLogging, let dataString = String(data: data, encoding: .utf8) {
-                    log("   Raw response: \(dataString)", level: .error)
-                }
-                return .failure(.unknownError(errorMsg))
-            }
-            
-        } catch {
-            let onairosError = OnairosError.fromHTTPResponse(data: nil, response: nil, error: error)
-            log("❌ PIN submission network request failed: \(error.localizedDescription)", level: .error)
-            
-            // Check if it's a timeout error
-            if (error as NSError).code == NSURLErrorTimedOut {
-                log("⏰ PIN submission timed out", level: .error)
-                return .failure(.networkError("PIN submission timed out. Please check your connection and try again."))
-            }
-            
-            return .failure(onairosError)
-        }
     }
     
-    /// Determine if PIN submission should be retried based on error type
-    /// - Parameter error: The error that occurred
-    /// - Returns: True if should retry, false otherwise
-    private func shouldRetryPINSubmission(error: OnairosError) -> Bool {
-        switch error {
-        case .networkUnavailable, .networkError:
-            return true  // Retry network issues
-        case .serverError(let code, _):
-            return code >= 500  // Retry server errors
-        case .rateLimitExceeded:
-            return true  // Retry rate limits after delay
-        case .unknownError(let message):
-            return message.contains("timeout") || message.contains("connection")  // Retry timeouts
-        default:
-            return false  // Don't retry validation errors, auth errors, etc.
-        }
-    }
-    
-    /// Enhance PIN submission error with additional context
-    /// - Parameters:
-    ///   - error: Original error
-    ///   - attempt: Attempt number
-    /// - Returns: Enhanced error with better messaging
-    private func enhancePINSubmissionError(_ error: OnairosError, attempt: Int) -> OnairosError {
-        switch error {
-        case .networkError(let message):
-            return .networkError("PIN submission failed after \(attempt) attempts: \(message)")
-        case .serverError(let code, let message):
-            return .serverError(code, "PIN submission server error (attempt \(attempt)): \(message)")
-        case .unknownError(let message):
-            return .unknownError("PIN submission failed after \(attempt) attempts: \(message)")
-        default:
-            return error  // Return original error for other types
-        }
-    }
-    
-
     
     /// Get request URL and headers, preferring API key service if available
     /// - Parameter endpoint: API endpoint
@@ -1077,6 +908,236 @@ public class OnairosAPIClient {
         
         let url = URL(string: baseURL + endpoint)
         return (url, fallbackHeaders)
+    }
+    
+    /// Get request URL and headers with JWT authentication for user-specific operations
+    /// - Parameter endpoint: API endpoint
+    /// - Returns: Tuple of URL, headers, and JWT token status
+    private func getRequestURLAndJWTHeaders(endpoint: String) -> (URL?, [String: String], Bool) {
+        let apiKeyService = OnairosAPIKeyService.shared
+        let jwtManager = JWTTokenManager.shared
+        
+        // Get base URL
+        let baseURL = apiKeyService.currentBaseURL ?? self.baseURL
+        let url = URL(string: baseURL + endpoint)
+        
+        // Check if JWT token is available and valid
+        guard let jwtToken = jwtManager.getJWTToken() else {
+            log("❌ No JWT token available for user authentication", level: .error)
+            return (url, [:], false)
+        }
+        
+        // Check if token is expired
+        if let isExpired = jwtManager.isTokenExpired(), isExpired {
+            log("⚠️ JWT token is expired", level: .error)
+            return (url, [:], false)
+        }
+        
+        // Create JWT headers
+        let jwtHeaders = [
+            "Content-Type": "application/json",
+            "Authorization": "Bearer \(jwtToken)",
+            "User-Agent": "OnairosSwift/3.0.72",
+            "X-SDK-Version": "3.0.72",
+            "X-SDK-Environment": "production",
+            "X-Auth-Type": "jwt",
+            "X-Timestamp": ISO8601DateFormatter().string(from: Date())
+        ]
+        
+        log("🔐 Using JWT authentication for user request", level: .debug)
+        return (url, jwtHeaders, true)
+    }
+    
+    /// Perform user-authenticated request with JWT token
+    /// - Parameters:
+    ///   - endpoint: API endpoint
+    ///   - method: HTTP method
+    ///   - body: Request body
+    ///   - responseType: Expected response type
+    /// - Returns: Result with response or error
+    private func performUserAuthenticatedRequest<T: Codable, U: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        body: T,
+        responseType: U.Type
+    ) async -> Result<U, OnairosError> {
+        
+        // Get URL and JWT headers
+        let (requestURL, requestHeaders, hasValidJWT) = getRequestURLAndJWTHeaders(endpoint: endpoint)
+        
+        // Check if JWT is valid
+        guard hasValidJWT else {
+            log("❌ JWT authentication failed for endpoint: \(endpoint)", level: .error)
+            return .failure(.authenticationFailed("User not authenticated. Please verify email first."))
+        }
+        
+        guard let url = requestURL else {
+            let error = OnairosError.configurationError("Invalid URL configuration")
+            log("❌ Invalid URL configuration for user request", level: .error)
+            return .failure(error)
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = method.rawValue
+        
+        // Add headers
+        for (key, value) in requestHeaders {
+            urlRequest.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Encode request body
+        var requestBodyData: Data?
+        do {
+            requestBodyData = try JSONEncoder().encode(body)
+            urlRequest.httpBody = requestBodyData
+        } catch {
+            let errorMsg = "Failed to encode request body: \(error.localizedDescription)"
+            log("❌ \(errorMsg)", level: .error)
+            return .failure(.unknownError(errorMsg))
+        }
+        
+        // Log request details
+        logRequest(urlRequest, body: requestBodyData)
+        
+        // Perform request
+        do {
+            let (data, response) = try await session.data(for: urlRequest)
+            
+            // Log response details
+            logResponse(response, data: data, error: nil)
+            
+            // Check for HTTP errors
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                
+                // Handle JWT-specific errors
+                if statusCode == 401 {
+                    log("⚠️ JWT authentication failed - token may be expired or invalid", level: .error)
+                    
+                    // Clear expired token
+                    _ = JWTTokenManager.shared.clearJWTToken()
+                    
+                    return .failure(.authenticationFailed("Authentication expired. Please verify email again."))
+                }
+                
+                guard 200...299 ~= statusCode else {
+                    log("❌ User request HTTP error: \(statusCode)", level: .error)
+                    return .failure(.apiError("HTTP error \(statusCode)", statusCode))
+                }
+            }
+            
+            // Decode response
+            do {
+                let decoder = JSONDecoder()
+                let response = try decoder.decode(responseType, from: data)
+                return .success(response)
+            } catch {
+                let errorMsg = "Failed to decode response: \(error.localizedDescription)"
+                log("❌ \(errorMsg)", level: .error)
+                return .failure(.unknownError(errorMsg))
+            }
+            
+        } catch {
+            let onairosError = OnairosError.fromHTTPResponse(data: nil, response: nil, error: error)
+            log("❌ User request network error: \(error.localizedDescription)", level: .error)
+            return .failure(onairosError)
+        }
+    }
+    
+    /// Perform user-authenticated request with dictionary body
+    /// - Parameters:
+    ///   - endpoint: API endpoint
+    ///   - method: HTTP method
+    ///   - body: Request body as dictionary
+    ///   - responseType: Expected response type
+    /// - Returns: Result with response or error
+    private func performUserAuthenticatedRequestWithDictionary<U: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        body: [String: Any],
+        responseType: U.Type
+    ) async -> Result<U, OnairosError> {
+        
+        // Get URL and JWT headers
+        let (requestURL, requestHeaders, hasValidJWT) = getRequestURLAndJWTHeaders(endpoint: endpoint)
+        
+        // Check if JWT is valid
+        guard hasValidJWT else {
+            log("❌ JWT authentication failed for endpoint: \(endpoint)", level: .error)
+            return .failure(.authenticationFailed("User not authenticated. Please verify email first."))
+        }
+        
+        guard let url = requestURL else {
+            let error = OnairosError.configurationError("Invalid URL configuration")
+            log("❌ Invalid URL configuration for user request", level: .error)
+            return .failure(error)
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = method.rawValue
+        
+        // Add headers
+        for (key, value) in requestHeaders {
+            urlRequest.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Encode request body
+        var requestBodyData: Data?
+        do {
+            requestBodyData = try JSONSerialization.data(withJSONObject: body)
+            urlRequest.httpBody = requestBodyData
+        } catch {
+            let errorMsg = "Failed to encode request body: \(error.localizedDescription)"
+            log("❌ \(errorMsg)", level: .error)
+            return .failure(.unknownError(errorMsg))
+        }
+        
+        // Log request details
+        logRequest(urlRequest, body: requestBodyData)
+        
+        // Perform request
+        do {
+            let (data, response) = try await session.data(for: urlRequest)
+            
+            // Log response details
+            logResponse(response, data: data, error: nil)
+            
+            // Check for HTTP errors
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                
+                // Handle JWT-specific errors
+                if statusCode == 401 {
+                    log("⚠️ JWT authentication failed - token may be expired or invalid", level: .error)
+                    
+                    // Clear expired token
+                    _ = JWTTokenManager.shared.clearJWTToken()
+                    
+                    return .failure(.authenticationFailed("Authentication expired. Please verify email again."))
+                }
+                
+                guard 200...299 ~= statusCode else {
+                    log("❌ User request HTTP error: \(statusCode)", level: .error)
+                    return .failure(.apiError("HTTP error \(statusCode)", statusCode))
+                }
+            }
+            
+            // Decode response
+            do {
+                let decoder = JSONDecoder()
+                let response = try decoder.decode(responseType, from: data)
+                return .success(response)
+            } catch {
+                let errorMsg = "Failed to decode response: \(error.localizedDescription)"
+                log("❌ \(errorMsg)", level: .error)
+                return .failure(.unknownError(errorMsg))
+            }
+            
+        } catch {
+            let onairosError = OnairosError.fromHTTPResponse(data: nil, response: nil, error: error)
+            log("❌ User request network error: \(error.localizedDescription)", level: .error)
+            return .failure(onairosError)
+        }
     }
 }
 

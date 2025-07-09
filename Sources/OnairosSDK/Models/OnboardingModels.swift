@@ -457,6 +457,11 @@ public struct EmailVerificationResponse: Codable {
     public let error: String?
     public let code: String?
     
+    // JWT token fields (received when email verification succeeds)
+    public let token: String?          // JWT token for user authentication
+    public let jwtToken: String?       // Same JWT token (both fields for compatibility)
+    public let existingUser: Bool?     // Whether this is an existing user
+    
     /// Data structure for successful email verification responses
     public struct EmailVerificationData: Codable {
         public let verified: Bool?
@@ -506,6 +511,16 @@ public struct EmailVerificationResponse: Codable {
     
     public var accountInfo: [String: AnyCodable]? {
         return data?.accountInfo
+    }
+    
+    /// JWT token for user authentication (convenience property)
+    public var userJWTToken: String? {
+        return token ?? self.jwtToken
+    }
+    
+    /// Check if JWT token is present
+    public var hasJWTToken: Bool {
+        return token != nil || self.jwtToken != nil
     }
 }
 
