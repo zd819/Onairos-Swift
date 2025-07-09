@@ -882,7 +882,7 @@ private class PrivacyDetailsModal: UIViewController {
         
         // Title label
         let titleLabel = UILabel()
-        titleLabel.text = "How Enoch uses personal data"
+        titleLabel.text = "How we use your personal data"
         titleLabel.font = .systemFont(ofSize: 20, weight: .semibold)
         titleLabel.textColor = .label
         
@@ -923,8 +923,8 @@ private class PrivacyDetailsModal: UIViewController {
         
         // Create bullet points
         let bulletPoints = [
-            "Enoch legally accesses your platform data with explicit permission for this event only - never stored post-session and auto-deleted.",
-            "Enoch NEVER sells your data. You are a user, not a commodity.",
+            "We legally access your platform data with explicit permission for this event only - never stored post-session and auto-deleted.",
+            "We NEVER sell your data. You are a user, not a commodity.",
             "Data collected builds your Onairos persona, enabling personalized experiences across future products while prioritizing your data sovereignty."
         ]
         

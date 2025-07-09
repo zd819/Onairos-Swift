@@ -342,15 +342,17 @@ public class OnboardingState: ObservableObject {
         do {
             let hasNumbers = pin.rangeOfCharacter(from: .decimalDigits) != nil
             let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+            let hasCapitalLetters = pin.rangeOfCharacter(from: .uppercaseLetters) != nil
             
-            return hasNumbers && hasSpecialChars
+            return hasNumbers && hasSpecialChars && hasCapitalLetters
         } catch {
             print("🚨 [ERROR] PIN validation crashed: \(error)")
             // Fallback: basic character checks
             let hasNumbers = pin.contains { $0.isNumber }
             let hasSpecialChars = pin.contains { "!@#$%^&*()_+-=[]{}|;:,.<>?".contains($0) }
+            let hasCapitalLetters = pin.contains { $0.isUppercase }
             
-            return hasNumbers && hasSpecialChars
+            return hasNumbers && hasSpecialChars && hasCapitalLetters
         }
     }
 }
@@ -360,6 +362,7 @@ public struct PINRequirements {
     public let minLength: Int = 8
     public let requiresNumbers: Bool = true
     public let requiresSpecialChars: Bool = true
+    public let requiresCapitalLetters: Bool = true
     
     public func validate(_ pin: String) -> [PINValidationResult] {
         var results: [PINValidationResult] = []
@@ -381,6 +384,12 @@ public struct PINRequirements {
                 let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
                 results.append(.hasSpecialChars(hasSpecialChars))
             }
+            
+            // Check if contains capital letters
+            if requiresCapitalLetters {
+                let hasCapitalLetters = pin.rangeOfCharacter(from: .uppercaseLetters) != nil
+                results.append(.hasCapitalLetters(hasCapitalLetters))
+            }
         } catch {
             print("🚨 [ERROR] PINRequirements validation crashed: \(error)")
             // Fallback: basic validation
@@ -395,6 +404,11 @@ public struct PINRequirements {
                 let hasSpecialChars = pin.contains { "!@#$%^&*()_+-=[]{}|;:,.<>?".contains($0) }
                 results.append(.hasSpecialChars(hasSpecialChars))
             }
+            
+            if requiresCapitalLetters {
+                let hasCapitalLetters = pin.contains { $0.isUppercase }
+                results.append(.hasCapitalLetters(hasCapitalLetters))
+            }
         }
         
         return results
@@ -406,10 +420,11 @@ public enum PINValidationResult {
     case length(Bool)
     case hasNumbers(Bool)
     case hasSpecialChars(Bool)
+    case hasCapitalLetters(Bool)
     
     public var isValid: Bool {
         switch self {
-        case .length(let valid), .hasNumbers(let valid), .hasSpecialChars(let valid):
+        case .length(let valid), .hasNumbers(let valid), .hasSpecialChars(let valid), .hasCapitalLetters(let valid):
             return valid
         }
     }
@@ -422,6 +437,8 @@ public enum PINValidationResult {
             return valid ? "✓ Contains numbers" : "✗ Contains numbers"
         case .hasSpecialChars(let valid):
             return valid ? "✓ Contains special characters" : "✗ Contains special characters"
+        case .hasCapitalLetters(let valid):
+            return valid ? "✓ Contains capital letters" : "✗ Contains capital letters"
         }
     }
 }
@@ -669,35 +686,7 @@ public struct AuthorizationURLResponse: Codable {
     }
 }
 
-/// User registration request
-public struct UserRegistrationRequest: Codable {
-    public let email: String
-    public let pin: String
-    public let connectedPlatforms: [String: PlatformData]
-    public let deviceInfo: DeviceInfo
-    
-    public init(email: String, pin: String, connectedPlatforms: [String: PlatformData]) {
-        self.email = email
-        self.pin = pin
-        self.connectedPlatforms = connectedPlatforms
-        self.deviceInfo = DeviceInfo()
-    }
-}
 
-/// Device information
-public struct DeviceInfo: Codable {
-    public let platform: String
-    public let version: String
-    public let model: String
-    public let appVersion: String
-    
-    public init() {
-        self.platform = "iOS"
-        self.version = UIDevice.current.systemVersion
-        self.model = UIDevice.current.model
-        self.appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-    }
-}
 
 /// Training progress data
 public struct TrainingProgress {

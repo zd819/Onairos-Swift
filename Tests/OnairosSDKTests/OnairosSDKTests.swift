@@ -108,8 +108,11 @@ final class OnairosSDKTests: XCTestCase {
         state.pin = "password!" // No numbers
         XCTAssertFalse(state.validateCurrentStep())
         
+        state.pin = "password123!" // No capital letters
+        XCTAssertFalse(state.validateCurrentStep())
+        
         // Test valid PIN
-        state.pin = "password123!"
+        state.pin = "Password123!"
         XCTAssertTrue(state.validateCurrentStep())
     }
     
@@ -120,7 +123,7 @@ final class OnairosSDKTests: XCTestCase {
         
         // Test empty PIN
         let emptyResults = requirements.validate("")
-        XCTAssertEqual(emptyResults.count, 3)
+        XCTAssertEqual(emptyResults.count, 4)
         XCTAssertFalse(emptyResults.allSatisfy { $0.isValid })
         
         // Test short PIN
@@ -128,19 +131,28 @@ final class OnairosSDKTests: XCTestCase {
         XCTAssertFalse(shortResults[0].isValid) // Length requirement
         
         // Test PIN without numbers
-        let noNumbersResults = requirements.validate("abcdefgh!")
+        let noNumbersResults = requirements.validate("Abcdefgh!")
         XCTAssertTrue(noNumbersResults[0].isValid) // Length OK
         XCTAssertFalse(noNumbersResults[1].isValid) // No numbers
         XCTAssertTrue(noNumbersResults[2].isValid) // Has special chars
+        XCTAssertTrue(noNumbersResults[3].isValid) // Has capital letters
         
         // Test PIN without special characters
-        let noSpecialResults = requirements.validate("password123")
+        let noSpecialResults = requirements.validate("Password123")
         XCTAssertTrue(noSpecialResults[0].isValid) // Length OK
         XCTAssertTrue(noSpecialResults[1].isValid) // Has numbers
         XCTAssertFalse(noSpecialResults[2].isValid) // No special chars
+        XCTAssertTrue(noSpecialResults[3].isValid) // Has capital letters
+        
+        // Test PIN without capital letters
+        let noCapitalResults = requirements.validate("password123!")
+        XCTAssertTrue(noCapitalResults[0].isValid) // Length OK
+        XCTAssertTrue(noCapitalResults[1].isValid) // Has numbers
+        XCTAssertTrue(noCapitalResults[2].isValid) // Has special chars
+        XCTAssertFalse(noCapitalResults[3].isValid) // No capital letters
         
         // Test valid PIN
-        let validResults = requirements.validate("password123!")
+        let validResults = requirements.validate("Password123!")
         XCTAssertTrue(validResults.allSatisfy { $0.isValid })
     }
     

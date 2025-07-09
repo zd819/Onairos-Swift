@@ -13,7 +13,8 @@ public class TrainingStepViewController: BaseStepViewController {
     /// Training status label
     private let statusLabel = UILabel()
     
-
+    /// Flag to track if training is being cancelled
+    private var isCancelling = false
     
     public override func configureStep() {
         super.configureStep()
@@ -25,6 +26,7 @@ public class TrainingStepViewController: BaseStepViewController {
         // Configure buttons
         primaryButton.setTitle("Cancel", for: .normal)
         primaryButton.backgroundColor = .systemRed
+        primaryButton.setTitleColor(.white, for: .normal)
         secondaryButton.isHidden = true
         
         // Setup training UI
@@ -89,6 +91,9 @@ public class TrainingStepViewController: BaseStepViewController {
     /// Update progress UI
     /// - Parameter progress: Progress value (0.0 to 1.0)
     private func updateProgress(_ progress: Double) {
+        // Don't update UI if we're cancelling
+        guard !isCancelling else { return }
+        
         // CRITICAL: Protect against NaN progress values
         guard !progress.isNaN && !progress.isInfinite else {
             print("🚨 [ERROR] Received NaN progress value: \(progress)")
@@ -129,7 +134,7 @@ public class TrainingStepViewController: BaseStepViewController {
                 
                 // Auto-complete after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    if self.state.trainingProgress >= 1.0 {
+                    if self.state.trainingProgress >= 1.0 && !self.isCancelling {
                         self.coordinator?.proceedToNextStep()
                     }
                 }
@@ -140,6 +145,9 @@ public class TrainingStepViewController: BaseStepViewController {
     /// Update status text
     /// - Parameter status: Status message
     private func updateStatus(_ status: String) {
+        // Don't update status if we're cancelling
+        guard !isCancelling else { return }
+        
         UIView.transition(
             with: statusLabel,
             duration: 0.3,
@@ -152,6 +160,9 @@ public class TrainingStepViewController: BaseStepViewController {
     
     /// Show completion animation
     private func showCompletionAnimation() {
+        // Don't show completion animation if we're cancelling
+        guard !isCancelling else { return }
+        
         // Simple completion animation - just animate the progress bar to green
         UIView.animate(withDuration: 0.5) {
             self.progressView.progressTintColor = .systemGreen
@@ -167,16 +178,80 @@ public class TrainingStepViewController: BaseStepViewController {
     }
     
     public override func primaryButtonTapped() {
+        print("🔍 [TRAINING] Primary button tapped - progress: \(state.trainingProgress)")
+        
         if state.trainingProgress >= 1.0 {
             // Complete training
+            print("✅ [TRAINING] Training complete - proceeding to next step")
             super.primaryButtonTapped()
         } else {
             // Cancel training
-            coordinator?.cancelOnboarding()
+            print("❌ [TRAINING] User cancelled training")
+            cancelTraining()
+        }
+    }
+    
+    /// Cancel the training process with user confirmation
+    private func cancelTraining() {
+        // Prevent multiple cancellation attempts
+        guard !isCancelling else {
+            print("⚠️ [TRAINING] Already cancelling, ignoring duplicate request")
+            return
+        }
+        
+        // Show confirmation alert
+        let alert = UIAlertController(
+            title: "Cancel Training?",
+            message: "Are you sure you want to cancel persona creation? You'll return to the PIN creation step.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Continue Training", style: .cancel) { _ in
+            print("🔄 [TRAINING] User chose to continue training")
+        })
+        
+        alert.addAction(UIAlertAction(title: "Go Back to PIN", style: .destructive) { [weak self] _ in
+            self?.performCancellation()
+        })
+        
+        present(alert, animated: true)
+    }
+    
+    /// Perform the actual cancellation and return to PIN step
+    private func performCancellation() {
+        print("🚫 [TRAINING] Performing cancellation - returning to PIN step")
+        
+        // Set cancellation flag
+        isCancelling = true
+        
+        // Update UI to show cancellation
+        primaryButton.setTitle("Going Back...", for: .normal)
+        primaryButton.backgroundColor = .systemGray
+        primaryButton.isEnabled = false
+        
+        statusLabel.text = "Returning to PIN creation..."
+        
+        // Cancel with a slight delay to show the UI feedback
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self else { return }
+            
+            print("🔙 [TRAINING] Going back to PIN step")
+            
+            // Ensure coordinator exists before calling
+            if let coordinator = self.coordinator {
+                coordinator.goBackToPreviousStep()
+            } else {
+                print("⚠️ [TRAINING] Coordinator is nil - cannot go back to PIN step")
+                // Fallback: try to dismiss the modal directly
+                if let presentingVC = self.presentingViewController {
+                    presentingVC.dismiss(animated: true)
+                }
+            }
         }
     }
     
     deinit {
+        print("🗑️ [TRAINING] TrainingStepViewController deallocated")
         // Cleanup is handled automatically when view controller is deallocated
     }
 } 

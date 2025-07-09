@@ -488,74 +488,7 @@ public class OnairosAPIClient {
         }
     }
     
-    // MARK: - User Registration
-    
-    /// Register user with Enoch system (user-authenticated operation)
-    /// - Parameter request: User registration request
-    /// - Returns: Registration response
-    public func registerUser(_ request: UserRegistrationRequest) async -> Result<[String: Any], OnairosError> {
-        log("📤 Registering user with Enoch system using JWT authentication", level: .info)
-        
-        // Convert UserRegistrationRequest to dictionary for JWT authentication
-        var requestBody: [String: Any] = [
-            "email": request.email,
-            "pin": request.pin
-        ]
-        
-        // Convert connected platforms data
-        if !request.connectedPlatforms.isEmpty {
-            requestBody["connectedPlatforms"] = request.connectedPlatforms.mapValues { platformData in
-                var dict: [String: Any] = [
-                    "platform": platformData.platform,
-                    "accessToken": platformData.accessToken
-                ]
-                
-                if let refreshToken = platformData.refreshToken {
-                    dict["refreshToken"] = refreshToken
-                }
-                if let expiresAt = platformData.expiresAt {
-                    dict["expiresAt"] = expiresAt.timeIntervalSince1970
-                }
-                if let userData = platformData.userData {
-                    dict["userData"] = userData
-                }
-                
-                return dict
-            }
-        }
-        
-        return await performUserAuthenticatedRequestWithDictionary(
-            endpoint: "/register/enoch",
-            method: .POST,
-            body: requestBody,
-            responseType: [String: AnyCodable].self
-        ).map { response in
-            response.mapValues { $0.value }
-        }
-    }
-    
-    // MARK: - AI Training
-    
-    /// Start AI model training (user-authenticated operation)
-    /// - Parameters:
-    ///   - socketId: Socket.IO connection ID
-    ///   - userData: User data for training
-    /// - Returns: Training start response
-    public func startAITraining(socketId: String, userData: [String: Any]) async -> Result<[String: Any], OnairosError> {
-        log("📤 Starting AI training with JWT authentication for user", level: .info)
-        
-        var body = userData
-        body["socket_id"] = socketId
-        
-        return await performUserAuthenticatedRequestWithDictionary(
-            endpoint: "/enoch/trainModel/mobile",
-            method: .POST,
-            body: body,
-            responseType: [String: AnyCodable].self
-        ).map { response in
-            response.mapValues { $0.value }
-        }
-    }
+
     
     /// Test the API client connection (for debugging)
     /// - Returns: Simple test response

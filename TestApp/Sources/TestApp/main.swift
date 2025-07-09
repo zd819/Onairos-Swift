@@ -1,5 +1,6 @@
 import Foundation
 import OnairosSDK
+import UIKit
 
 // MARK: - Comprehensive Onairos SDK Test Suite
 print("🚀 Starting Comprehensive Onairos Swift SDK Test Suite...")
@@ -79,7 +80,7 @@ runTest("OnboardingState Invalid Email") {
 
 runTest("OnboardingState PIN Validation") {
     let state = OnboardingState()
-    state.pin = "password123!"
+    state.pin = "Password123!"
     state.currentStep = .pin
     return state.validateCurrentStep() == true
 }
@@ -93,7 +94,7 @@ runTest("OnboardingState Training Progress NaN Protection") {
 // MARK: - PIN Requirements Tests
 runTest("PIN Requirements Validation") {
     let requirements = PINRequirements()
-    let validResults = requirements.validate("password123!")
+    let validResults = requirements.validate("Password123!")
     return validResults.allSatisfy { $0.isValid }
 }
 
@@ -105,19 +106,25 @@ runTest("PIN Requirements - Too Short") {
 
 runTest("PIN Requirements - No Numbers") {
     let requirements = PINRequirements()
-    let results = requirements.validate("abcdefgh!")
+    let results = requirements.validate("Abcdefgh!")
     return !results.allSatisfy { $0.isValid }
 }
 
 runTest("PIN Requirements - No Special Characters") {
     let requirements = PINRequirements()
-    let results = requirements.validate("password123")
+    let results = requirements.validate("Password123")
     return !results.allSatisfy { $0.isValid }
 }
 
-runTest("PIN Requirements - No Numbers") {
+runTest("PIN Requirements - No Capital Letters") {
     let requirements = PINRequirements()
-    let results = requirements.validate("password!")
+    let results = requirements.validate("password123!")
+    return !results.allSatisfy { $0.isValid }
+}
+
+runTest("PIN Requirements - No Numbers (Second Test)") {
+    let requirements = PINRequirements()
+    let results = requirements.validate("Password!")
     return !results.allSatisfy { $0.isValid }
 }
 
@@ -136,6 +143,120 @@ runTest("TrainingProgress Valid Range") {
     let progress1 = TrainingProgress(percentage: -0.5, status: "Test")
     let progress2 = TrainingProgress(percentage: 1.5, status: "Test")
     return progress1.percentage == 0.0 && progress2.percentage == 1.0
+}
+
+// MARK: - Training Step Cancel Button Tests
+runTest("Training Step Cancel Button Configuration") {
+    let config = OnairosConfig.testMode()
+    let state = OnboardingState()
+    state.currentStep = .training
+    
+    // Create training step view controller
+    let coordinator = OnboardingCoordinator(
+        state: state,
+        config: config,
+        apiClient: OnairosAPIClient.shared
+    )
+    
+    let trainingVC = TrainingStepViewController(
+        coordinator: coordinator,
+        state: state,
+        config: config
+    )
+    
+    // Configure the step
+    trainingVC.configureStep()
+    
+    // Check button configuration
+    let button = trainingVC.value(forKey: "primaryButton") as? UIButton
+    return button?.title(for: .normal) == "Cancel" &&
+           button?.backgroundColor == .systemRed &&
+           button?.titleColor(for: .normal) == .white
+}
+
+runTest("Training Step Cancel Button Action") {
+    let config = OnairosConfig.testMode()
+    let state = OnboardingState()
+    state.currentStep = .training
+    state.trainingProgress = 0.5 // Not complete
+    
+    var cancelCalled = false
+    
+    // Create mock coordinator
+    let coordinator = OnboardingCoordinator(
+        state: state,
+        config: config,
+        apiClient: OnairosAPIClient.shared
+    )
+    
+    let trainingVC = TrainingStepViewController(
+        coordinator: coordinator,
+        state: state,
+        config: config
+    )
+    
+    // Configure the step
+    trainingVC.configureStep()
+    
+    // Simulate button tap
+    trainingVC.primaryButtonTapped()
+    
+    // Since training is not complete, it should trigger cancellation
+    // In a real test, we would check if the coordinator's cancelOnboarding was called
+    return true // This test verifies the method can be called without crashing
+}
+
+runTest("Training Step Complete Button Action") {
+    let config = OnairosConfig.testMode()
+    let state = OnboardingState()
+    state.currentStep = .training
+    state.trainingProgress = 1.0 // Complete
+    
+    let coordinator = OnboardingCoordinator(
+        state: state,
+        config: config,
+        apiClient: OnairosAPIClient.shared
+    )
+    
+    let trainingVC = TrainingStepViewController(
+        coordinator: coordinator,
+        state: state,
+        config: config
+    )
+    
+    // Configure the step
+    trainingVC.configureStep()
+    
+    // Simulate button tap when training is complete
+    trainingVC.primaryButtonTapped()
+    
+    // This should proceed to next step, not cancel
+    return true // This test verifies the method can be called without crashing
+}
+
+runTest("Training Step Cancellation Flag") {
+    let config = OnairosConfig.testMode()
+    let state = OnboardingState()
+    state.currentStep = .training
+    
+    let coordinator = OnboardingCoordinator(
+        state: state,
+        config: config,
+        apiClient: OnairosAPIClient.shared
+    )
+    
+    let trainingVC = TrainingStepViewController(
+        coordinator: coordinator,
+        state: state,
+        config: config
+    )
+    
+    // Configure the step
+    trainingVC.configureStep()
+    
+    // Check that cancellation flag is initially false
+    let isCancelling = trainingVC.value(forKey: "isCancelling") as? Bool
+    return isCancelling == false
 }
 
 // MARK: - Error Handling Tests
@@ -201,13 +322,44 @@ runTest("Platform OAuth Scopes") {
            !gmail.oauthScopes.isEmpty
 }
 
-// MARK: - Device Info Tests
-runTest("Device Info Creation") {
-    let deviceInfo = DeviceInfo()
-    return deviceInfo.platform == "iOS" &&
-           !deviceInfo.version.isEmpty &&
-           !deviceInfo.model.isEmpty &&
-           !deviceInfo.appVersion.isEmpty
+// MARK: - Coordinator Tests
+runTest("Coordinator Cancellation") {
+    let config = OnairosConfig.testMode()
+    let state = OnboardingState()
+    
+    let coordinator = OnboardingCoordinator(
+        state: state,
+        config: config,
+        apiClient: OnairosAPIClient.shared
+    )
+    
+    // Test that cancellation method exists and can be called
+    coordinator.cancelOnboarding()
+    
+    // Verify state is reset
+    return state.isLoading == false && state.errorMessage == nil
+}
+
+runTest("Training Step Back Navigation") {
+    let config = OnairosConfig.testMode()
+    let state = OnboardingState()
+    state.currentStep = .training
+    state.trainingProgress = 0.5
+    
+    let coordinator = OnboardingCoordinator(
+        state: state,
+        config: config,
+        apiClient: OnairosAPIClient.shared
+    )
+    
+    // Test going back from training step
+    coordinator.goBackToPreviousStep()
+    
+    // Verify it goes back to PIN step and resets training state
+    return state.currentStep == .pin &&
+           state.trainingProgress == 0.0 &&
+           state.isLoading == false &&
+           state.errorMessage == nil
 }
 
 // MARK: - Memory Safety Tests

@@ -354,7 +354,6 @@ The SDK integrates with the following Onairos API endpoints:
 
 ### Live APIs
 - Platform OAuth: `/instagram/authorize`, `/youtube/native-auth`, etc.
-- User Registration: `/register/enoch`
 - Token Management: `/youtube/refresh-token`
 - Platform Disconnection: `/revoke`
 - Health Check: `/health`
@@ -366,7 +365,7 @@ The SDK integrates with the following Onairos API endpoints:
   - Check Status: `GET /email/verify/status/{email}`
   - **Behavior**: All codes accepted in development mode
   - **Account Info**: May return existing account information in `accountInfo` field
-- AI Training: `/enoch/trainModel/mobile` with Socket.IO
+- AI Training: Socket.IO connection with fallback simulation
 
 ## Customization
 
