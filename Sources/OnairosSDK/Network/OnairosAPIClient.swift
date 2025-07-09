@@ -205,6 +205,30 @@ public class OnairosAPIClient {
         case .success(let response):
             let verified = response.verified ?? false
             log("✅ Email verification code check completed: \(verified)", level: .info)
+            
+            // Store JWT token if verification is successful and token is present
+            if verified, let jwtToken = response.userJWTToken {
+                log("🔐 JWT token received from verification response", level: .info)
+                let success = JWTTokenManager.shared.storeJWTToken(jwtToken)
+                
+                if success {
+                    log("✅ JWT token stored successfully in keychain", level: .info)
+                    
+                    // Log user info from JWT token (if available)
+                    if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
+                        log("📋 User info from JWT token: User ID: \(userInfo["userId"] ?? "N/A"), Email: \(userInfo["email"] ?? "N/A"), Verified: \(userInfo["verified"] ?? "N/A")", level: .info)
+                        if let exp = userInfo["exp"] as? TimeInterval {
+                            let expDate = Date(timeIntervalSince1970: exp)
+                            log("📅 JWT token expires: \(expDate)", level: .info)
+                        }
+                    }
+                } else {
+                    log("❌ Failed to store JWT token in keychain", level: .error)
+                }
+            } else if verified {
+                log("⚠️ Email verification successful but no JWT token received", level: .warning)
+            }
+            
             if let testingMode = response.testingMode {
                 log("🧪 Testing mode enabled: \(testingMode)", level: .info)
             }

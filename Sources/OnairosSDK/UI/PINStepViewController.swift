@@ -302,12 +302,59 @@ public class PINStepViewController: BaseStepViewController {
             return
         }
         
+        // Check if JWT token is available and valid before attempting PIN submission
+        let jwtManager = JWTTokenManager.shared
+        
+        guard let jwtToken = jwtManager.getJWTToken() else {
+            await MainActor.run {
+                print("❌ [PIN SUBMISSION] No JWT token available - user needs to verify email first")
+                state.errorMessage = "Authentication expired. Please verify your email again."
+                
+                // Restore button state
+                primaryButton.setTitle("Create PIN", for: .normal)
+                primaryButton.isEnabled = true
+                setLoading(false)
+            }
+            return
+        }
+        
+        // Check if JWT token is expired
+        if let isExpired = jwtManager.isTokenExpired(), isExpired {
+            await MainActor.run {
+                print("❌ [PIN SUBMISSION] JWT token is expired - user needs to verify email again")
+                state.errorMessage = "Authentication expired. Please verify your email again."
+                
+                // Clear expired token
+                _ = jwtManager.clearJWTToken()
+                
+                // Restore button state
+                primaryButton.setTitle("Create PIN", for: .normal)
+                primaryButton.isEnabled = true
+                setLoading(false)
+            }
+            return
+        }
+        
         print("📋 [PIN SUBMISSION] Using username: \(username) (from UserDefaults: \(UserDefaults.standard.string(forKey: "onairos_username") != nil ? "YES" : "NO"))")
         
-        print("📤 [PIN SUBMISSION] Sending PIN to backend:")
+        // Log user info from JWT token
+        if let userInfo = jwtManager.getUserInfoFromToken() {
+            print("🔐 [JWT TOKEN] User info from token:")
+            print("   - User ID: \(userInfo["userId"] ?? "N/A")")
+            print("   - Email: \(userInfo["email"] ?? "N/A")")
+            print("   - Verified: \(userInfo["verified"] ?? "N/A")")
+            if let exp = userInfo["exp"] as? TimeInterval {
+                let expDate = Date(timeIntervalSince1970: exp)
+                print("   - Expires: \(expDate)")
+            }
+        }
+        
+        print("📤 [PIN SUBMISSION] Sending PIN to backend with JWT authentication:")
         print("   - Username: \(username)")
         print("   - PIN: [REDACTED - \(state.pin.count) digits]")
         print("   - Endpoint: /store-pin/mobile")
+        print("   - Authentication: JWT Bearer Token")
+        print("   - JWT Token: [REDACTED - \(jwtToken.count) chars]")
         print("   - Timeout: 60s request, 120s resource")
         print("   - Retry: Up to 3 attempts with 2s delay")
         
@@ -340,11 +387,12 @@ public class PINStepViewController: BaseStepViewController {
         await MainActor.run {
             switch result {
             case .success(let response):
-                print("✅ [PIN SUBMISSION] PIN submitted successfully: \(response.message)")
+                print("✅ [PIN SUBMISSION] PIN submitted successfully with JWT authentication: \(response.message)")
                 print("   - Success: \(response.success)")
                 print("   - User ID: \(response.userId ?? "nil")")
                 print("   - PIN Secured: \(response.pinSecured ?? false)")
                 print("   - Timestamp: \(response.timestamp ?? "nil")")
+                print("   - Authentication: JWT Bearer Token ✓")
                 
                 // Show success feedback briefly
                 primaryButton.setTitle("PIN Created Successfully ✓", for: .normal)
@@ -428,6 +476,11 @@ public class PINStepViewController: BaseStepViewController {
     /// - Returns: Tuple of (user message, should proceed to next step)
     private func handlePINSubmissionError(_ error: OnairosError) -> (String, Bool) {
         switch error {
+        case .authenticationFailed(let message):
+            // JWT authentication failed - user needs to verify email again
+            print("🔐 [JWT ERROR] Authentication failed: \(message)")
+            return ("Authentication expired. Please verify your email again and restart the process.", false)
+            
         case .networkUnavailable, .networkError:
             return ("Network connection issue. PIN creation completed but server sync failed. You can continue.", true)
             
@@ -450,7 +503,13 @@ public class PINStepViewController: BaseStepViewController {
         case .configurationError(let reason):
             return ("Configuration error: \(reason). Please contact support.", false)
             
-        case .apiError(let message, _):
+        case .apiError(let message, let statusCode):
+            // Handle JWT-specific API errors
+            if let statusCode = statusCode, statusCode == 401 {
+                print("🔐 [JWT ERROR] 401 Unauthorized - JWT token expired or invalid")
+                return ("Authentication expired. Please verify your email again and restart the process.", false)
+            }
+            
             // Check if it's a user-related error that allows proceeding
             if message.contains("User not found") {
                 return ("User account issue. PIN creation completed. You can continue.", true)
@@ -461,6 +520,8 @@ public class PINStepViewController: BaseStepViewController {
         case .unknownError(let message):
             if message.contains("timeout") || message.contains("connection") {
                 return ("Connection timeout. PIN creation completed. You can continue.", true)
+            } else if message.contains("Authentication expired") || message.contains("JWT") {
+                return ("Authentication expired. Please verify your email again and restart the process.", false)
             } else {
                 return ("Unexpected error: \(message). Please try again.", false)
             }
@@ -473,6 +534,28 @@ public class PINStepViewController: BaseStepViewController {
     /// Retry PIN submission after error
     @objc private func retryPINSubmission() {
         print("🔄 [PIN SUBMISSION] User initiated retry")
+        
+        // Check JWT token validity before retrying
+        let jwtManager = JWTTokenManager.shared
+        
+        guard let jwtToken = jwtManager.getJWTToken() else {
+            print("❌ [PIN RETRY] No JWT token available - cannot retry")
+            state.errorMessage = "Authentication expired. Please verify your email again."
+            resetPINSubmissionUI()
+            return
+        }
+        
+        if let isExpired = jwtManager.isTokenExpired(), isExpired {
+            print("❌ [PIN RETRY] JWT token is expired - cannot retry")
+            state.errorMessage = "Authentication expired. Please verify your email again."
+            
+            // Clear expired token
+            _ = jwtManager.clearJWTToken()
+            resetPINSubmissionUI()
+            return
+        }
+        
+        print("🔐 [PIN RETRY] JWT token is valid - proceeding with retry")
         
         // Reset UI state
         resetPINSubmissionUI()
