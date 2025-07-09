@@ -115,6 +115,12 @@ runTest("PIN Requirements - No Special Characters") {
     return !results.allSatisfy { $0.isValid }
 }
 
+runTest("PIN Requirements - No Numbers") {
+    let requirements = PINRequirements()
+    let results = requirements.validate("password!")
+    return !results.allSatisfy { $0.isValid }
+}
+
 // MARK: - TrainingProgress Tests
 runTest("TrainingProgress NaN Protection") {
     let progress = TrainingProgress(percentage: Double.nan, status: "Test")

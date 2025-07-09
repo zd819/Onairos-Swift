@@ -105,6 +105,9 @@ final class OnairosSDKTests: XCTestCase {
         state.pin = "12345678" // No special chars
         XCTAssertFalse(state.validateCurrentStep())
         
+        state.pin = "password!" // No numbers
+        XCTAssertFalse(state.validateCurrentStep())
+        
         // Test valid PIN
         state.pin = "password123!"
         XCTAssertTrue(state.validateCurrentStep())
@@ -129,6 +132,12 @@ final class OnairosSDKTests: XCTestCase {
         XCTAssertTrue(noNumbersResults[0].isValid) // Length OK
         XCTAssertFalse(noNumbersResults[1].isValid) // No numbers
         XCTAssertTrue(noNumbersResults[2].isValid) // Has special chars
+        
+        // Test PIN without special characters
+        let noSpecialResults = requirements.validate("password123")
+        XCTAssertTrue(noSpecialResults[0].isValid) // Length OK
+        XCTAssertTrue(noSpecialResults[1].isValid) // Has numbers
+        XCTAssertFalse(noSpecialResults[2].isValid) // No special chars
         
         // Test valid PIN
         let validResults = requirements.validate("password123!")

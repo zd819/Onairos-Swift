@@ -521,17 +521,40 @@ private class PlatformConnectionView: UIView {
         let isConnected = state.connectedPlatforms.contains(platform.rawValue)
         
         if isConnected {
+            // Connected state: Show platform icon, name, "Connected ✓" status, and disconnect button
             statusLabel.text = "Connected ✓"
             statusLabel.textColor = .systemGreen
+            statusLabel.isHidden = false
+            
+            // Show platform name when connected
+            nameLabel.isHidden = false
+            
+            // Show disconnect button
             actionButton.setTitle("Disconnect", for: .normal)
             actionButton.backgroundColor = .systemRed.withAlphaComponent(0.1)
             actionButton.setTitleColor(.systemRed, for: .normal)
+            actionButton.isHidden = false
+            
+            // Keep original platform icon (don't replace with checkmark)
+            // setupPlatformIcon() is called during initialization, so icon is already set
+            
         } else {
+            // Not connected state: Show all elements
             statusLabel.text = "Not connected"
             statusLabel.textColor = .secondaryLabel
+            statusLabel.isHidden = false
+            
+            // Show platform name when not connected
+            nameLabel.isHidden = false
+            
+            // Show connect button
             actionButton.setTitle("Connect", for: .normal)
             actionButton.backgroundColor = .black
             actionButton.setTitleColor(.white, for: .normal)
+            actionButton.isHidden = false
+            
+            // Restore original platform icon (in case it was modified)
+            setupPlatformIcon()
         }
     }
     
@@ -594,9 +617,6 @@ private class PlatformConnectionView: UIView {
         
         // Store auth token for API calls
         storeAuthToken(authToken)
-        
-        // Provide user feedback
-        showSuccessMessage()
         
         // Notify coordinator if available
         coordinator?.handlePlatformConnected(platform)

@@ -346,21 +346,27 @@ public class OnboardingState: ObservableObject {
 
 /// PIN validation requirements
 public struct PINRequirements {
-    public let minLength: Int = 4
-    public let maxLength: Int = 6
-    public let requiresDigitsOnly: Bool = true
+    public let minLength: Int = 8
+    public let requiresNumbers: Bool = true
+    public let requiresSpecialChars: Bool = true
     
     public func validate(_ pin: String) -> [PINValidationResult] {
         var results: [PINValidationResult] = []
         
-        // Check length (4-6 characters)
-        let lengthValid = pin.count >= minLength && pin.count <= maxLength
+        // Check length (8+ characters)
+        let lengthValid = pin.count >= minLength
         results.append(.length(lengthValid))
         
-        // Check if contains only digits
-        if requiresDigitsOnly {
-            let isDigitsOnly = pin.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil && !pin.isEmpty
-            results.append(.digitsOnly(isDigitsOnly))
+        // Check if contains numbers
+        if requiresNumbers {
+            let hasNumbers = pin.rangeOfCharacter(from: .decimalDigits) != nil
+            results.append(.hasNumbers(hasNumbers))
+        }
+        
+        // Check if contains special characters
+        if requiresSpecialChars {
+            let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+            results.append(.hasSpecialChars(hasSpecialChars))
         }
         
         return results
@@ -370,11 +376,12 @@ public struct PINRequirements {
 /// PIN validation result
 public enum PINValidationResult {
     case length(Bool)
-    case digitsOnly(Bool)
+    case hasNumbers(Bool)
+    case hasSpecialChars(Bool)
     
     public var isValid: Bool {
         switch self {
-        case .length(let valid), .digitsOnly(let valid):
+        case .length(let valid), .hasNumbers(let valid), .hasSpecialChars(let valid):
             return valid
         }
     }
@@ -382,9 +389,11 @@ public enum PINValidationResult {
     public var description: String {
         switch self {
         case .length(let valid):
-            return valid ? "✓ 4-6 digits" : "✗ 4-6 digits"
-        case .digitsOnly(let valid):
-            return valid ? "✓ Numbers only" : "✗ Numbers only"
+            return valid ? "✓ At least 8 characters" : "✗ At least 8 characters"
+        case .hasNumbers(let valid):
+            return valid ? "✓ Contains numbers" : "✗ Contains numbers"
+        case .hasSpecialChars(let valid):
+            return valid ? "✓ Contains special characters" : "✗ Contains special characters"
         }
     }
 }

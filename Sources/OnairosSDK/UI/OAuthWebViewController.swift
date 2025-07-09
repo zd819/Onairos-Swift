@@ -76,6 +76,9 @@ public class OAuthWebViewController: UIViewController {
     /// Flag to track if we're currently loading
     private var isLoading = false
     
+    /// Flag to track if completion has been called
+    private var hasCompletedAuth = false
+    
     /// Initialize OAuth WebView controller
     /// - Parameters:
     ///   - platform: Platform to authenticate
@@ -482,6 +485,10 @@ public class OAuthWebViewController: UIViewController {
     
     /// Handle close button tap
     @objc private func closeButtonTapped() {
+        // Prevent double completion
+        if hasCompletedAuth { return }
+        hasCompletedAuth = true
+        
         print("🔍 [OAuth] Cancel button tapped - dismissing OAuth flow")
         
         // Stop any ongoing loading
@@ -521,7 +528,7 @@ extension OAuthWebViewController: WKNavigationDelegate {
             let credential = URLCredential(trust: serverTrust)
             completionHandler(.useCredential, credential)
         } else {
-            // For other domains, use default validation
+            // For other domains, use use default validation
             completionHandler(.performDefaultHandling, nil)
         }
     }
@@ -556,7 +563,8 @@ extension OAuthWebViewController: WKNavigationDelegate {
         }
         
         // Check if we've finished loading the success page onairos.uk/Home
-        if let url = webView.url {
+        // Only handle success if we haven't already completed auth
+        if !hasCompletedAuth, let url = webView.url {
             let urlString = url.absoluteString
             
             if urlString.contains("onairos.uk/Home") {
@@ -568,6 +576,9 @@ extension OAuthWebViewController: WKNavigationDelegate {
     }
     
     public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        // Don't handle if already completed
+        if hasCompletedAuth { return }
+        
         isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to load authorization page"
@@ -586,12 +597,18 @@ extension OAuthWebViewController: WKNavigationDelegate {
         
         // Auto-dismiss after 3 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            self.completion(.failure(.networkError(error.localizedDescription)))
-            self.dismiss(animated: true)
+            if !self.hasCompletedAuth {
+                self.hasCompletedAuth = true
+                self.completion(.failure(.networkError(error.localizedDescription)))
+                self.dismiss(animated: true)
+            }
         }
     }
     
     public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        // Don't handle if already completed
+        if hasCompletedAuth { return }
+        
         isLoading = false
         loadingIndicator.stopAnimating()
         loadingLabel?.text = "Failed to connect to authorization server"
@@ -610,8 +627,11 @@ extension OAuthWebViewController: WKNavigationDelegate {
         
         // Auto-dismiss after 3 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            self.completion(.failure(.networkError(error.localizedDescription)))
-            self.dismiss(animated: true)
+            if !self.hasCompletedAuth {
+                self.hasCompletedAuth = true
+                self.completion(.failure(.networkError(error.localizedDescription)))
+                self.dismiss(animated: true)
+            }
         }
     }
     
@@ -630,7 +650,9 @@ extension OAuthWebViewController: WKNavigationDelegate {
         // Check if this is our custom URL scheme callback (for legacy support)
         if url.scheme == config.urlScheme && url.host == "oauth" {
             print("✅ [OAuth] Detected custom URL scheme callback - treating as successful")
-            handleOAuthCallback(url: url)
+            if !hasCompletedAuth {
+                handleOAuthCallback(url: url)
+            }
             decisionHandler(.cancel)
             return
         }
@@ -639,7 +661,9 @@ extension OAuthWebViewController: WKNavigationDelegate {
         if url.absoluteString.contains("onairos.uk/Home") {
             print("✅ [OAuth] Detected redirect to onairos.uk/Home - OAuth completed successfully")
             loadingLabel?.text = "✅ Authorization successful!"
-            handleSuccessfulRedirect()
+            if !hasCompletedAuth {
+                handleSuccessfulRedirect()
+            }
             decisionHandler(.cancel)
             return
         }
@@ -662,15 +686,23 @@ extension OAuthWebViewController: WKNavigationDelegate {
     /// Show error message to user
     /// - Parameter message: Error message to display
     private func showError(message: String) {
+        // Don't show error if already completed
+        if hasCompletedAuth { return }
+        
         let alertController = UIAlertController(title: "Authorization Error", message: message, preferredStyle: .alert)
         
         let retryAction = UIAlertAction(title: "Retry", style: .default) { [weak self] _ in
-            self?.startOAuthFlow()
+            if let self = self, !self.hasCompletedAuth {
+                self.startOAuthFlow()
+            }
         }
         
         let cancelAction = UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
-            self?.completion(.failure(.userCancelled))
-            self?.dismiss(animated: true)
+            if let self = self, !self.hasCompletedAuth {
+                self.hasCompletedAuth = true
+                self.completion(.failure(.userCancelled))
+                self.dismiss(animated: true)
+            }
         }
         
         alertController.addAction(retryAction)
@@ -681,6 +713,10 @@ extension OAuthWebViewController: WKNavigationDelegate {
     
     /// Handle successful backend redirect
     private func handleSuccessfulRedirect() {
+        // Prevent double completion
+        if hasCompletedAuth { return }
+        hasCompletedAuth = true
+        
         // Show success feedback
         loadingLabel?.text = "✅ Authorization successful!"
         
@@ -697,6 +733,10 @@ extension OAuthWebViewController: WKNavigationDelegate {
     /// Handle OAuth callback URL (fallback method)
     /// - Parameter url: Callback URL with auth code
     private func handleOAuthCallback(url: URL) {
+        // Prevent double completion
+        if hasCompletedAuth { return }
+        hasCompletedAuth = true
+        
         print("🔍 [OAuth] Processing callback URL: \(url.absoluteString)")
         
         // For custom URL scheme callbacks, extract auth code if present

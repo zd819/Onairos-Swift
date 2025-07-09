@@ -51,11 +51,11 @@ public class PINStepViewController: BaseStepViewController {
         pinInputContainer.layer.borderColor = UIColor.systemGray4.cgColor
         
         // Text field
-        pinTextField.placeholder = "Enter your 4-6 digit PIN"
+        pinTextField.placeholder = "Enter your PIN (8+ characters)"
         pinTextField.isSecureTextEntry = true
         pinTextField.font = .systemFont(ofSize: 16)
         pinTextField.textColor = .label
-        pinTextField.keyboardType = .numberPad
+        pinTextField.keyboardType = .default
         pinTextField.addTarget(self, action: #selector(pinTextChanged), for: .editingChanged)
         pinTextField.delegate = self
         
@@ -109,8 +109,9 @@ public class PINStepViewController: BaseStepViewController {
         
         // Create requirement labels
         let requirements = [
-            "4-6 digits",
-            "Numbers only"
+            "At least 8 characters",
+            "Contains numbers",
+            "Contains special characters"
         ]
         
         for requirement in requirements {
@@ -285,13 +286,7 @@ public class PINStepViewController: BaseStepViewController {
     public override func primaryButtonTapped() {
         // Validate PIN before proceeding
         guard state.validateCurrentStep() else {
-            state.errorMessage = "Please create a PIN that meets all requirements (4-6 digits, numbers only)"
-            return
-        }
-        
-        // Additional validation for digit-only PIN
-        guard state.pin.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) == nil else {
-            state.errorMessage = "PIN must contain only numbers"
+            state.errorMessage = "Please create a PIN that meets all requirements (8+ characters, numbers, special characters)"
             return
         }
         
@@ -447,15 +442,21 @@ extension PINStepViewController: UITextFieldDelegate {
     }
     
     public func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
-        // Only allow digits and limit to 6 characters
+        // Allow alphanumeric characters and common special characters
         let currentText = textField.text ?? ""
         let newLength = currentText.count + string.count - range.length
         
-        // Check if replacement string contains only digits
-        if !string.isEmpty && string.rangeOfCharacter(from: CharacterSet.decimalDigits.inverted) != nil {
+        // Allow reasonable PIN length (up to 50 characters for practical purposes)
+        guard newLength <= 50 else { return false }
+        
+        // Allow alphanumeric characters and common special characters
+        let allowedCharacters = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?")
+        
+        // Check if replacement string contains only allowed characters
+        if !string.isEmpty && string.rangeOfCharacter(from: allowedCharacters.inverted) != nil {
             return false
         }
         
-        return newLength <= 6
+        return true
     }
 } 
