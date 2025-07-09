@@ -840,18 +840,210 @@ public class OnairosAPIClient {
         }
     }
     
-    /// Submit PIN to backend endpoint
+    /// Submit PIN to backend endpoint with retry mechanism
     /// - Parameter request: PIN submission request with username and pin
     /// - Returns: Result with PIN submission response
     public func submitPIN(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
         log("📤 Submitting PIN to backend for user: \(request.username)", level: .info)
         
-        return await performRequest(
-            endpoint: "/store-pin/mobile",
-            method: .POST,
-            body: request,
-            responseType: PINSubmissionResponse.self
-        )
+        // Retry configuration for PIN submission
+        let maxRetries = 3
+        let retryDelay: TimeInterval = 2.0
+        
+        for attempt in 1...maxRetries {
+            log("🔄 PIN submission attempt \(attempt)/\(maxRetries)", level: .info)
+            
+            // Create a longer timeout specifically for PIN submission
+            let result = await performPINSubmissionWithTimeout(request)
+            
+            switch result {
+            case .success(let response):
+                log("✅ PIN submission successful on attempt \(attempt)", level: .info)
+                return .success(response)
+                
+            case .failure(let error):
+                log("❌ PIN submission failed on attempt \(attempt): \(error.localizedDescription)", level: .error)
+                
+                // Don't retry for certain errors
+                if shouldRetryPINSubmission(error: error) && attempt < maxRetries {
+                    log("⏳ Retrying PIN submission in \(retryDelay) seconds...", level: .info)
+                    try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
+                    continue
+                } else {
+                    // Final failure or non-retryable error
+                    let enhancedError = enhancePINSubmissionError(error, attempt: attempt)
+                    log("💥 PIN submission failed permanently: \(enhancedError.localizedDescription)", level: .error)
+                    return .failure(enhancedError)
+                }
+            }
+        }
+        
+        // This should never be reached, but just in case
+        return .failure(.unknownError("PIN submission failed after \(maxRetries) attempts"))
+    }
+    
+    /// Perform PIN submission with extended timeout
+    /// - Parameter request: PIN submission request
+    /// - Returns: Result with PIN submission response
+    private func performPINSubmissionWithTimeout(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
+        // Create a custom session with longer timeout for PIN submission
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 60.0  // 60 seconds for PIN submission
+        config.timeoutIntervalForResource = 120.0  // 2 minutes total resource timeout
+        let pinSession = URLSession(configuration: config)
+        
+        log("⏱️ Using extended timeout for PIN submission (60s request, 120s resource)", level: .debug)
+        
+        // Get URL and headers
+        let (requestURL, requestHeaders) = getRequestURLAndHeaders(endpoint: "/store-pin/mobile")
+        
+        guard let url = requestURL else {
+            let error = OnairosError.configurationError("Invalid URL configuration for PIN submission")
+            log("❌ Invalid URL configuration for PIN endpoint", level: .error)
+            return .failure(error)
+        }
+        
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        
+        // Add headers
+        for (key, value) in requestHeaders {
+            urlRequest.setValue(value, forHTTPHeaderField: key)
+        }
+        
+        // Encode request body
+        var requestBodyData: Data?
+        do {
+            requestBodyData = try JSONEncoder().encode(request)
+            urlRequest.httpBody = requestBodyData
+            log("✅ PIN request body encoded successfully", level: .debug)
+        } catch {
+            let errorMsg = "Failed to encode PIN request body: \(error.localizedDescription)"
+            log("❌ \(errorMsg)", level: .error)
+            return .failure(.unknownError(errorMsg))
+        }
+        
+        // Log request details
+        logRequest(urlRequest, body: requestBodyData)
+        
+        // Perform request with timeout protection
+        do {
+            log("⏳ Sending PIN submission request with extended timeout...", level: .info)
+            let (data, response) = try await pinSession.data(for: urlRequest)
+            
+            // Log response details
+            logResponse(response, data: data, error: nil)
+            
+            // Check for HTTP errors
+            if let httpResponse = response as? HTTPURLResponse {
+                let statusCode = httpResponse.statusCode
+                
+                guard 200...299 ~= statusCode else {
+                    log("❌ PIN submission HTTP error: \(statusCode)", level: .error)
+                    
+                    // Handle specific status codes
+                    switch statusCode {
+                    case 400:
+                        return .failure(.validationFailed("Invalid PIN format or missing data"))
+                    case 401:
+                        return .failure(.invalidCredentials)
+                    case 404:
+                        return .failure(.apiError("User not found", statusCode))
+                    case 429:
+                        return .failure(.rateLimitExceeded("Too many PIN submission attempts"))
+                    case 500...599:
+                        return .failure(.serverError(statusCode, "Server error during PIN storage"))
+                    default:
+                        return .failure(.apiError("HTTP error \(statusCode)", statusCode))
+                    }
+                }
+                
+                log("✅ PIN submission HTTP request successful (\(statusCode))", level: .info)
+            }
+            
+            // Check if we have response data
+            guard !data.isEmpty else {
+                log("❌ Empty response data from PIN submission", level: .error)
+                return .failure(.unknownError("Empty response from PIN submission"))
+            }
+            
+            // Log raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                log("📥 PIN submission raw response: \(responseString)", level: .debug)
+            }
+            
+            // Decode response
+            do {
+                let decoder = JSONDecoder()
+                let response = try decoder.decode(PINSubmissionResponse.self, from: data)
+                
+                // Validate response
+                if response.success {
+                    log("✅ PIN submission response decoded successfully", level: .info)
+                    return .success(response)
+                } else {
+                    let errorMessage = response.message.isEmpty ? "PIN submission failed" : response.message
+                    log("❌ PIN submission failed: \(errorMessage)", level: .error)
+                    return .failure(.apiError(errorMessage, nil))
+                }
+                
+            } catch {
+                let errorMsg = "Failed to decode PIN submission response: \(error.localizedDescription)"
+                log("❌ \(errorMsg)", level: .error)
+                if enableDetailedLogging, let dataString = String(data: data, encoding: .utf8) {
+                    log("   Raw response: \(dataString)", level: .error)
+                }
+                return .failure(.unknownError(errorMsg))
+            }
+            
+        } catch {
+            let onairosError = OnairosError.fromHTTPResponse(data: nil, response: nil, error: error)
+            log("❌ PIN submission network request failed: \(error.localizedDescription)", level: .error)
+            
+            // Check if it's a timeout error
+            if (error as NSError).code == NSURLErrorTimedOut {
+                log("⏰ PIN submission timed out", level: .error)
+                return .failure(.networkError("PIN submission timed out. Please check your connection and try again."))
+            }
+            
+            return .failure(onairosError)
+        }
+    }
+    
+    /// Determine if PIN submission should be retried based on error type
+    /// - Parameter error: The error that occurred
+    /// - Returns: True if should retry, false otherwise
+    private func shouldRetryPINSubmission(error: OnairosError) -> Bool {
+        switch error {
+        case .networkUnavailable, .networkError:
+            return true  // Retry network issues
+        case .serverError(let code, _):
+            return code >= 500  // Retry server errors
+        case .rateLimitExceeded:
+            return true  // Retry rate limits after delay
+        case .unknownError(let message):
+            return message.contains("timeout") || message.contains("connection")  // Retry timeouts
+        default:
+            return false  // Don't retry validation errors, auth errors, etc.
+        }
+    }
+    
+    /// Enhance PIN submission error with additional context
+    /// - Parameters:
+    ///   - error: Original error
+    ///   - attempt: Attempt number
+    /// - Returns: Enhanced error with better messaging
+    private func enhancePINSubmissionError(_ error: OnairosError, attempt: Int) -> OnairosError {
+        switch error {
+        case .networkError(let message):
+            return .networkError("PIN submission failed after \(attempt) attempts: \(message)")
+        case .serverError(let code, let message):
+            return .serverError(code, "PIN submission server error (attempt \(attempt)): \(message)")
+        case .unknownError(let message):
+            return .unknownError("PIN submission failed after \(attempt) attempts: \(message)")
+        default:
+            return error  // Return original error for other types
+        }
     }
     
 

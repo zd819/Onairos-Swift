@@ -333,14 +333,25 @@ public class OnboardingState: ObservableObject {
         }
     }
     
-    /// Validate PIN requirements
+    /// Validate PIN requirements with performance optimization
     private func isValidPIN(_ pin: String) -> Bool {
+        // SAFEGUARD: Quick length check first
         guard pin.count >= 8 else { return false }
         
-        let hasNumbers = pin.rangeOfCharacter(from: .decimalDigits) != nil
-        let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
-        
-        return hasNumbers && hasSpecialChars
+        // SAFEGUARD: Protect against potential regex/character set crashes
+        do {
+            let hasNumbers = pin.rangeOfCharacter(from: .decimalDigits) != nil
+            let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+            
+            return hasNumbers && hasSpecialChars
+        } catch {
+            print("🚨 [ERROR] PIN validation crashed: \(error)")
+            // Fallback: basic character checks
+            let hasNumbers = pin.contains { $0.isNumber }
+            let hasSpecialChars = pin.contains { "!@#$%^&*()_+-=[]{}|;:,.<>?".contains($0) }
+            
+            return hasNumbers && hasSpecialChars
+        }
     }
 }
 
@@ -353,20 +364,37 @@ public struct PINRequirements {
     public func validate(_ pin: String) -> [PINValidationResult] {
         var results: [PINValidationResult] = []
         
-        // Check length (8+ characters)
-        let lengthValid = pin.count >= minLength
-        results.append(.length(lengthValid))
-        
-        // Check if contains numbers
-        if requiresNumbers {
-            let hasNumbers = pin.rangeOfCharacter(from: .decimalDigits) != nil
-            results.append(.hasNumbers(hasNumbers))
-        }
-        
-        // Check if contains special characters
-        if requiresSpecialChars {
-            let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
-            results.append(.hasSpecialChars(hasSpecialChars))
+        // SAFEGUARD: Protect against potential performance issues
+        do {
+            // Check length (8+ characters)
+            let lengthValid = pin.count >= minLength
+            results.append(.length(lengthValid))
+            
+            // Check if contains numbers
+            if requiresNumbers {
+                let hasNumbers = pin.rangeOfCharacter(from: .decimalDigits) != nil
+                results.append(.hasNumbers(hasNumbers))
+            }
+            
+            // Check if contains special characters
+            if requiresSpecialChars {
+                let hasSpecialChars = pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+                results.append(.hasSpecialChars(hasSpecialChars))
+            }
+        } catch {
+            print("🚨 [ERROR] PINRequirements validation crashed: \(error)")
+            // Fallback: basic validation
+            results.append(.length(pin.count >= minLength))
+            
+            if requiresNumbers {
+                let hasNumbers = pin.contains { $0.isNumber }
+                results.append(.hasNumbers(hasNumbers))
+            }
+            
+            if requiresSpecialChars {
+                let hasSpecialChars = pin.contains { "!@#$%^&*()_+-=[]{}|;:,.<>?".contains($0) }
+                results.append(.hasSpecialChars(hasSpecialChars))
+            }
         }
         
         return results

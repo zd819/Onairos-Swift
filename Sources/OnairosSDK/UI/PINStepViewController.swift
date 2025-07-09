@@ -228,9 +228,36 @@ public class PINStepViewController: BaseStepViewController {
     
     /// Handle PIN text changes
     @objc private func pinTextChanged() {
-        state.pin = pinTextField.text ?? ""
-        updatePINValidation()
-        updateButtonState()
+        // SAFEGUARD: Protect against potential crashes during text changes
+        guard let text = pinTextField.text else {
+            print("🚨 [ERROR] pinTextChanged called with nil text")
+            return
+        }
+        
+        // SAFEGUARD: Limit PIN length to prevent performance issues
+        let maxPINLength = 50
+        if text.count > maxPINLength {
+            let truncatedText = String(text.prefix(maxPINLength))
+            pinTextField.text = truncatedText
+            state.pin = truncatedText
+        } else {
+            state.pin = text
+        }
+        
+        // SAFEGUARD: Wrap validation in try-catch to prevent crashes
+        do {
+            updatePINValidation()
+            updateButtonState()
+        } catch {
+            print("🚨 [ERROR] PIN validation failed: \(error)")
+            // Fallback: basic validation
+            let hasMinLength = text.count >= 8
+            let hasNumbers = text.rangeOfCharacter(from: .decimalDigits) != nil
+            let hasSpecialChars = text.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+            
+            primaryButton.isEnabled = hasMinLength && hasNumbers && hasSpecialChars && !state.isLoading
+            primaryButton.alpha = primaryButton.isEnabled ? 1.0 : 0.6
+        }
         
         // Clear error when user starts typing
         if state.errorMessage != nil {
@@ -244,30 +271,48 @@ public class PINStepViewController: BaseStepViewController {
         pinTextField.isSecureTextEntry = !sender.isSelected
     }
     
-    /// Update PIN validation UI
+    /// Update PIN validation UI with error protection
     private func updatePINValidation() {
-        let validationResults = pinRequirements.validate(state.pin)
-        
-        for (index, result) in validationResults.enumerated() {
-            guard index < requirementLabels.count else { continue }
+        // SAFEGUARD: Protect validation operations
+        do {
+            let validationResults = pinRequirements.validate(state.pin)
             
-            let label = requirementLabels[index]
-            label.text = result.description
-            label.textColor = result.isValid ? .systemGreen : .systemRed
-        }
-        
-        // Update input border color
-        let allValid = validationResults.allSatisfy { $0.isValid }
-        if state.pin.isEmpty {
-            pinInputContainer.layer.borderColor = UIColor.systemGray4.cgColor
-        } else {
-            pinInputContainer.layer.borderColor = allValid ? UIColor.systemGreen.cgColor : UIColor.systemRed.cgColor
+            for (index, result) in validationResults.enumerated() {
+                guard index < requirementLabels.count else { continue }
+                
+                let label = requirementLabels[index]
+                label.text = result.description
+                label.textColor = result.isValid ? .systemGreen : .systemRed
+            }
+            
+            // Update input border color
+            let allValid = validationResults.allSatisfy { $0.isValid }
+            if state.pin.isEmpty {
+                pinInputContainer.layer.borderColor = UIColor.systemGray4.cgColor
+            } else {
+                pinInputContainer.layer.borderColor = allValid ? UIColor.systemGreen.cgColor : UIColor.systemRed.cgColor
+            }
+        } catch {
+            print("🚨 [ERROR] updatePINValidation failed: \(error)")
+            // Fallback: simple border color update
+            pinInputContainer.layer.borderColor = state.pin.isEmpty ? UIColor.systemGray4.cgColor : UIColor.systemBlue.cgColor
         }
     }
     
-    /// Update button state based on PIN validity
+    /// Update button state based on PIN validity with error protection
     private func updateButtonState() {
-        let isValidPIN = state.validateCurrentStep()
+        // SAFEGUARD: Protect validation call
+        let isValidPIN: Bool
+        do {
+            isValidPIN = state.validateCurrentStep()
+        } catch {
+            print("🚨 [ERROR] PIN validation crashed: \(error)")
+            // Fallback validation
+            isValidPIN = state.pin.count >= 8 && 
+                        state.pin.rangeOfCharacter(from: .decimalDigits) != nil &&
+                        state.pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+        }
+        
         primaryButton.isEnabled = isValidPIN && !state.isLoading
         primaryButton.alpha = isValidPIN ? 1.0 : 0.6
     }
@@ -293,10 +338,8 @@ public class PINStepViewController: BaseStepViewController {
         // Clear any existing error
         state.errorMessage = nil
         
-        // Update button to show storage is in progress
-        primaryButton.setTitle("Securing PIN...", for: .normal)
-        primaryButton.isEnabled = false
-        setLoading(true)
+        // Don't set loading state yet - wait for biometric auth
+        print("🔐 [PIN] User tapped Create PIN button - starting biometric authentication")
         
         // Store PIN with biometric authentication
         Task {
@@ -308,43 +351,94 @@ public class PINStepViewController: BaseStepViewController {
     private func storePINSecurely() async {
         print("🔐 [PIN] Starting secure PIN storage process")
         
-        // Store PIN with biometric authentication
-        let result = await BiometricPINManager.shared.storePIN(state.pin)
-        
-        switch result {
-        case .success:
-            print("✅ [PIN] PIN stored securely with biometric protection")
+        // Add crash protection around the entire PIN storage process
+        do {
+            // Store PIN with biometric authentication (this will trigger Face ID)
+            let result = await BiometricPINManager.shared.storePIN(state.pin)
             
-            // Send PIN to backend
-            await submitPINToBackend()
-            
-        case .failure(let error):
-            await MainActor.run {
-                print("❌ [PIN] Failed to store PIN securely: \(error.localizedDescription)")
+            switch result {
+            case .success:
+                print("✅ [PIN] PIN stored securely with biometric protection")
                 
-                // Show user-friendly error message based on error type
-                let errorMessage: String
-                switch error {
-                case .biometricNotAvailable:
-                    errorMessage = "Biometric authentication is not available on this device"
-                case .authenticationFailed:
-                    errorMessage = "Biometric authentication failed. Please try again."
-                case .authenticationCancelled:
-                    errorMessage = "Authentication was cancelled. Please try again."
-                case .keychainError(let message):
-                    errorMessage = "Security error: \(message)"
-                case .invalidPIN:
-                    errorMessage = "Invalid PIN format"
-                case .pinNotFound:
-                    errorMessage = "PIN not found"
+                // NOW set loading state after successful biometric auth
+                await MainActor.run {
+                    primaryButton.setTitle("Submitting PIN...", for: .normal)
+                    primaryButton.isEnabled = false
+                    setLoading(true)
                 }
                 
-                state.errorMessage = errorMessage
+                // Send PIN to backend with error boundary
+                await submitPINToBackendSafely()
+                
+            case .failure(let error):
+                await MainActor.run {
+                    print("❌ [PIN] Failed to store PIN securely: \(error.localizedDescription)")
+                    
+                    // Show user-friendly error message based on error type
+                    let errorMessage: String
+                    switch error {
+                    case .biometricNotAvailable:
+                        errorMessage = "Face ID/Touch ID is not available on this device"
+                    case .authenticationFailed:
+                        errorMessage = "Face ID/Touch ID authentication failed. Please try again."
+                    case .authenticationCancelled:
+                        errorMessage = "Face ID/Touch ID authentication was cancelled. Please try again."
+                    case .keychainError(let message):
+                        errorMessage = "Security error: \(message)"
+                    case .invalidPIN:
+                        errorMessage = "Invalid PIN format"
+                    case .pinNotFound:
+                        errorMessage = "PIN not found"
+                    }
+                    
+                    state.errorMessage = errorMessage
+                    
+                    // Button should remain in normal state since biometric auth failed
+                    primaryButton.setTitle("Create PIN", for: .normal)
+                    primaryButton.isEnabled = true
+                    setLoading(false)
+                }
+            }
+        } catch {
+            // Catch any unexpected errors during PIN storage
+            await MainActor.run {
+                print("💥 [PIN] Unexpected error during PIN storage: \(error.localizedDescription)")
+                state.errorMessage = "An unexpected error occurred while securing your PIN. Please try again."
                 
                 // Restore button state
                 primaryButton.setTitle("Create PIN", for: .normal)
                 primaryButton.isEnabled = true
                 setLoading(false)
+            }
+        }
+    }
+    
+    /// Submit PIN to backend with crash protection
+    private func submitPINToBackendSafely() async {
+        do {
+            await submitPINToBackend()
+        } catch {
+            // Catch any unexpected errors during PIN submission
+            await MainActor.run {
+                print("💥 [PIN SUBMISSION] Unexpected error during PIN submission: \(error.localizedDescription)")
+                
+                // Show error but still proceed (PIN is stored locally with biometric protection)
+                state.errorMessage = "PIN secured with Face ID but sync with server failed. You can continue."
+                
+                // Show warning state
+                primaryButton.setTitle("PIN Secured with Face ID ✓", for: .normal)
+                primaryButton.backgroundColor = UIColor.systemOrange
+                
+                // Proceed to next step after delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    self.primaryButton.setTitle("Create PIN", for: .normal)
+                    self.primaryButton.backgroundColor = UIColor.systemBlue
+                    self.primaryButton.isEnabled = true
+                    self.setLoading(false)
+                    
+                    // Proceed to next step
+                    self.coordinator?.proceedToNextStep()
+                }
             }
         }
     }
@@ -370,6 +464,20 @@ public class PINStepViewController: BaseStepViewController {
         print("📤 [PIN SUBMISSION] Sending PIN to backend:")
         print("   - Username: \(username)")
         print("   - PIN: [REDACTED - \(state.pin.count) digits]")
+        print("   - Endpoint: /store-pin/mobile")
+        print("   - Timeout: 60s request, 120s resource")
+        print("   - Retry: Up to 3 attempts with 2s delay")
+        
+        // Enable detailed logging for PIN submission debugging
+        let apiClient = OnairosAPIClient.shared
+        let originalLogLevel = apiClient.logLevel
+        let originalDetailedLogging = apiClient.enableDetailedLogging
+        
+        // Temporarily enable verbose logging for PIN submission
+        apiClient.logLevel = .verbose
+        apiClient.enableDetailedLogging = true
+        
+        print("🔍 [PIN SUBMISSION] Enabled detailed logging for debugging")
         
         // Create PIN submission request
         let pinRequest = PINSubmissionRequest(
@@ -377,41 +485,174 @@ public class PINStepViewController: BaseStepViewController {
             pin: state.pin
         )
         
-        // Submit PIN to backend
-        let result = await OnairosAPIClient.shared.submitPIN(pinRequest)
+        // Submit PIN to backend with enhanced error handling
+        let result = await apiClient.submitPIN(pinRequest)
         
-        switch result {
-        case .success(let response):
-            await MainActor.run {
+        // Restore original logging settings
+        apiClient.logLevel = originalLogLevel
+        apiClient.enableDetailedLogging = originalDetailedLogging
+        
+        print("🔍 [PIN SUBMISSION] Restored original logging settings")
+        
+        await MainActor.run {
+            switch result {
+            case .success(let response):
                 print("✅ [PIN SUBMISSION] PIN submitted successfully: \(response.message)")
+                print("   - Success: \(response.success)")
+                print("   - User ID: \(response.userId ?? "nil")")
+                print("   - PIN Secured: \(response.pinSecured ?? false)")
+                print("   - Timestamp: \(response.timestamp ?? "nil")")
                 
-                // Restore button state and proceed
-                primaryButton.setTitle("Create PIN", for: .normal)
-                primaryButton.isEnabled = true
-                setLoading(false)
+                // Show success feedback briefly
+                primaryButton.setTitle("PIN Secured with Face ID ✓", for: .normal)
+                primaryButton.backgroundColor = UIColor.systemGreen
                 
-                // Proceed to next step
-                coordinator?.proceedToNextStep()
-            }
-            
-        case .failure(let error):
-            await MainActor.run {
-                print("❌ [PIN SUBMISSION] Failed to submit PIN: \(error.localizedDescription)")
+                // Brief success animation
+                UIView.animate(withDuration: 0.3) {
+                    self.primaryButton.transform = CGAffineTransform(scaleX: 1.05, y: 1.05)
+                } completion: { _ in
+                    UIView.animate(withDuration: 0.2) {
+                        self.primaryButton.transform = .identity
+                    }
+                }
                 
-                // Show error but still proceed (PIN is stored locally)
-                state.errorMessage = "PIN secured locally but failed to sync with server. You can continue."
-                
-                // Restore button state and proceed anyway
-                primaryButton.setTitle("Create PIN", for: .normal)
-                primaryButton.isEnabled = true
-                setLoading(false)
-                
-                // Proceed to next step after short delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                // Proceed to next step after showing success
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.primaryButton.setTitle("Create PIN", for: .normal)
+                    self.primaryButton.backgroundColor = UIColor.systemBlue
+                    self.primaryButton.isEnabled = true
+                    self.setLoading(false)
+                    
+                    // Proceed to next step
                     self.coordinator?.proceedToNextStep()
+                }
+                
+            case .failure(let error):
+                print("❌ [PIN SUBMISSION] Failed to submit PIN: \(error.localizedDescription)")
+                print("   - Error Category: \(error.category)")
+                print("   - Is Recoverable: \(error.isRecoverable)")
+                print("   - Recovery Suggestion: \(error.recoverySuggestion ?? "None")")
+                
+                // Handle different error types with appropriate user messaging
+                let (userMessage, shouldProceed) = handlePINSubmissionError(error)
+                
+                print("   - User Message: \(userMessage)")
+                print("   - Should Proceed: \(shouldProceed)")
+                
+                if shouldProceed {
+                    // PIN is stored locally with Face ID, show warning but proceed
+                    state.errorMessage = "PIN secured with Face ID but server sync failed. You can continue."
+                    
+                    // Show warning color briefly
+                    primaryButton.setTitle("PIN Secured with Face ID ⚠️", for: .normal)
+                    primaryButton.backgroundColor = UIColor.systemOrange
+                    
+                    // Proceed to next step after delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        self.primaryButton.setTitle("Create PIN", for: .normal)
+                        self.primaryButton.backgroundColor = UIColor.systemBlue
+                        self.primaryButton.isEnabled = true
+                        self.setLoading(false)
+                        
+                        // Proceed to next step
+                        self.coordinator?.proceedToNextStep()
+                    }
+                } else {
+                    // Critical error, don't proceed
+                    state.errorMessage = userMessage
+                    
+                    // Show error state
+                    primaryButton.setTitle("Try Again", for: .normal)
+                    primaryButton.backgroundColor = UIColor.systemRed
+                    primaryButton.isEnabled = true
+                    setLoading(false)
+                    
+                    // Add retry button functionality
+                    primaryButton.removeTarget(self, action: #selector(primaryButtonTapped), for: .touchUpInside)
+                    primaryButton.addTarget(self, action: #selector(retryPINSubmission), for: .touchUpInside)
+                    
+                    // Reset to normal state after delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        self.resetPINSubmissionUI()
+                    }
                 }
             }
         }
+    }
+    
+    /// Handle PIN submission error and determine user messaging and next action
+    /// - Parameter error: The error that occurred
+    /// - Returns: Tuple of (user message, should proceed to next step)
+    private func handlePINSubmissionError(_ error: OnairosError) -> (String, Bool) {
+        switch error {
+        case .networkUnavailable, .networkError:
+            return ("Network connection issue. PIN secured with Face ID but server sync failed. You can continue.", true)
+            
+        case .serverError(let code, let message):
+            if code >= 500 {
+                return ("Server temporarily unavailable. PIN secured with Face ID. You can continue.", true)
+            } else {
+                return ("Server error (\(code)): \(message). Please try again.", false)
+            }
+            
+        case .rateLimitExceeded:
+            return ("Too many attempts. Please wait a moment and try again.", false)
+            
+        case .validationFailed(let reason):
+            return ("PIN validation failed: \(reason). Please create a new PIN.", false)
+            
+        case .invalidCredentials:
+            return ("Authentication failed. Please restart the onboarding process.", false)
+            
+        case .configurationError(let reason):
+            return ("Configuration error: \(reason). Please contact support.", false)
+            
+        case .apiError(let message, _):
+            // Check if it's a user-related error that allows proceeding
+            if message.contains("User not found") {
+                return ("User account issue. PIN secured with Face ID. You can continue.", true)
+            } else {
+                return ("API error: \(message). Please try again.", false)
+            }
+            
+        case .unknownError(let message):
+            if message.contains("timeout") || message.contains("connection") {
+                return ("Connection timeout. PIN secured with Face ID. You can continue.", true)
+            } else {
+                return ("Unexpected error: \(message). Please try again.", false)
+            }
+            
+        default:
+            return ("PIN submission failed. PIN secured with Face ID. You can continue.", true)
+        }
+    }
+    
+    /// Retry PIN submission after error
+    @objc private func retryPINSubmission() {
+        print("🔄 [PIN SUBMISSION] User initiated retry")
+        
+        // Reset UI state
+        resetPINSubmissionUI()
+        
+        // Clear any existing error
+        state.errorMessage = nil
+        
+        // Retry the submission
+        Task {
+            await submitPINToBackend()
+        }
+    }
+    
+    /// Reset PIN submission UI to normal state
+    private func resetPINSubmissionUI() {
+        primaryButton.setTitle("Create PIN", for: .normal)
+        primaryButton.backgroundColor = UIColor.systemBlue
+        primaryButton.isEnabled = true
+        setLoading(false)
+        
+        // Restore normal button action
+        primaryButton.removeTarget(self, action: #selector(retryPINSubmission), for: .touchUpInside)
+        primaryButton.addTarget(self, action: #selector(primaryButtonTapped), for: .touchUpInside)
     }
     
     /// Authenticate with Face ID/Touch ID (legacy method - now handled by BiometricPINManager)

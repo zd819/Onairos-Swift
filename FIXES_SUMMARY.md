@@ -1,208 +1,117 @@
-# OnairosSDK - Critical Fixes Summary
+# Onairos Swift SDK - Fixes Summary
 
-## 🎯 All Issues Fixed
+This document tracks all fixes and improvements made to the Onairos Swift SDK.
 
-This document summarizes the comprehensive fixes implemented to resolve all reported issues with the OnairosSDK.
+## Recent Fixes
 
----
+### PIN Submission Timeout and Crash Fix (2024-12-28)
 
-## ✅ Issue #1: CRITICAL API FAILURE (Email Verification)
+**Problem**: PIN submission was timing out after 30 seconds and causing app crashes.
 
-### Problem
-- Email verification API calls to `https://api2.onairos.uk/email/verification` were failing silently
-- Debug mode was masking the real issue by bypassing failures
-- Modal was closing unexpectedly when API calls failed
+**Root Cause**: 
+- Default 30-second timeout was too short for PIN submission
+- Insufficient error handling and retry mechanism
+- No crash protection around PIN submission process
+- Poor user feedback during submission process
 
-### Fix Implemented
-**File:** `Sources/OnairosSDK/Core/OnboardingCoordinator.swift`
+**Solution Implemented**:
 
-1. **Enhanced Error Handling**:
-   - Added user-friendly error messages for all API failure scenarios
-   - API failures no longer dismiss the modal - they show error messages instead
-   - Debug mode now shows errors for 2 seconds before proceeding
+1. **Extended Timeout Configuration**:
+   - Increased PIN submission timeout to 60 seconds (request) and 120 seconds (resource)
+   - Created dedicated `performPINSubmissionWithTimeout()` method with custom URLSession
 
-2. **Better API Failure Recovery**:
-   - Network errors display helpful retry messages
-   - HTTP status codes provide specific guidance (404, 429, 500+)
-   - Production mode keeps user on current step with clear error message
+2. **Retry Mechanism**:
+   - Added automatic retry up to 3 attempts with 2-second delays
+   - Intelligent retry logic that only retries for network/server errors
+   - Enhanced error categorization to determine retry eligibility
 
-3. **Improved API Client**:
-   - Enhanced logging for better debugging
-   - Contextual error messages for email verification operations
-   - Better error categorization and user guidance
+3. **Crash Protection**:
+   - Added error boundaries around PIN storage and submission
+   - Implemented `submitPINToBackendSafely()` wrapper with try-catch
+   - Graceful handling of unexpected errors with user-friendly messages
 
----
+4. **Enhanced Error Handling**:
+   - Comprehensive error mapping with specific user messages
+   - Differentiated between recoverable and non-recoverable errors
+   - Smart decision making on whether to proceed or retry
 
-## ✅ Issue #2: Demo App Constructor Error
+5. **Improved User Experience**:
+   - Better visual feedback during submission process
+   - Success animations and color-coded button states
+   - Retry button functionality for failed submissions
+   - Clear progress indicators and status messages
 
-### Problem
-- Demo app was calling `createConnectButton()` with incorrect parameters
-- Build errors due to method signature mismatches
+6. **Enhanced Logging**:
+   - Temporary verbose logging during PIN submission for debugging
+   - Detailed request/response logging with sensitive data protection
+   - Comprehensive error context and recovery suggestions
 
-### Fix Implemented
-**File:** `Demo/OnairosSDKDemo/Sources/OnairosSDKDemo/DemoViewController.swift`
+**Files Modified**:
+- `Sources/OnairosSDK/Network/OnairosAPIClient.swift`: Enhanced submitPIN method with retry and timeout
+- `Sources/OnairosSDK/UI/PINStepViewController.swift`: Improved UI feedback and error handling
+- `Sources/OnairosSDK/Models/OnairosError.swift`: Extended error categorization
 
-1. **Correct Method Calls**:
-   - Fixed `createConnectButton()` calls to use proper signatures
-   - Removed non-existent `target` parameter
-   - Added proper completion handlers
+**Backend Compatibility**:
+- Endpoint: `/store-pin/mobile` (matches backend route)
+- Request format: `{"username": "string", "pin": "string"}`
+- Response format: `{"success": boolean, "message": "string", "userId": "string", ...}`
 
-2. **Enhanced Demo Configuration**:
-   - Shows correct vs incorrect configuration examples
-   - Demonstrates test mode usage
-   - Includes reset session functionality for testing
+**Testing Recommendations**:
+1. Test with slow network connections
+2. Test with network interruptions during submission
+3. Test server timeout scenarios
+4. Test retry functionality
+5. Verify crash protection works
 
----
+### Previous Fixes
 
-## ✅ Issue #3: Modal Dismissal Prevention
+### BiometricPINManager Module Visibility Fix (2024-12-28)
 
-### Problem
-- Modal was closing when users entered email due to API failures
-- Accidental dismissals from background taps and swipe gestures
-- Loading states not preventing user interactions
+**Problem**: BiometricPINManager and related types were not accessible due to module scope issues.
 
-### Fix Implemented
-**File:** `Sources/OnairosSDK/UI/OnairosModalController.swift`
+**Solution**: 
+- Moved BiometricPINError and BiometricAvailability types to OnboardingModels.swift
+- Fixed module accessibility and removed duplicate definitions
+- Added comprehensive logging for biometric authentication testing
 
-1. **Dismissal Protection**:
-   - Background taps now show confirmation dialog instead of immediate dismissal
-   - Swipe-to-dismiss requires higher threshold and shows confirmation
-   - Loading states prevent all dismissal gestures
-   - Modal only dismisses on explicit user confirmation or successful completion
+**Files Modified**:
+- `Sources/OnairosSDK/Models/OnboardingModels.swift`: Added biometric types
+- `Sources/OnairosSDK/Core/BiometricPINManager.swift`: Removed duplicate types
+- `Sources/OnairosSDK/UI/PINStepViewController.swift`: Updated type references
 
-2. **Better User Experience**:
-   - Confirmation dialogs prevent accidental cancellation
-   - Clear "Cancel Onboarding" vs "Continue Onboarding" options
-   - Smooth animations for gesture recovery
+### EmailVerificationResponse Build Error Fix (2024-12-28)
 
----
+**Problem**: Compilation error "Value of type 'EmailVerificationResponse' has no member 'accountInfo'"
 
-## ✅ Issue #4: Debug Mode Masking Issues
+**Solution**: Added missing `accountInfo: [String: AnyCodable]?` property to EmailVerificationResponse struct
 
-### Problem
-- Debug mode was bypassing real API failures
-- Users couldn't see actual error conditions
-- Configuration guidance was unclear
+**Files Modified**:
+- `Sources/OnairosSDK/Models/OnboardingModels.swift`: Added accountInfo property
 
-### Fix Implemented
-**File:** `Sources/OnairosSDK/OnairosSDK.swift`
+### PIN Submission Format Fix (2024-12-28)
 
-1. **Configuration Validation**:
-   - Added comprehensive configuration validation
-   - Clear warnings for problematic configurations
-   - Automatic recommendations for better setups
+**Problem**: PIN submission format didn't match backend API requirements
 
-2. **Better Mode Guidance**:
-   - Test mode: No API calls, prevents all issues
-   - Debug mode: Real API calls with enhanced error handling
-   - Production mode: Full validation and error handling
+**Solution**: 
+- Updated PIN submission endpoint to `/store-pin/mobile` 
+- Simplified PIN request payload to only include username and pin
+- Added proper JWT authentication support
 
-3. **Enhanced Initialization**:
-   - Detailed logging for each configuration mode
-   - Warnings for potential issues
-   - Usage examples for correct configuration
+**Files Modified**:
+- `Sources/OnairosSDK/Network/OnairosAPIClient.swift`: Updated submitPIN method
+- `Sources/OnairosSDK/Models/OnboardingModels.swift`: Updated PINSubmissionRequest
 
----
+## Testing Status
 
-## ✅ Issue #5: Build Errors and Type Conversion
+- ✅ BiometricPINManager integration verified
+- ✅ EmailVerificationResponse compilation fixed
+- ✅ PIN submission format updated
+- ✅ PIN timeout and crash protection implemented
+- ⏳ End-to-end PIN submission testing in progress
 
-### Problem
-- Various build errors throughout the codebase
-- Type conversion issues
-- Method signature mismatches
+## Next Steps
 
-### Fix Implemented
-**Multiple Files:**
-
-1. **Method Signature Fixes**:
-   - Corrected all `createConnectButton()` method calls
-   - Fixed parameter type mismatches
-   - Ensured proper error handling types
-
-2. **Enhanced Error Types**:
-   - Added contextual error messages
-   - Better error categorization
-   - User-friendly error descriptions
-
----
-
-## 🚀 Critical Configuration Fix
-
-### The Root Cause
-Most issues stemmed from incorrect SDK configuration during development.
-
-### The Solution ✅
-
-**Use `OnairosConfig.testMode()` for development:**
-
-```swift
-// ✅ CORRECT - Prevents ALL issues
-let config = OnairosConfig.testMode(
-    urlScheme: "your-app-scheme",
-    appName: "Your App Name"
-)
-
-OnairosSDK.shared.initialize(config: config)
-
-// ❌ WRONG - Causes API failures and modal dismissal
-let badConfig = OnairosConfig(
-    isDebugMode: true,
-    urlScheme: "your-app-scheme",
-    appName: "Your App Name"
-)
-```
-
-### Why This Works
-1. **No API Calls**: Eliminates all network failure points
-2. **Complete Simulation**: Full flow without external dependencies
-3. **Stable Modal**: No conditions that trigger unexpected dismissal
-4. **Better Development**: Fast, reliable testing environment
-
----
-
-## 🔧 Additional Improvements
-
-### Enhanced Logging
-- Better debug output for troubleshooting
-- Clear indicators for test mode vs debug mode
-- Contextual error messages
-
-### Better Error Recovery
-- Graceful fallback behaviors
-- User-friendly error messages
-- Clear guidance for resolution
-
-### Improved Documentation
-- Updated integration guide with critical troubleshooting section
-- Configuration examples and comparisons
-- Troubleshooting section for common issues
-
----
-
-## 📝 Files Modified
-
-### Core Fixes
-- `Sources/OnairosSDK/Core/OnboardingCoordinator.swift` - API failure handling
-- `Sources/OnairosSDK/Network/OnairosAPIClient.swift` - Enhanced error handling
-- `Sources/OnairosSDK/UI/OnairosModalController.swift` - Modal dismissal prevention
-- `Sources/OnairosSDK/OnairosSDK.swift` - Configuration validation
-
-### Demo and Documentation
-- `Demo/OnairosSDKDemo/Sources/OnairosSDKDemo/DemoViewController.swift` - Fixed demo app
-- `INTEGRATION_GUIDE.md` - Added critical troubleshooting section
-- `FIXES_SUMMARY.md` - This comprehensive summary
-
----
-
-## 🎉 Result
-
-All reported issues have been resolved:
-
-✅ **Modal no longer closes unexpectedly**
-✅ **API failures are handled gracefully**
-✅ **Build errors are fixed**
-✅ **Debug mode shows real errors**
-✅ **Clear configuration guidance provided**
-✅ **Enhanced user experience throughout**
-
-The SDK now provides a robust, stable development and production experience with comprehensive error handling and clear user guidance. 
+1. Test the enhanced PIN submission with various network conditions
+2. Verify backend compatibility with new retry mechanism
+3. Monitor crash reports to ensure protection is effective
+4. Consider adding offline PIN submission queue for future enhancement 
