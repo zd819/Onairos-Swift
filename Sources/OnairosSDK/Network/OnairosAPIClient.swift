@@ -910,7 +910,7 @@ public class OnairosAPIClient {
         
         // ENHANCED DEBUG: Check JWT token before submission
         let jwtManager = JWTTokenManager.shared
-        guard let jwtToken = jwtManager.getJWTToken() else {
+        guard let jwtToken = await jwtManager.getJWTToken() else {
             log("❌ [PIN DEBUG] No JWT token found in storage", level: .error)
             return .failure(.authenticationFailed("No JWT token available"))
         }
@@ -918,10 +918,10 @@ public class OnairosAPIClient {
         log("🔍 [PIN DEBUG] JWT Token Details:", level: .info)
         log("   - Token Length: \(jwtToken.count) characters", level: .info)
         log("   - Token Prefix: \(jwtToken.prefix(50))...", level: .info)
-        log("   - Token Valid: \(jwtManager.isTokenExpired() != true)", level: .info)
+        log("   - Token Valid: \(await jwtManager.isTokenExpired() != true)", level: .info)
         
         // Parse JWT payload for debugging
-        if let userInfo = jwtManager.getUserInfoFromToken() {
+        if let userInfo = await jwtManager.getUserInfoFromToken() {
             log("   - JWT User ID: \(userInfo["userId"] ?? "N/A")", level: .info)
             log("   - JWT Email: \(userInfo["email"] ?? "N/A")", level: .info)
             log("   - JWT Verified: \(userInfo["verified"] ?? "N/A")", level: .info)

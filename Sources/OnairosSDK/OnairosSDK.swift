@@ -1078,7 +1078,7 @@ public class JWTTokenManager {
     /// Store JWT token securely in keychain
     /// - Parameter token: JWT token to store
     /// - Returns: True if storage was successful
-    public func storeJWTToken(_ token: String) -> Bool {
+    public func storeJWTToken(_ token: String) async -> Bool {
         guard !token.isEmpty else {
             print("🚨 [JWTTokenManager] Cannot store empty token")
             return false
@@ -1124,7 +1124,7 @@ public class JWTTokenManager {
     
     /// Retrieve JWT token from keychain
     /// - Returns: JWT token if available
-    public func getJWTToken() -> String? {
+    public func getJWTToken() async -> String? {
         // Return cached token if available
         if let cachedToken = currentToken {
             return cachedToken
@@ -1147,7 +1147,7 @@ public class JWTTokenManager {
     
     /// Clear JWT token from keychain and memory
     /// - Returns: True if clearing was successful
-    public func clearJWTToken() -> Bool {
+    public func clearJWTToken() async -> Bool {
         print("🔄 [JWTTokenManager] Clearing JWT token")
         
         // Clear from memory
@@ -1178,8 +1178,8 @@ public class JWTTokenManager {
     
     /// Check if JWT token is expired (requires decoding)
     /// - Returns: True if token is expired, nil if cannot determine
-    public func isTokenExpired() -> Bool? {
-        guard let token = getJWTToken() else {
+    public func isTokenExpired() async -> Bool? {
+        guard let token = await getJWTToken() else {
             return nil
         }
         
@@ -1217,36 +1217,49 @@ public class JWTTokenManager {
         return isExpired
     }
     
-    /// Get user information from JWT token (if available)
-    /// - Returns: Dictionary containing user info from JWT payload
-    public func getUserInfoFromToken() -> [String: Any]? {
-        guard let token = getJWTToken() else {
-            return nil
-        }
-        
-        // JWT tokens have 3 parts separated by dots
+    /// Parse JWT payload without validation (for debugging/username extraction)
+    /// - Parameter token: JWT token string
+    /// - Returns: Dictionary containing JWT payload, or nil if parsing fails
+    public static func parseJWTPayload(token: String) -> [String: Any]? {
         let parts = token.components(separatedBy: ".")
         guard parts.count == 3 else {
-            print("🚨 [JWTTokenManager] Invalid JWT token format")
+            print("🚨 [JWTTokenManager] Invalid JWT format - expected 3 parts")
             return nil
         }
         
-        // Decode the payload (middle part)
-        let payload = parts[1]
+        let payloadPart = parts[1]
         
         // Add padding if needed for base64 decoding
-        var paddedPayload = payload
-        while paddedPayload.count % 4 != 0 {
-            paddedPayload += "="
+        var paddedPayload = payloadPart
+        let remainder = paddedPayload.count % 4
+        if remainder != 0 {
+            paddedPayload += String(repeating: "=", count: 4 - remainder)
         }
         
-        guard let payloadData = Data(base64Encoded: paddedPayload),
-              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any] else {
-            print("🚨 [JWTTokenManager] Failed to decode JWT payload")
+        // Decode base64
+        guard let payloadData = Data(base64Encoded: paddedPayload) else {
+            print("🚨 [JWTTokenManager] Failed to decode base64 payload")
             return nil
         }
         
-        return json
+        // Parse JSON
+        do {
+            let payload = try JSONSerialization.jsonObject(with: payloadData, options: [])
+            return payload as? [String: Any]
+        } catch {
+            print("🚨 [JWTTokenManager] Failed to parse JWT payload JSON: \(error)")
+            return nil
+        }
+    }
+    
+    /// Get user info from stored JWT token
+    /// - Returns: Dictionary containing user info or nil
+    public func getUserInfoFromToken() async -> [String: Any]? {
+        guard let token = await getJWTToken() else {
+            return nil
+        }
+        
+        return JWTTokenManager.parseJWTPayload(token: token)
     }
     
     // MARK: - Private Methods

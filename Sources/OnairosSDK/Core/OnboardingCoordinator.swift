@@ -268,9 +268,9 @@ public class OnboardingCoordinator {
         state.isLoading = true
         state.errorMessage = nil
         
-        // In test mode, accept any verification code immediately
+        // In test mode, skip API call and proceed directly
         if config.isTestMode {
-            print("🧪 Test mode - accepting code: \(state.verificationCode)")
+            print("🧪 [TEST MODE] Verify step - accepting any code: \(state.verificationCode)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.state.isLoading = false
                 self?.state.currentStep = .connect
@@ -279,10 +279,7 @@ public class OnboardingCoordinator {
         }
         
         Task {
-            let result = await apiClient.verifyEmailCode(
-                email: state.email,
-                code: state.verificationCode
-            )
+            let result = await apiClient.verifyEmailCode(email: state.email, code: state.verificationCode)
             
             await MainActor.run {
                 state.isLoading = false
@@ -291,6 +288,9 @@ public class OnboardingCoordinator {
                 case .success(let response):
                     if response.isSuccessfulVerification {
                         print("✅ Email verification successful with JWT token")
+                        
+                        // ENHANCED: Extract and store userName from multiple possible locations
+                        await extractAndStoreUserName(from: response)
                         
                         // Handle user data from the API response
                         if let user = response.user {
@@ -315,6 +315,76 @@ public class OnboardingCoordinator {
                     handleVerificationError(error: error)
                 }
             }
+        }
+    }
+    
+    /// Extract and store userName from email verification response
+    /// This handles multiple possible response structures to ensure userName is always stored
+    private func extractAndStoreUserName(from response: EmailVerificationResponse) async {
+        print("🔍 [USERNAME DEBUG] Extracting userName from email verification response")
+        
+        var extractedUserName: String?
+        
+        // Method 1: Try to get userName from response.user
+        if let user = response.user {
+            extractedUserName = user.userName
+            print("🔍 [USERNAME DEBUG] Method 1: Found userName from response.user: \(user.userName)")
+        }
+        
+        // Method 2: Try to get userName from JWT token payload
+        if extractedUserName == nil {
+            if let jwtToken = response.userJWTToken {
+                if let userInfo = JWTTokenManager.parseJWTPayload(token: jwtToken) {
+                    if let userName = userInfo["userName"] as? String {
+                        extractedUserName = userName
+                        print("🔍 [USERNAME DEBUG] Method 2: Found userName from JWT payload: \(userName)")
+                    }
+                }
+            }
+        }
+        
+        // Method 3: Try to get userName from accountInfo
+        if extractedUserName == nil {
+            if let accountInfo = response.accountInfo {
+                if let userName = accountInfo["userName"]?.value as? String {
+                    extractedUserName = userName
+                    print("🔍 [USERNAME DEBUG] Method 3: Found userName from accountInfo: \(userName)")
+                }
+            }
+        }
+        
+        // Method 4: Try to get userName from accountDetails (alternative field name)
+        if extractedUserName == nil {
+            if let accountInfo = response.accountInfo {
+                if let accountDetails = accountInfo["accountDetails"]?.value as? [String: Any] {
+                    if let userName = accountDetails["userName"] as? String {
+                        extractedUserName = userName
+                        print("🔍 [USERNAME DEBUG] Method 4: Found userName from accountDetails: \(userName)")
+                    }
+                }
+            }
+        }
+        
+        // Store the extracted userName
+        if let userName = extractedUserName {
+            UserDefaults.standard.set(userName, forKey: "onairos_username")
+            print("✅ [USERNAME DEBUG] Successfully stored userName: \(userName)")
+            
+            // Verify storage
+            let storedUserName = UserDefaults.standard.string(forKey: "onairos_username")
+            print("🔍 [USERNAME DEBUG] Verification - stored userName: \(storedUserName ?? "nil")")
+        } else {
+            print("❌ [USERNAME DEBUG] Failed to extract userName from response")
+            print("🔍 [USERNAME DEBUG] Response structure:")
+            print("   - response.user: \(response.user != nil ? "present" : "nil")")
+            print("   - response.userJWTToken: \(response.userJWTToken != nil ? "present" : "nil")")
+            print("   - response.accountInfo: \(response.accountInfo != nil ? "present" : "nil")")
+            
+            // Fallback: Use email-based username but log a warning
+            let fallbackUserName = extractUsername(from: state.email)
+            UserDefaults.standard.set(fallbackUserName, forKey: "onairos_username")
+            print("⚠️ [USERNAME DEBUG] Using fallback userName from email: \(fallbackUserName)")
+            print("⚠️ [USERNAME DEBUG] THIS MAY CAUSE PIN STORAGE ISSUES - userName mismatch with backend")
         }
     }
     
@@ -460,41 +530,11 @@ public class OnboardingCoordinator {
             return
         }
         
-        // Send PIN to backend and start training
-        Task {
-            do {
-                let userData = createUserRegistrationData()
-                let result = await apiClient.registerUser(userData)
-                
-                switch result {
-                case .success:
-                    await MainActor.run {
-                        state.currentStep = .training
-                        startAITraining()
-                    }
-                case .failure(let error):
-                    await MainActor.run {
-                        if config.isDebugMode {
-                            // In debug mode, proceed even if registration fails
-                            state.currentStep = .training
-                            startAITraining()
-                        } else {
-                            state.errorMessage = error.localizedDescription
-                            state.isLoading = false
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    /// Create user registration data
-    private func createUserRegistrationData() -> UserRegistrationRequest {
-        return UserRegistrationRequest(
-            email: state.email,
-            pin: state.pin,
-            connectedPlatforms: connectedPlatformData
-        )
+        // PIN has been submitted to backend via PINStepViewController
+        // No need for additional registration - proceed directly to training
+        print("✅ [PIN STEP] PIN submitted successfully, proceeding to training")
+        state.currentStep = .training
+        startAITraining()
     }
     
     /// Start AI training (public method for external access)

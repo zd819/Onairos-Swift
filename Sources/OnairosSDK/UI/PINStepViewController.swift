@@ -305,7 +305,7 @@ public class PINStepViewController: BaseStepViewController {
         // Check if JWT token is available and valid before attempting PIN submission
         let jwtManager = JWTTokenManager.shared
         
-        guard let jwtToken = jwtManager.getJWTToken() else {
+        guard let jwtToken = await jwtManager.getJWTToken() else {
             await MainActor.run {
                 print("❌ [PIN SUBMISSION] No JWT token available - user needs to verify email first")
                 state.errorMessage = "Authentication expired. Please verify your email again."
@@ -319,13 +319,13 @@ public class PINStepViewController: BaseStepViewController {
         }
         
         // Check if JWT token is expired
-        if let isExpired = jwtManager.isTokenExpired(), isExpired {
+        if let isExpired = await jwtManager.isTokenExpired(), isExpired {
             await MainActor.run {
                 print("❌ [PIN SUBMISSION] JWT token is expired - user needs to verify email again")
                 state.errorMessage = "Authentication expired. Please verify your email again."
                 
                 // Clear expired token
-                _ = jwtManager.clearJWTToken()
+                _ = await jwtManager.clearJWTToken()
                 
                 // Restore button state
                 primaryButton.setTitle("Create PIN", for: .normal)
@@ -338,7 +338,7 @@ public class PINStepViewController: BaseStepViewController {
         print("📋 [PIN SUBMISSION] Using username: \(username) (from UserDefaults: \(UserDefaults.standard.string(forKey: "onairos_username") != nil ? "YES" : "NO"))")
         
         // Log user info from JWT token
-        if let userInfo = jwtManager.getUserInfoFromToken() {
+        if let userInfo = await jwtManager.getUserInfoFromToken() {
             print("🔐 [JWT TOKEN] User info from token:")
             print("   - User ID: \(userInfo["userId"] ?? "N/A")")
             print("   - Email: \(userInfo["email"] ?? "N/A")")
@@ -538,38 +538,38 @@ public class PINStepViewController: BaseStepViewController {
         // Check JWT token validity before retrying
         let jwtManager = JWTTokenManager.shared
         
-        guard let jwtToken = jwtManager.getJWTToken() else {
-            print("❌ [PIN RETRY] No JWT token available - cannot retry")
-            state.errorMessage = "Authentication expired. Please verify your email again."
-            resetPINSubmissionUI()
-            return
-        }
-        
-        if let isExpired = jwtManager.isTokenExpired(), isExpired {
-            print("❌ [PIN RETRY] JWT token is expired - cannot retry")
-            state.errorMessage = "Authentication expired. Please verify your email again."
-            
-            // Clear expired token
-            _ = jwtManager.clearJWTToken()
-            resetPINSubmissionUI()
-            return
-        }
-        
-        print("🔐 [PIN RETRY] JWT token is valid - proceeding with retry")
-        
-        // Reset UI state
-        resetPINSubmissionUI()
-        
-        // Clear any existing error
-        state.errorMessage = nil
-        
-        // Set loading state
-        primaryButton.setTitle("Submitting PIN...", for: .normal)
-        primaryButton.isEnabled = false
-        setLoading(true)
-        
-        // Retry the submission
         Task {
+            guard let jwtToken = await jwtManager.getJWTToken() else {
+                print("❌ [PIN RETRY] No JWT token available - cannot retry")
+                state.errorMessage = "Authentication expired. Please verify your email again."
+                resetPINSubmissionUI()
+                return
+            }
+            
+            if let isExpired = await jwtManager.isTokenExpired(), isExpired {
+                print("❌ [PIN RETRY] JWT token is expired - cannot retry")
+                state.errorMessage = "Authentication expired. Please verify your email again."
+                
+                // Clear expired token
+                _ = await jwtManager.clearJWTToken()
+                resetPINSubmissionUI()
+                return
+            }
+            
+            print("🔐 [PIN RETRY] JWT token is valid - proceeding with retry")
+            
+            // Reset UI state
+            resetPINSubmissionUI()
+            
+            // Clear any existing error
+            state.errorMessage = nil
+            
+            // Set loading state
+            primaryButton.setTitle("Submitting PIN...", for: .normal)
+            primaryButton.isEnabled = false
+            setLoading(true)
+            
+            // Retry the submission
             await submitPINToBackend()
         }
     }
