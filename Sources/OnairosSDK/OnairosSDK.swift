@@ -579,8 +579,12 @@ public class OnairosSDK: ObservableObject {
         coordinator = nil
     }
     
-    // MARK: - PIN Management
+    // MARK: - PIN Management (DEPRECATED - Biometric Storage Removed)
     
+    // DEPRECATED: Biometric PIN storage has been removed to prevent crashes
+    // PINs are now sent directly to the backend without local biometric storage
+    
+    /*
     /// Store user PIN securely with biometric authentication
     /// - Parameter pin: PIN to store securely
     /// - Returns: Result indicating success or failure
@@ -657,6 +661,7 @@ public class OnairosSDK: ObservableObject {
         
         return !availabilityName.isEmpty && !errorDescription.isEmpty
     }
+    */
 }
 
 /// Custom Onairos connect button

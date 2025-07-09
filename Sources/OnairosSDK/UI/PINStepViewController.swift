@@ -1,6 +1,6 @@
 import UIKit
 import Foundation
-import LocalAuthentication
+// import LocalAuthentication // REMOVED: No longer needed for biometric authentication
 
 /// PIN creation step view controller
 @MainActor
@@ -126,8 +126,7 @@ public class PINStepViewController: BaseStepViewController {
         requirementsView.addSubview(stackView)
         contentStackView.addArrangedSubview(requirementsView)
         
-        // Setup secure PIN storage info card
-        setupSecurePINInfoCard()
+        // REMOVED: setupSecurePINInfoCard() - No longer showing biometric storage info
         
         // Setup constraints
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -145,76 +144,7 @@ public class PINStepViewController: BaseStepViewController {
         ])
     }
     
-    /// Setup secure PIN storage info card
-    private func setupSecurePINInfoCard() {
-        // Create info card container
-        let infoCard = UIView()
-        infoCard.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.1)
-        infoCard.layer.cornerRadius = 12
-        infoCard.layer.borderWidth = 1
-        infoCard.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.3).cgColor
-        
-        // Create horizontal stack for icon and content
-        let horizontalStack = UIStackView()
-        horizontalStack.axis = .horizontal
-        horizontalStack.spacing = 12
-        horizontalStack.alignment = .top
-        
-        // Security icon
-        let iconView = UIImageView()
-        iconView.image = UIImage(systemName: "lock.shield.fill")
-        iconView.tintColor = .systemBlue
-        iconView.contentMode = .scaleAspectFit
-        
-        // Content stack for title and description
-        let contentStack = UIStackView()
-        contentStack.axis = .vertical
-        contentStack.spacing = 4
-        contentStack.alignment = .leading
-        
-        // Title label
-        let titleLabel = UILabel()
-        titleLabel.text = "Secure PIN Storage"
-        titleLabel.font = .systemFont(ofSize: 16, weight: .semibold)
-        titleLabel.textColor = .systemBlue
-        
-        // Description label
-        let descriptionLabel = UILabel()
-        descriptionLabel.text = "Your PIN will be securely stored on your device and protected with biometric authentication."
-        descriptionLabel.font = .systemFont(ofSize: 14, weight: .regular)
-        descriptionLabel.textColor = .systemBlue
-        descriptionLabel.numberOfLines = 0
-        
-        // Add labels to content stack
-        contentStack.addArrangedSubview(titleLabel)
-        contentStack.addArrangedSubview(descriptionLabel)
-        
-        // Add icon and content to horizontal stack
-        horizontalStack.addArrangedSubview(iconView)
-        horizontalStack.addArrangedSubview(contentStack)
-        
-        // Add horizontal stack to info card
-        infoCard.addSubview(horizontalStack)
-        
-        // Add info card to main content stack
-        contentStackView.addArrangedSubview(infoCard)
-        
-        // Setup constraints
-        iconView.translatesAutoresizingMaskIntoConstraints = false
-        horizontalStack.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            // Icon constraints
-            iconView.widthAnchor.constraint(equalToConstant: 24),
-            iconView.heightAnchor.constraint(equalToConstant: 24),
-            
-            // Horizontal stack constraints
-            horizontalStack.topAnchor.constraint(equalTo: infoCard.topAnchor, constant: 16),
-            horizontalStack.leadingAnchor.constraint(equalTo: infoCard.leadingAnchor, constant: 16),
-            horizontalStack.trailingAnchor.constraint(equalTo: infoCard.trailingAnchor, constant: -16),
-            horizontalStack.bottomAnchor.constraint(equalTo: infoCard.bottomAnchor, constant: -16)
-        ])
-    }
+    // REMOVED: setupSecurePINInfoCard() - No longer showing biometric storage info
     
     /// Bind to onboarding state
     private func bindToState() {
@@ -338,119 +268,30 @@ public class PINStepViewController: BaseStepViewController {
         // Clear any existing error
         state.errorMessage = nil
         
-        // Don't set loading state yet - wait for biometric auth
-        print("🔐 [PIN] User tapped Create PIN button - starting biometric authentication")
+        // Set loading state immediately
+        primaryButton.setTitle("Submitting PIN...", for: .normal)
+        primaryButton.isEnabled = false
+        setLoading(true)
         
-        // Store PIN with biometric authentication
+        print("🔐 [PIN] User tapped Create PIN button - sending directly to backend")
+        
+        // Send PIN directly to backend without biometric storage
         Task {
-            await storePINSecurely()
-        }
-    }
-    
-    /// Store PIN securely with biometric authentication and send to backend
-    private func storePINSecurely() async {
-        print("🔐 [PIN] Starting secure PIN storage process")
-        
-        // Add crash protection around the entire PIN storage process
-        do {
-            // Store PIN with biometric authentication (this will trigger Face ID)
-            let result = await BiometricPINManager.shared.storePIN(state.pin)
-            
-            switch result {
-            case .success:
-                print("✅ [PIN] PIN stored securely with biometric protection")
-                
-                // NOW set loading state after successful biometric auth
-                await MainActor.run {
-                    primaryButton.setTitle("Submitting PIN...", for: .normal)
-                    primaryButton.isEnabled = false
-                    setLoading(true)
-                }
-                
-                // Send PIN to backend with error boundary
-                await submitPINToBackendSafely()
-                
-            case .failure(let error):
-                await MainActor.run {
-                    print("❌ [PIN] Failed to store PIN securely: \(error.localizedDescription)")
-                    
-                    // Show user-friendly error message based on error type
-                    let errorMessage: String
-                    switch error {
-                    case .biometricNotAvailable:
-                        errorMessage = "Face ID/Touch ID is not available on this device"
-                    case .authenticationFailed:
-                        errorMessage = "Face ID/Touch ID authentication failed. Please try again."
-                    case .authenticationCancelled:
-                        errorMessage = "Face ID/Touch ID authentication was cancelled. Please try again."
-                    case .keychainError(let message):
-                        errorMessage = "Security error: \(message)"
-                    case .invalidPIN:
-                        errorMessage = "Invalid PIN format"
-                    case .pinNotFound:
-                        errorMessage = "PIN not found"
-                    }
-                    
-                    state.errorMessage = errorMessage
-                    
-                    // Button should remain in normal state since biometric auth failed
-                    primaryButton.setTitle("Create PIN", for: .normal)
-                    primaryButton.isEnabled = true
-                    setLoading(false)
-                }
-            }
-        } catch {
-            // Catch any unexpected errors during PIN storage
-            await MainActor.run {
-                print("💥 [PIN] Unexpected error during PIN storage: \(error.localizedDescription)")
-                state.errorMessage = "An unexpected error occurred while securing your PIN. Please try again."
-                
-                // Restore button state
-                primaryButton.setTitle("Create PIN", for: .normal)
-                primaryButton.isEnabled = true
-                setLoading(false)
-            }
-        }
-    }
-    
-    /// Submit PIN to backend with crash protection
-    private func submitPINToBackendSafely() async {
-        do {
             await submitPINToBackend()
-        } catch {
-            // Catch any unexpected errors during PIN submission
-            await MainActor.run {
-                print("💥 [PIN SUBMISSION] Unexpected error during PIN submission: \(error.localizedDescription)")
-                
-                // Show error but still proceed (PIN is stored locally with biometric protection)
-                state.errorMessage = "PIN secured with Face ID but sync with server failed. You can continue."
-                
-                // Show warning state
-                primaryButton.setTitle("PIN Secured with Face ID ✓", for: .normal)
-                primaryButton.backgroundColor = UIColor.systemOrange
-                
-                // Proceed to next step after delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    self.primaryButton.setTitle("Create PIN", for: .normal)
-                    self.primaryButton.backgroundColor = UIColor.systemBlue
-                    self.primaryButton.isEnabled = true
-                    self.setLoading(false)
-                    
-                    // Proceed to next step
-                    self.coordinator?.proceedToNextStep()
-                }
-            }
         }
     }
+    
+    // REMOVED: storePINSecurely() - No longer using biometric storage
+    // REMOVED: submitPINToBackendSafely() - Merged into submitPINToBackend()
     
     /// Submit PIN to backend endpoint
     private func submitPINToBackend() async {
-        // Get username from stored user data
-        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? ""
+        // Get username from stored user data, fallback to extracting from email
+        let username = UserDefaults.standard.string(forKey: "onairos_username") ?? extractUsername(from: state.email)
         
         guard !username.isEmpty else {
             await MainActor.run {
-                print("❌ [PIN SUBMISSION] No username found in UserDefaults")
+                print("❌ [PIN SUBMISSION] No username found in UserDefaults and no email available")
                 state.errorMessage = "Username not found. Please restart the onboarding process."
                 
                 // Restore button state
@@ -460,6 +301,8 @@ public class PINStepViewController: BaseStepViewController {
             }
             return
         }
+        
+        print("📋 [PIN SUBMISSION] Using username: \(username) (from UserDefaults: \(UserDefaults.standard.string(forKey: "onairos_username") != nil ? "YES" : "NO"))")
         
         print("📤 [PIN SUBMISSION] Sending PIN to backend:")
         print("   - Username: \(username)")
@@ -504,7 +347,7 @@ public class PINStepViewController: BaseStepViewController {
                 print("   - Timestamp: \(response.timestamp ?? "nil")")
                 
                 // Show success feedback briefly
-                primaryButton.setTitle("PIN Secured with Face ID ✓", for: .normal)
+                primaryButton.setTitle("PIN Created Successfully ✓", for: .normal)
                 primaryButton.backgroundColor = UIColor.systemGreen
                 
                 // Brief success animation
@@ -540,11 +383,11 @@ public class PINStepViewController: BaseStepViewController {
                 print("   - Should Proceed: \(shouldProceed)")
                 
                 if shouldProceed {
-                    // PIN is stored locally with Face ID, show warning but proceed
-                    state.errorMessage = "PIN secured with Face ID but server sync failed. You can continue."
+                    // Show warning but proceed
+                    state.errorMessage = "PIN creation completed but server sync failed. You can continue."
                     
                     // Show warning color briefly
-                    primaryButton.setTitle("PIN Secured with Face ID ⚠️", for: .normal)
+                    primaryButton.setTitle("PIN Created ⚠️", for: .normal)
                     primaryButton.backgroundColor = UIColor.systemOrange
                     
                     // Proceed to next step after delay
@@ -586,11 +429,11 @@ public class PINStepViewController: BaseStepViewController {
     private func handlePINSubmissionError(_ error: OnairosError) -> (String, Bool) {
         switch error {
         case .networkUnavailable, .networkError:
-            return ("Network connection issue. PIN secured with Face ID but server sync failed. You can continue.", true)
+            return ("Network connection issue. PIN creation completed but server sync failed. You can continue.", true)
             
         case .serverError(let code, let message):
             if code >= 500 {
-                return ("Server temporarily unavailable. PIN secured with Face ID. You can continue.", true)
+                return ("Server temporarily unavailable. PIN creation completed. You can continue.", true)
             } else {
                 return ("Server error (\(code)): \(message). Please try again.", false)
             }
@@ -610,20 +453,20 @@ public class PINStepViewController: BaseStepViewController {
         case .apiError(let message, _):
             // Check if it's a user-related error that allows proceeding
             if message.contains("User not found") {
-                return ("User account issue. PIN secured with Face ID. You can continue.", true)
+                return ("User account issue. PIN creation completed. You can continue.", true)
             } else {
                 return ("API error: \(message). Please try again.", false)
             }
             
         case .unknownError(let message):
             if message.contains("timeout") || message.contains("connection") {
-                return ("Connection timeout. PIN secured with Face ID. You can continue.", true)
+                return ("Connection timeout. PIN creation completed. You can continue.", true)
             } else {
                 return ("Unexpected error: \(message). Please try again.", false)
             }
             
         default:
-            return ("PIN submission failed. PIN secured with Face ID. You can continue.", true)
+            return ("PIN submission failed. PIN creation completed. You can continue.", true)
         }
     }
     
@@ -636,6 +479,11 @@ public class PINStepViewController: BaseStepViewController {
         
         // Clear any existing error
         state.errorMessage = nil
+        
+        // Set loading state
+        primaryButton.setTitle("Submitting PIN...", for: .normal)
+        primaryButton.isEnabled = false
+        setLoading(true)
         
         // Retry the submission
         Task {
@@ -655,21 +503,15 @@ public class PINStepViewController: BaseStepViewController {
         primaryButton.addTarget(self, action: #selector(primaryButtonTapped), for: .touchUpInside)
     }
     
-    /// Authenticate with Face ID/Touch ID (legacy method - now handled by BiometricPINManager)
-    /// - Parameter completion: Completion handler with success result
-    private func authenticateWithBiometrics(completion: @escaping (Bool) -> Void) {
-        // Check biometric availability using our new manager
-        let availability = BiometricPINManager.shared.biometricAvailability()
-        
-        guard availability != .notAvailable else {
-            print("🔐 [BIOMETRIC] Biometric authentication not available")
-            completion(false)
-            return
-        }
-        
-        print("🔐 [BIOMETRIC] Biometric type available: \(availability.displayName)")
-        completion(true)
+    /// Extract username from email address
+    /// - Parameter email: Full email address
+    /// - Returns: Username (part before @)
+    private func extractUsername(from email: String) -> String {
+        let components = email.components(separatedBy: "@")
+        return components.first ?? email
     }
+    
+    // REMOVED: authenticateWithBiometrics() - No longer using biometric authentication
 }
 
 // MARK: - UITextFieldDelegate
