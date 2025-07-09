@@ -185,71 +185,49 @@ public class OnboardingCoordinator {
     
     /// Handle email input step
     private func handleEmailStep() {
-        print("🔍 [DEBUG] handleEmailStep called with email: '\(state.email)'")
-        print("🔍 [DEBUG] Current step: \(state.currentStep)")
-        print("🔍 [DEBUG] Config - isTestMode: \(config.isTestMode), isDebugMode: \(config.isDebugMode)")
-        
         state.isLoading = true
         state.errorMessage = nil
         
         // In test mode, accept any email immediately
         if config.isTestMode {
-            print("🧪 [TEST MODE] Email step - accepting any email: \(state.email)")
+            print("🧪 Test mode - accepting email: \(state.email)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                print("🧪 [TEST MODE] Setting isLoading to false and moving to verify step")
                 self?.state.isLoading = false
                 self?.state.currentStep = .verify
-                print("🧪 [TEST MODE] Moving to verification step - new step: \(self?.state.currentStep ?? .email)")
             }
             return
         }
         
-        print("🔍 [DEBUG] Making API call for email verification...")
         Task {
             let result = await apiClient.requestEmailVerification(email: state.email)
-            print("🔍 [DEBUG] API call completed with result: \(result)")
             
             await MainActor.run {
                 state.isLoading = false
                 
                 switch result {
                 case .success(let response):
-                    print("🔍 [DEBUG] Email verification success - moving to verify step")
+                    print("✅ Email verification request successful")
                     
                     // Store account info if provided
                     if let accountInfo = response.accountInfo {
-                        print("🔍 [DEBUG] Account info received: \(accountInfo)")
                         state.accountInfo = accountInfo
-                    }
-                    
-                    // Log testing mode if enabled
-                    if let testingMode = response.testingMode, testingMode {
-                        print("🧪 [TEST MODE] Testing mode enabled via API response")
                     }
                     
                     state.currentStep = .verify
                 case .failure(let error):
-                    print("🔍 [DEBUG] Email verification failed: \(error)")
+                    print("❌ Email verification failed: \(error)")
                     
-                    // CRITICAL FIX: Always show error message first, never dismiss modal on API failure
                     let userFriendlyMessage = getUserFriendlyErrorMessage(for: error)
                     state.errorMessage = userFriendlyMessage
                     
                     if config.isDebugMode {
-                        // In debug mode, show error but allow proceeding after delay
-                        print("🔍 [DEBUG] Debug mode - showing error but will allow proceeding")
+                        print("🔍 Debug mode - proceeding to verify step despite API failure")
                         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                            print("🔍 [DEBUG] Debug mode - proceeding to verify step despite API failure")
                             self?.state.errorMessage = nil
                             self?.state.currentStep = .verify
                         }
-                    } else {
-                        // In production mode, stay on email step and show error
-                        print("🔍 [DEBUG] Production mode - staying on email step with error message")
-                        // DO NOT dismiss modal or proceed - let user retry or cancel manually
                     }
                 }
-                print("🔍 [DEBUG] Final step after API call: \(state.currentStep)")
             }
         }
     }
@@ -292,11 +270,10 @@ public class OnboardingCoordinator {
         
         // In test mode, accept any verification code immediately
         if config.isTestMode {
-            print("🧪 [TEST MODE] Verify step - accepting any code: \(state.verificationCode)")
+            print("🧪 Test mode - accepting code: \(state.verificationCode)")
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.state.isLoading = false
                 self?.state.currentStep = .connect
-                print("🧪 [TEST MODE] Moving to connect step")
             }
             return
         }
@@ -313,59 +290,28 @@ public class OnboardingCoordinator {
                 switch result {
                 case .success(let response):
                     if response.isSuccessfulVerification {
-                        print("✅ [EMAIL VERIFICATION] Code validated successfully with JWT token")
+                        print("✅ Email verification successful with JWT token")
                         
-                        // JWT token is already handled by the API client
-                        print("🔐 [JWT TOKEN] JWT token processed by API client")
-                        
-                        // Log user info from JWT token (if available)
-                        if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
-                            print("📋 [JWT USER INFO] User info from stored JWT token:")
-                            print("   - User ID: \(userInfo["userId"] ?? "N/A")")
-                            print("   - Email: \(userInfo["email"] ?? "N/A")")
-                            print("   - Verified: \(userInfo["verified"] ?? "N/A")")
-                            if let exp = userInfo["exp"] as? TimeInterval {
-                                let expDate = Date(timeIntervalSince1970: exp)
-                                print("   - Expires: \(expDate)")
-                            }
-                        }
-                        
-                        // Handle user data from the new API response
+                        // Handle user data from the API response
                         if let user = response.user {
-                            print("📋 [USER DATA] User info received:")
-                            print("   - User ID: \(user.userId)")
-                            print("   - Username: \(user.userName)")
-                            print("   - Email: \(user.email)")
-                            print("   - Creation Date: \(user.creationDate)")
-                            
-                            // Store user data in onboarding state
                             storeUserData(user, isNewUser: !(response.existingUser ?? true))
                         }
                         
-                        // Check if this is a new user (using existingUser field from API schema)
+                        // Check if this is a new user
                         if let existingUser = response.existingUser {
-                            if existingUser {
-                                print("👤 [EXISTING USER] Account verified successfully")
-                            } else {
-                                print("🆕 [NEW USER] Account created successfully")
-                            }
-                        }
-                        
-                        // Log testing mode if enabled
-                        if let testingMode = response.testingMode, testingMode {
-                            print("🧪 [TEST MODE] Testing mode enabled via verification response")
+                            print("👤 User: \(existingUser ? "Existing" : "New")")
                         }
                         
                         state.currentStep = .connect
                     } else if response.success {
-                        print("⚠️ [EMAIL VERIFICATION] Code validation successful but no JWT token received")
+                        print("⚠️ Code validation successful but no JWT token received")
                         handleVerificationFailure(response: response)
                     } else {
-                        print("❌ [EMAIL VERIFICATION] Code validation failed")
+                        print("❌ Email verification failed")
                         handleVerificationFailure(response: response)
                     }
                 case .failure(let error):
-                    print("❌ [EMAIL VERIFICATION] API call failed: \(error)")
+                    print("❌ Email verification API call failed: \(error)")
                     handleVerificationError(error: error)
                 }
             }
@@ -383,25 +329,21 @@ public class OnboardingCoordinator {
         UserDefaults.standard.set(user.creationDate, forKey: "onairos_user_creation_date")
         UserDefaults.standard.set(isNewUser, forKey: "onairos_is_new_user")
         
-        print("💾 [USER DATA] Stored user information locally")
+        print("💾 User data stored locally")
     }
     
     /// Handle verification failure from API response
     private func handleVerificationFailure(response: EmailVerificationResponse) {
         if config.isDebugMode {
-            // In debug mode, show error but allow proceeding after delay
             state.errorMessage = "Invalid verification code, but debug mode allows proceeding..."
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-                print("🔍 [DEBUG] Debug mode - proceeding to connect step despite invalid code")
+                print("🔍 Debug mode - proceeding despite invalid code")
                 self?.state.errorMessage = nil
                 self?.state.currentStep = .connect
             }
         } else {
-            // Handle specific error cases from the new API response
             if let error = response.error {
                 state.errorMessage = error
-                
-                // Show attempts remaining if provided
                 if let attemptsRemaining = response.attemptsRemaining {
                     state.errorMessage = "\(error) (\(attemptsRemaining) attempts remaining)"
                 }

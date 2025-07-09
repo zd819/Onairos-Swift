@@ -167,23 +167,11 @@ public class OnairosAPIClient {
         
         switch result {
         case .success(let response):
-            log("✅ Email verification request successful: \(response.success)", level: .info)
-            if let requestId = response.requestId {
-                log("📋 Request ID: \(requestId)", level: .info)
-            }
-            if let testingMode = response.testingMode {
-                log("🧪 Testing mode enabled: \(testingMode)", level: .info)
-            }
-            if let accountInfo = response.accountInfo {
-                log("📋 Account info received: \(accountInfo)", level: .info)
-            }
+            log("✅ Email verification request - Full Response: \(response)", level: .info)
             return .success(response)
         case .failure(let error):
             log("❌ Email verification request failed: \(error.localizedDescription)", level: .error)
-            
-            // Provide more specific error context for debugging
-            let contextualError = enhanceEmailVerificationError(error, operation: "request")
-            return .failure(contextualError)
+            return .failure(enhanceEmailVerificationError(error, operation: "request"))
         }
     }
     
@@ -206,59 +194,20 @@ public class OnairosAPIClient {
         
         switch result {
         case .success(let response):
-            log("✅ Email verification response received: \(response.success)", level: .info)
+            log("✅ Email verification - Full Response: \(response)", level: .info)
             
             // Handle JWT token if verification is successful
             if response.isSuccessfulVerification {
-                log("🔐 JWT token received from verification response", level: .info)
-                
                 if let jwtToken = response.userJWTToken {
                     let success = JWTTokenManager.shared.storeJWTToken(jwtToken)
-                    
-                    if success {
-                        log("✅ JWT token stored successfully in keychain", level: .info)
-                        
-                        // Log user info from JWT token (if available)
-                        if let userInfo = JWTTokenManager.shared.getUserInfoFromToken() {
-                            log("📋 User info from JWT token:", level: .info)
-                            log("   - User ID: \(userInfo["userId"] ?? "N/A")", level: .info)
-                            log("   - Email: \(userInfo["email"] ?? "N/A")", level: .info)
-                            log("   - Verified: \(userInfo["verified"] ?? "N/A")", level: .info)
-                            if let exp = userInfo["exp"] as? TimeInterval {
-                                let expDate = Date(timeIntervalSince1970: exp)
-                                log("   - Expires: \(expDate)", level: .info)
-                            }
-                        }
-                    } else {
-                        log("❌ Failed to store JWT token in keychain", level: .error)
-                    }
+                    log("🔐 JWT token stored: \(success ? "✅ Success" : "❌ Failed")", level: success ? .info : .error)
                 }
-                
-                log("✅ Email verification successful - JWT token available", level: .info)
-            } else if response.success {
-                log("⚠️ Email verification successful but no JWT token received", level: .warning)
-            } else {
-                log("❌ Email verification failed", level: .error)
-            }
-            
-            // Log additional response info
-            if let existingUser = response.existingUser {
-                log("👤 User status: \(existingUser ? "Existing" : "New") user", level: .info)
-            }
-            if let testingMode = response.testingMode {
-                log("🧪 Testing mode enabled: \(testingMode)", level: .info)
-            }
-            if let accountInfo = response.accountInfo {
-                log("📋 Account info received: \(accountInfo)", level: .info)
             }
             
             return .success(response)
         case .failure(let error):
             log("❌ Email verification failed: \(error.localizedDescription)", level: .error)
-            
-            // Provide more specific error context for debugging
-            let contextualError = enhanceEmailVerificationError(error, operation: "verify")
-            return .failure(contextualError)
+            return .failure(enhanceEmailVerificationError(error, operation: "verify"))
         }
     }
     
@@ -925,11 +874,41 @@ public class OnairosAPIClient {
     public func submitPIN(_ request: PINSubmissionRequest) async -> Result<PINSubmissionResponse, OnairosError> {
         log("📤 Submitting PIN to backend for user: \(request.username) using JWT authentication", level: .info)
         
+        // ENHANCED DEBUG: Check JWT token before submission
+        let jwtManager = JWTTokenManager.shared
+        guard let jwtToken = jwtManager.getJWTToken() else {
+            log("❌ [PIN DEBUG] No JWT token found in storage", level: .error)
+            return .failure(.authenticationFailed("No JWT token available"))
+        }
+        
+        log("🔍 [PIN DEBUG] JWT Token Details:", level: .info)
+        log("   - Token Length: \(jwtToken.count) characters", level: .info)
+        log("   - Token Prefix: \(jwtToken.prefix(50))...", level: .info)
+        log("   - Token Valid: \(jwtManager.isTokenExpired() != true)", level: .info)
+        
+        // Parse JWT payload for debugging
+        if let userInfo = jwtManager.getUserInfoFromToken() {
+            log("   - JWT User ID: \(userInfo["userId"] ?? "N/A")", level: .info)
+            log("   - JWT Email: \(userInfo["email"] ?? "N/A")", level: .info)
+            log("   - JWT Verified: \(userInfo["verified"] ?? "N/A")", level: .info)
+            if let exp = userInfo["exp"] as? TimeInterval {
+                let expDate = Date(timeIntervalSince1970: exp)
+                log("   - JWT Expires: \(expDate)", level: .info)
+            }
+        }
+        
         // Create request body for JWT-authenticated PIN submission
         let requestBody: [String: Any] = [
             "username": request.username,
             "pin": request.pin
         ]
+        
+        log("🔍 [PIN DEBUG] Request Details:", level: .info)
+        log("   - Endpoint: /store-pin/mobile", level: .info)
+        log("   - Method: POST", level: .info)
+        log("   - Username: \(request.username)", level: .info)
+        log("   - PIN Length: \(request.pin.count) characters", level: .info)
+        log("   - Will use JWT Bearer token authentication", level: .info)
         
         // Use JWT-authenticated request method
         let result = await performUserAuthenticatedRequestWithDictionary(
@@ -947,10 +926,15 @@ public class OnairosAPIClient {
         case .failure(let error):
             log("❌ PIN submission failed with JWT authentication: \(error.localizedDescription)", level: .error)
             
-            // Handle JWT-specific errors
+            // Enhanced error logging for JWT issues
             if case .authenticationFailed(let message) = error {
-                log("🔐 JWT authentication failed during PIN submission: \(message)", level: .error)
-                return .failure(.authenticationFailed("User authentication expired. Please verify your email again."))
+                log("🔐 [PIN DEBUG] JWT authentication failed: \(message)", level: .error)
+                log("🔐 [PIN DEBUG] This indicates a backend JWT validation issue", level: .error)
+                log("🔐 [PIN DEBUG] Check if:", level: .error)
+                log("   - Backend JWT middleware is working correctly", level: .error)
+                log("   - Mobile app is registered in backend", level: .error)
+                log("   - JWT secret/key matches between backend and token", level: .error)
+                return .failure(.authenticationFailed("JWT authentication failed on backend. Please verify email again."))
             }
             
             return .failure(error)
@@ -1024,6 +1008,12 @@ public class OnairosAPIClient {
         ]
         
         log("🔐 Using JWT authentication for user request", level: .debug)
+        log("🔍 [JWT DEBUG] Request Headers Being Sent:", level: .info)
+        log("   - Authorization: Bearer \(jwtToken.prefix(20))...", level: .info)
+        log("   - Content-Type: \(jwtHeaders["Content-Type"] ?? "N/A")", level: .info)
+        log("   - User-Agent: \(jwtHeaders["User-Agent"] ?? "N/A")", level: .info)
+        log("   - X-Auth-Type: \(jwtHeaders["X-Auth-Type"] ?? "N/A")", level: .info)
+        log("   - Full URL: \(url?.absoluteString ?? "N/A")", level: .info)
         return (url, jwtHeaders, true)
     }
     
