@@ -320,12 +320,13 @@ public class PINStepViewController: BaseStepViewController {
         
         // Check if JWT token is expired
         if let isExpired = await jwtManager.isTokenExpired(), isExpired {
+            print("❌ [PIN SUBMISSION] JWT token is expired - user needs to verify email again")
+            
+            // Clear expired token
+            _ = await jwtManager.clearJWTToken()
+            
             await MainActor.run {
-                print("❌ [PIN SUBMISSION] JWT token is expired - user needs to verify email again")
                 state.errorMessage = "Authentication expired. Please verify your email again."
-                
-                // Clear expired token
-                _ = await jwtManager.clearJWTToken()
                 
                 // Restore button state
                 primaryButton.setTitle("Create PIN", for: .normal)

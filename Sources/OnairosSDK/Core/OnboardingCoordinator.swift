@@ -290,7 +290,7 @@ public class OnboardingCoordinator {
                         print("✅ Email verification successful with JWT token")
                         
                         // ENHANCED: Extract and store userName from multiple possible locations
-                        await extractAndStoreUserName(from: response)
+                        extractAndStoreUserName(from: response)
                         
                         // Handle user data from the API response
                         if let user = response.user {
@@ -320,7 +320,7 @@ public class OnboardingCoordinator {
     
     /// Extract and store userName from email verification response
     /// This handles multiple possible response structures to ensure userName is always stored
-    private func extractAndStoreUserName(from response: EmailVerificationResponse) async {
+    private func extractAndStoreUserName(from response: EmailVerificationResponse) {
         print("🔍 [USERNAME DEBUG] Extracting userName from email verification response")
         
         var extractedUserName: String?

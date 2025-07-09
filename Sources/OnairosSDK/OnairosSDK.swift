@@ -1087,7 +1087,7 @@ public class JWTTokenManager {
         print("🔐 [JWTTokenManager] Storing JWT token securely")
         
         // Clear any existing token first
-        _ = clearJWTToken()
+        _ = await clearJWTToken()
         
         // Prepare token data
         guard let tokenData = token.data(using: .utf8) else {
@@ -1141,8 +1141,8 @@ public class JWTTokenManager {
     
     /// Check if JWT token is stored
     /// - Returns: True if token exists
-    public func hasJWTToken() -> Bool {
-        return getJWTToken() != nil
+    public func hasJWTToken() async -> Bool {
+        return await getJWTToken() != nil
     }
     
     /// Clear JWT token from keychain and memory
