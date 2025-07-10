@@ -1,0 +1,689 @@
+# �� LLM Guide: Onairos Swift SDK Integration
+
+> **For AI Assistants**: This guide provides complete step-by-step instructions to help iOS developers integrate the Onairos Swift SDK with the simplest possible developer experience.
+
+## 📦 Quick Installation (2 minutes)
+
+### Step 1: Install the SDK
+```swift
+// Package.swift
+dependencies: [
+    .package(url: "https://github.com/onairos/onairos-swift-sdk", from: "3.0.72")
+]
+```
+
+### Step 2: Add to Xcode Project
+1. File → Add Package Dependencies
+2. Enter: `https://github.com/onairos/onairos-swift-sdk`
+3. Select version and add to your target
+
+### Step 3: Basic Integration (Copy-Paste Ready)
+```swift
+import UIKit
+import OnairosSDK
+
+class ViewController: UIViewController {
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // REQUIRED: Initialize SDK with Google client ID for YouTube
+        Task {
+            do {
+                try await OnairosSDK.shared.initializeWithAdminKey(
+                    environment: .production,
+                    enableLogging: true,
+                    googleClientID: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                )
+                print("✅ SDK initialized successfully")
+            } catch {
+                print("❌ SDK initialization failed: \(error)")
+            }
+        }
+        
+        setupOnairosButton()
+    }
+    
+    private func setupOnairosButton() {
+        let button = UIButton(type: .system)
+        button.setTitle("Connect with Onairos", for: .normal)
+        button.backgroundColor = .systemBlue
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 25
+        button.frame = CGRect(x: 0, y: 0, width: 250, height: 50)
+        button.center = view.center
+        
+        button.addTarget(self, action: #selector(onairosButtonTapped), for: .touchUpInside)
+        view.addSubview(button)
+    }
+    
+    @objc private func onairosButtonTapped() {
+        // Present Onairos onboarding flow
+        OnairosSDK.shared.presentOnboarding(from: self) { [weak self] result in
+            switch result {
+            case .success(let data):
+                self?.handleOnboardingSuccess(data)
+            case .failure(let error):
+                self?.handleOnboardingError(error)
+            }
+        }
+    }
+    
+    private func handleOnboardingSuccess(_ result: OnboardingResult) {
+        switch result {
+        case .success(let data):
+            print("✅ Onairos completed successfully!")
+            print("API URL: \(data.apiURL)")
+            print("Token: \(data.token)")
+            print("Connected platforms: \(data.connectedPlatforms.keys.joined(separator: ", "))")
+            print("Session saved: \(data.sessionSaved)")
+            
+            // userData contains user information and preferences
+            // Use this data to personalize your app experience
+            
+        case .failure(let error):
+            print("❌ Onboarding failed: \(error)")
+        }
+    }
+    
+    private func handleOnboardingError(_ error: OnairosError) {
+        print("❌ Onboarding error: \(error.localizedDescription)")
+        
+        // Show user-friendly error message
+        let alert = UIAlertController(
+            title: "Connection Error",
+            message: error.localizedDescription,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+}
+```
+
+## 🚀 AUTO MODE: Instant Data for Returning Users
+
+### ⚡ The Magic of Session Management
+The Swift SDK automatically handles returning users through built-in session management:
+
+```swift
+override func viewDidLoad() {
+    super.viewDidLoad()
+    
+    // Check if user has existing session
+    if OnairosSDK.shared.hasExistingSession() {
+        // User has completed onboarding before
+        // 🚀 Auto-fetch their data without showing UI
+        loadUserDataSilently()
+    } else {
+        // Show onboarding for new users
+        showOnboardingButton()
+    }
+}
+
+private func loadUserDataSilently() {
+    // For returning users, you can directly access their stored data
+    // or trigger a silent data refresh
+    print("🚀 Welcome back! Loading your personalized data...")
+    
+    // The SDK maintains session state automatically
+    // Your app gets instant access to user preferences
+}
+```
+
+### 🎯 How Auto Mode Works:
+1. **First-time users**: Complete onboarding flow with UI
+2. **Returning users**: SDK detects existing session automatically
+3. **Your app**: Check session status and handle accordingly
+
+### 💡 Perfect For:
+- **Dashboard apps**: Load user data immediately on app launch
+- **Personalization engines**: Get user preferences without friction
+- **Content recommendations**: Instant access to user interests
+- **Analytics dashboards**: Real-time user insights
+
+### 🔄 Auto Mode Flow:
+```
+App launches → SDK checks session → 
+If session exists: Load data silently (NO UI)
+If no session: Show onboarding UI → User completes flow → Save session
+```
+
+## 🎯 What Data Do Developers Get Back?
+
+### Success Callback Structure
+```swift
+private func handleOnboardingSuccess(_ result: OnboardingResult) {
+    switch result {
+    case .success(let data):
+        print("API URL: \(data.apiURL)")              // 'https://api2.onairos.uk'
+        print("Token: \(data.token)")                 // JWT authentication token
+        print("Session Saved: \(data.sessionSaved)") // Whether session was saved
+        
+        // Connected platforms with authentication data
+        for (platform, platformData) in data.connectedPlatforms {
+            print("Connected: \(platform)")
+            print("Access Token: \(platformData.accessToken ?? "N/A")")
+        }
+        
+        // User data and preferences
+        print("User Data: \(data.userData)")
+        
+        // AI inference data (if available)
+        if let inferenceData = data.inferenceData {
+            print("AI Insights: \(inferenceData)")
+        }
+        
+        // Account information (for existing users)
+        if let accountInfo = data.accountInfo {
+            print("Account Info: \(accountInfo)")
+        }
+        
+    case .failure(let error):
+        print("Error: \(error.localizedDescription)")
+    }
+}
+```
+
+### OnboardingData Structure
+```swift
+public struct OnboardingData {
+    public let apiURL: String                    // API endpoint for future requests
+    public let token: String                     // JWT token for authentication
+    public let userData: [String: AnyCodable]    // User profile and preferences
+    public let connectedPlatforms: [String: PlatformData] // Platform connections
+    public let sessionSaved: Bool                // Session persistence status
+    public let inferenceData: [String: AnyCodable]? // AI analysis results
+    public let partner: String?                  // Partner information
+    public let accountInfo: [String: AnyCodable]? // Existing account details
+}
+```
+
+## 🔧 YouTube OAuth Setup (Required for YouTube Data)
+
+### ⚠️ CRITICAL: Each App Needs Own Google Credentials
+**YOU CANNOT USE SHARED CLIENT IDs** - Each app must create their own Google Cloud Project.
+
+### Step 1: Google Cloud Console Setup
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create new project or select existing
+3. Enable **YouTube Data API v3**:
+   - Navigate to "APIs & Services" → "Library"
+   - Search "YouTube Data API v3"
+   - Click "Enable"
+
+### Step 2: Create OAuth Credentials
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth 2.0 Client IDs"
+3. Create **iOS Application** client ID
+4. Add your app's Bundle ID
+
+### Step 3: iOS Configuration
+Add to your `Info.plist`:
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLName</key>
+        <string>googleSignIn</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>YOUR_REVERSED_CLIENT_ID</string>
+        </array>
+    </dict>
+</array>
+```
+
+### Step 4: Initialize SDK with Google Client ID
+```swift
+// Initialize SDK with your Google client ID
+try await OnairosSDK.shared.initializeWithAdminKey(
+    environment: .production,
+    enableLogging: true,
+    googleClientID: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+)
+```
+
+### Step 5: Handle OAuth Callbacks
+Add to your `AppDelegate.swift` or `SceneDelegate.swift`:
+```swift
+import GoogleSignIn
+
+// AppDelegate
+func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+    return GIDSignIn.sharedInstance.handle(url)
+}
+
+// SceneDelegate
+func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+    guard let url = URLContexts.first?.url else { return }
+    GIDSignIn.sharedInstance.handle(url)
+}
+```
+
+## 🎨 Platform Support & Behavior
+
+| Platform | Setup Required | Data Available | Notes |
+|----------|----------------|----------------|-------|
+| **Instagram** | ❌ None | ✅ Posts, Profile | Uses built-in Opacity SDK |
+| **YouTube** | ✅ Google Setup | ✅ Channel, Videos | Requires OAuth setup above |
+| **Reddit** | ❌ None | ✅ Posts, Comments | OAuth WebView |
+| **Pinterest** | ❌ None | ✅ Boards, Pins | OAuth WebView |
+| **Gmail** | ❌ None | ✅ Metadata only | OAuth WebView |
+
+### 📝 Important Notes:
+- **Without YouTube OAuth setup**: YouTube option won't work, but other platforms will
+- **Instagram**: Works immediately, no setup required
+- **Reddit/Pinterest/Gmail**: Work immediately, no setup required
+- **All platforms**: Native iOS UI with bottom sheet modal presentation
+
+## 🛠️ Complete Working Example (With Session Management)
+
+```swift
+import UIKit
+import OnairosSDK
+
+class OnairosViewController: UIViewController {
+    
+    private var connectButton: UIButton!
+    private var statusLabel: UILabel!
+    private var userData: OnboardingData?
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+        initializeSDK()
+    }
+    
+    private func setupUI() {
+        view.backgroundColor = .systemBackground
+        
+        // Status label
+        statusLabel = UILabel()
+        statusLabel.text = "Initializing Onairos SDK..."
+        statusLabel.textAlignment = .center
+        statusLabel.numberOfLines = 0
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(statusLabel)
+        
+        // Connect button
+        connectButton = UIButton(type: .system)
+        connectButton.setTitle("Connect with Onairos", for: .normal)
+        connectButton.backgroundColor = .systemBlue
+        connectButton.setTitleColor(.white, for: .normal)
+        connectButton.layer.cornerRadius = 25
+        connectButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        connectButton.translatesAutoresizingMaskIntoConstraints = false
+        connectButton.addTarget(self, action: #selector(connectButtonTapped), for: .touchUpInside)
+        view.addSubview(connectButton)
+        
+        // Layout constraints
+        NSLayoutConstraint.activate([
+            statusLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            statusLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -100),
+            statusLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statusLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            connectButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            connectButton.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 40),
+            connectButton.widthAnchor.constraint(equalToConstant: 250),
+            connectButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+    }
+    
+    private func initializeSDK() {
+        Task {
+            do {
+                try await OnairosSDK.shared.initializeWithAdminKey(
+                    environment: .production,
+                    enableLogging: true,
+                    googleClientID: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                )
+                
+                await MainActor.run {
+                    checkExistingSession()
+                }
+            } catch {
+                await MainActor.run {
+                    statusLabel.text = "❌ SDK initialization failed: \(error.localizedDescription)"
+                    connectButton.isEnabled = false
+                }
+            }
+        }
+    }
+    
+    private func checkExistingSession() {
+        if OnairosSDK.shared.hasExistingSession() {
+            // 🚀 User has existing session - welcome them back
+            statusLabel.text = "🚀 Welcome back! You're already connected."
+            connectButton.setTitle("Refresh Data", for: .normal)
+            connectButton.backgroundColor = .systemGreen
+        } else {
+            // New user - show onboarding
+            statusLabel.text = "👋 Welcome to Onairos!\nConnect your social media to get started."
+            connectButton.setTitle("Connect with Onairos", for: .normal)
+            connectButton.backgroundColor = .systemBlue
+        }
+        
+        connectButton.isEnabled = true
+    }
+    
+    @objc private func connectButtonTapped() {
+        connectButton.isEnabled = false
+        statusLabel.text = "🔄 Connecting..."
+        
+        OnairosSDK.shared.presentOnboarding(from: self) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.handleOnboardingResult(result)
+            }
+        }
+    }
+    
+    private func handleOnboardingResult(_ result: Result<OnboardingResult, OnairosError>) {
+        connectButton.isEnabled = true
+        
+        switch result {
+        case .success(let onboardingResult):
+            switch onboardingResult {
+            case .success(let data):
+                self.userData = data
+                statusLabel.text = """
+                ✅ Connected successfully!
+                
+                Platforms: \(data.connectedPlatforms.keys.joined(separator: ", "))
+                Session saved: \(data.sessionSaved ? "Yes" : "No")
+                """
+                
+                connectButton.setTitle("Refresh Data", for: .normal)
+                connectButton.backgroundColor = .systemGreen
+                
+                // Show success alert with details
+                showSuccessAlert(data: data)
+                
+            case .failure(let error):
+                statusLabel.text = "❌ Onboarding failed: \(error.localizedDescription)"
+                connectButton.setTitle("Try Again", for: .normal)
+                connectButton.backgroundColor = .systemRed
+            }
+            
+        case .failure(let error):
+            statusLabel.text = "❌ Connection error: \(error.localizedDescription)"
+            connectButton.setTitle("Try Again", for: .normal)
+            connectButton.backgroundColor = .systemRed
+        }
+    }
+    
+    private func showSuccessAlert(data: OnboardingData) {
+        let alert = UIAlertController(
+            title: "🎉 Success!",
+            message: """
+            Connected to \(data.connectedPlatforms.count) platform(s)
+            
+            You can now access personalized data and insights.
+            """,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "Great!", style: .default))
+        present(alert, animated: true)
+    }
+}
+```
+
+## 🔧 Troubleshooting Guide
+
+### Common Issues & Solutions
+
+#### 1. "YouTube authentication failed"
+**Problem**: Most common issue - Google client ID not configured
+**Solution**: 
+```swift
+// Ensure you call this during SDK initialization
+try await OnairosSDK.shared.initializeWithAdminKey(
+    environment: .production,
+    enableLogging: true,
+    googleClientID: "YOUR_ACTUAL_CLIENT_ID.apps.googleusercontent.com"
+)
+```
+
+#### 2. "SDK not initialized" error
+**Problem**: Trying to present onboarding before SDK initialization
+**Solution**: Always initialize SDK first:
+```swift
+override func viewDidLoad() {
+    super.viewDidLoad()
+    
+    Task {
+        try await OnairosSDK.shared.initializeWithAdminKey(
+            environment: .production,
+            enableLogging: true
+        )
+        // Now safe to present onboarding
+    }
+}
+```
+
+#### 3. "Invalid client ID" errors
+**Problem**: Client ID doesn't match Google Cloud Project
+**Solution**: 
+- Double-check client ID in Google Cloud Console
+- Ensure Bundle ID matches OAuth configuration
+- Use iOS client ID (not web client ID)
+
+#### 4. Modal presentation issues
+**Problem**: Modal not appearing or dismissing immediately
+**Solution**: Enable test mode for development:
+```swift
+let testConfig = OnairosConfig.testMode(
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+OnairosSDK.shared.initialize(config: testConfig)
+```
+
+#### 5. Build errors with GoogleSignIn
+**Problem**: GoogleSignIn dependency conflicts
+**Solution**: The SDK includes GoogleSignIn automatically. Don't add it manually:
+```swift
+// ❌ Don't do this - SDK includes it automatically
+// .package(url: "https://github.com/google/GoogleSignIn-iOS", from: "7.0.0")
+
+// ✅ Only add OnairosSDK
+dependencies: [
+    .package(url: "https://github.com/onairos/onairos-swift-sdk", from: "3.0.72")
+]
+```
+
+### Debug Mode Benefits
+- ✅ Detailed console logging
+- ✅ Bypasses complex API calls
+- ✅ Works without internet
+- ✅ All verification codes accepted
+
+## 🎯 Development vs Production
+
+### Development Mode (Test Mode)
+```swift
+let testConfig = OnairosConfig.testMode(
+    urlScheme: "your-app-scheme",
+    appName: "Your App Name"
+)
+OnairosSDK.shared.initialize(config: testConfig)
+
+// Test mode features:
+// ✅ Accepts any email address
+// ✅ Accepts any verification code
+// ✅ Can skip platform connections
+// ✅ Fast training simulation
+// ✅ No real API calls made
+```
+
+### Production Mode
+```swift
+try await OnairosSDK.shared.initializeWithAdminKey(
+    environment: .production,      // Use production API
+    enableLogging: false,          // Disable debug logging
+    googleClientID: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+)
+```
+
+## 📋 Essential Commands for LLMs
+
+### Installation Commands
+```bash
+# 1. Add to Package.swift
+dependencies: [
+    .package(url: "https://github.com/onairos/onairos-swift-sdk", from: "3.0.72")
+]
+
+# 2. Or add via Xcode
+# File → Add Package Dependencies
+# Enter: https://github.com/onairos/onairos-swift-sdk
+
+# 3. Clean build if issues
+# Product → Clean Build Folder (Cmd+Shift+K)
+```
+
+### Minimal Integration Template
+```swift
+import UIKit
+import OnairosSDK
+
+class ViewController: UIViewController {
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // Initialize SDK
+        Task {
+            try await OnairosSDK.shared.initializeWithAdminKey(
+                environment: .production,
+                enableLogging: true,
+                googleClientID: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+            )
+        }
+    }
+    
+    @IBAction func connectButtonTapped(_ sender: UIButton) {
+        OnairosSDK.shared.presentOnboarding(from: self) { result in
+            switch result {
+            case .success(let onboardingResult):
+                switch onboardingResult {
+                case .success(let data):
+                    print("✅ Success: \(data.connectedPlatforms.keys)")
+                case .failure(let error):
+                    print("❌ Error: \(error)")
+                }
+            case .failure(let error):
+                print("❌ Error: \(error)")
+            }
+        }
+    }
+}
+```
+
+## 🚀 SESSION MANAGEMENT: Developer Benefits
+
+### Why Use Built-in Session Management?
+
+**🎯 Perfect User Experience:**
+- **First-time users**: Complete onboarding flow
+- **Returning users**: **INSTANT** access to their data
+- **Your app**: Same callback structure for both cases
+
+**💡 Use Cases:**
+```swift
+// Dashboard App - Check session on app launch
+override func viewDidLoad() {
+    super.viewDidLoad()
+    
+    if OnairosSDK.shared.hasExistingSession() {
+        // Load user dashboard immediately
+        loadUserDashboard()
+    } else {
+        // Show onboarding for new users
+        showOnboardingPrompt()
+    }
+}
+
+// Personalization Engine - Get preferences instantly
+private func loadPersonalizedContent() {
+    if OnairosSDK.shared.hasExistingSession() {
+        // User has connected platforms before
+        // Access their stored preferences
+        loadStoredPreferences()
+    } else {
+        // Show default content and prompt to connect
+        showDefaultContent()
+    }
+}
+
+// Settings Screen - Show connection status
+private func updateConnectionStatus() {
+    if OnairosSDK.shared.hasExistingSession() {
+        statusLabel.text = "✅ Connected to social platforms"
+        connectButton.setTitle("Refresh Data", for: .normal)
+    } else {
+        statusLabel.text = "❌ Not connected"
+        connectButton.setTitle("Connect Now", for: .normal)
+    }
+}
+```
+
+**🔄 Technical Flow:**
+1. User completes onboarding → Session automatically saved
+2. App launches → Check `hasExistingSession()`
+3. **If true**: User has connected before → Load their data
+4. **If false**: New user → Show onboarding UI
+5. **Result**: Seamless experience for all users
+
+## 🎉 Success Checklist
+
+### For LLMs to verify with developers:
+- [ ] ✅ SDK installed: `OnairosSDK` from GitHub
+- [ ] ✅ GoogleSignIn dependency: Included automatically with SDK
+- [ ] ✅ Google client ID configured in SDK initialization
+- [ ] ✅ iOS URL scheme added to Info.plist
+- [ ] ✅ Test mode enabled for development: `OnairosConfig.testMode()`
+- [ ] ✅ Success callback implemented to handle user data
+- [ ] ✅ Error callback implemented for error handling
+- [ ] ✅ Session management implemented with `hasExistingSession()`
+
+### Expected Flow:
+1. User taps connect button
+2. Bottom sheet modal appears (80% screen height)
+3. Email verification screen
+4. User enters email and verification code
+5. Platform selection screen (Instagram, YouTube, etc.)
+6. User connects platforms via OAuth
+7. PIN creation screen
+8. AI training progress screen
+9. Success - completion callback fired with user data
+10. Session automatically saved for future use
+
+## 🎯 Summary for iOS Developers
+
+**The Onairos Swift SDK provides:**
+- 🔐 **Secure Authentication**: Email + PIN based security with JWT tokens
+- 📱 **Multi-Platform**: Instagram, YouTube, Reddit, Pinterest, Gmail
+- 🤖 **AI Training**: Personalized AI model training with real-time progress
+- 💾 **Session Management**: Automatic session saving and restoration
+- 🎨 **Native iOS UI**: Bottom sheet modal with smooth animations and accessibility support
+
+**Developer gets back:**
+- 🔗 **API URL**: To make authenticated requests
+- 🎫 **JWT Token**: For API authentication stored securely in Keychain
+- 📊 **User Data**: Connected platforms, preferences, and AI insights
+- 🏪 **Platform Data**: Access tokens and user information per platform
+
+**Simplest integration:**
+1. Add SDK to your project via Swift Package Manager
+2. Initialize with Google client ID (for YouTube)
+3. Call `presentOnboarding(from:completion:)` with callbacks
+4. Handle returned user data and session management
+
+**Without YouTube OAuth setup:**
+- Instagram, Reddit, Pinterest, Gmail will work perfectly
+- YouTube connection will fail gracefully
+- Other platforms remain unaffected
+- SDK provides clear error messages for missing configuration 
