@@ -374,9 +374,21 @@ public class OnboardingCoordinator {
         if extractedUserName == nil {
             if let jwtToken = response.userJWTToken {
                 if let userInfo = JWTTokenManager.parseJWTPayload(token: jwtToken) {
+                    // First try top-level userName
                     if let userName = userInfo["userName"] as? String {
                         extractedUserName = userName
-                        print("🔍 [USERNAME DEBUG] Method 2: Found userName from JWT payload: \(userName)")
+                        print("🔍 [USERNAME DEBUG] Method 2a: Found userName from JWT payload: \(userName)")
+                    }
+                    // Then try full_user_object.userName (backend structure)
+                    else if let fullUserObject = userInfo["full_user_object"] as? [String: Any],
+                            let userName = fullUserObject["userName"] as? String {
+                        extractedUserName = userName
+                        print("🔍 [USERNAME DEBUG] Method 2b: Found userName from JWT full_user_object: \(userName)")
+                    }
+                    // Also try username (lowercase) for compatibility
+                    else if let username = userInfo["username"] as? String {
+                        extractedUserName = username
+                        print("🔍 [USERNAME DEBUG] Method 2c: Found username (lowercase) from JWT payload: \(username)")
                     }
                 }
             }
@@ -845,12 +857,50 @@ public class OnboardingCoordinator {
             }
         }
         
-        // Prepare user data
+        // Prepare user data with enhanced username resolution
+        var resolvedUsername = UserDefaults.standard.string(forKey: "onairos_username")
+        var usernameSource = "UserDefaults"
+        
+        // If no username in UserDefaults, try to get it from the current JWT token
+        if resolvedUsername == nil {
+            if let jwtToken = JWTTokenManager.shared.getCachedToken() {
+                if let userInfo = JWTTokenManager.parseJWTPayload(token: jwtToken) {
+                    // Try full_user_object.userName first (backend structure)
+                    if let fullUserObject = userInfo["full_user_object"] as? [String: Any],
+                       let userName = fullUserObject["userName"] as? String {
+                        resolvedUsername = userName
+                        usernameSource = "JWT full_user_object"
+                    }
+                    // Try top-level userName
+                    else if let userName = userInfo["userName"] as? String {
+                        resolvedUsername = userName
+                        usernameSource = "JWT userName"
+                    }
+                    // Try username (lowercase)
+                    else if let username = userInfo["username"] as? String {
+                        resolvedUsername = username
+                        usernameSource = "JWT username"
+                    }
+                }
+            }
+        }
+        
+        // Final fallback: extract from email
+        let finalUsername = resolvedUsername ?? extractUsername(from: state.email)
+        if resolvedUsername == nil {
+            usernameSource = "email extraction"
+        }
+        
         let userData: [String: Any] = [
             "email": state.email,
-            "username": state.email, // Use email as username for now
+            "username": finalUsername,
             "platforms": Array(state.connectedPlatforms)
         ]
+        
+        print("🔍 [TRAINING DEBUG] Using username for training: \(finalUsername)")
+        print("🔍 [TRAINING DEBUG] Username source: \(usernameSource)")
+        print("🔍 [TRAINING DEBUG] UserDefaults username: \(UserDefaults.standard.string(forKey: "onairos_username") ?? "nil")")
+        print("🔍 [TRAINING DEBUG] JWT token available: \(JWTTokenManager.shared.getCachedToken() != nil ? "YES" : "NO")")
         
         // Prepare connected platforms data in the correct format
         var connectedPlatformsArray: [[String: Any]] = []

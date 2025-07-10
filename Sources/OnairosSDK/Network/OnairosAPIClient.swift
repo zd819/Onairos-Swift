@@ -554,9 +554,30 @@ public class OnairosAPIClient {
         // Add user data fields
         if let email = userData["email"] as? String {
             body["email"] = email
+            log("🔍 [TRAINING REQUEST] Added email to request: \(email)", level: .info)
         }
         if let username = userData["username"] as? String {
             body["username"] = username
+            log("🔍 [TRAINING REQUEST] Added username to request: \(username)", level: .info)
+        }
+        
+        // Log the complete request body for debugging
+        log("🔍 [TRAINING REQUEST] Complete request body: \(body)", level: .info)
+        
+        // Log JWT token information for debugging
+        if let jwtToken = JWTTokenManager.shared.getCachedToken() {
+            log("🔍 [TRAINING REQUEST] JWT token available: YES", level: .info)
+            if let userInfo = JWTTokenManager.parseJWTPayload(token: jwtToken) {
+                log("🔍 [TRAINING REQUEST] JWT payload keys: \(Array(userInfo.keys))", level: .info)
+                if let fullUserObject = userInfo["full_user_object"] as? [String: Any] {
+                    log("🔍 [TRAINING REQUEST] JWT full_user_object keys: \(Array(fullUserObject.keys))", level: .info)
+                    if let userName = fullUserObject["userName"] as? String {
+                        log("🔍 [TRAINING REQUEST] JWT contains userName: \(userName)", level: .info)
+                    }
+                }
+            }
+        } else {
+            log("🔍 [TRAINING REQUEST] JWT token available: NO", level: .info)
         }
         
         // Use the correct endpoint for mobile training
