@@ -1139,10 +1139,16 @@ public class JWTTokenManager {
         return nil
     }
     
+    /// Get cached JWT token synchronously (for immediate access)
+    /// - Returns: Cached JWT token if available
+    public func getCachedToken() -> String? {
+        return currentToken
+    }
+    
     /// Check if JWT token is stored
     /// - Returns: True if token exists
     public func hasJWTToken() -> Bool {
-        return getJWTToken() != nil
+        return currentToken != nil
     }
     
     /// Clear JWT token from keychain and memory

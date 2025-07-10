@@ -806,14 +806,44 @@ public class OnboardingCoordinator {
             }
         }
         
-        // Start training
+        // Prepare user data
         let userData: [String: Any] = [
             "email": state.email,
-            "platforms": Array(state.connectedPlatforms),
+            "username": state.email, // Use email as username for now
             "deviceInfo": DeviceInfo()
         ]
         
-        trainingManager?.startTraining(userData: userData)
+        // Prepare connected platforms data in the correct format
+        var connectedPlatformsArray: [[String: Any]] = []
+        for (platformName, platformData) in connectedPlatformData {
+            var platformDict: [String: Any] = [
+                "platform": platformName,
+                "accessToken": platformData.accessToken
+            ]
+            
+            if let refreshToken = platformData.refreshToken {
+                platformDict["refreshToken"] = refreshToken
+            }
+            if let expiresAt = platformData.expiresAt {
+                platformDict["expiresAt"] = expiresAt.timeIntervalSince1970
+            }
+            if let userData = platformData.userData {
+                platformDict["userData"] = userData
+            }
+            
+            connectedPlatformsArray.append(platformDict)
+        }
+        
+        let connectedPlatforms: [String: Any] = [
+            "platforms": connectedPlatformsArray
+        ]
+        
+        // Start training with proper parameters
+        trainingManager?.startTraining(
+            userData: userData,
+            email: state.email,
+            connectedPlatforms: connectedPlatforms
+        )
     }
     
     // MARK: - Platform Connection Management

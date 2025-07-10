@@ -540,12 +540,60 @@ public class OnairosAPIClient {
     /// - Parameters:
     ///   - socketId: Socket.IO connection ID
     ///   - userData: User data for training
+    ///   - connectedPlatforms: Connected social media platforms
     /// - Returns: Training start response
-    public func startAITraining(socketId: String, userData: [String: Any]) async -> Result<[String: Any], OnairosError> {
+    public func startAITraining(socketId: String, userData: [String: Any], connectedPlatforms: [String: Any]) async -> Result<[String: Any], OnairosError> {
         log("📤 Starting AI training with JWT authentication for user", level: .info)
         
-        var body = userData
-        body["socket_id"] = socketId
+        // Prepare request body according to backend schema
+        var body: [String: Any] = [
+            "socketId": socketId,
+            "connectedPlatforms": connectedPlatforms
+        ]
+        
+        // Add user data fields
+        if let email = userData["email"] as? String {
+            body["email"] = email
+        }
+        if let username = userData["username"] as? String {
+            body["username"] = username
+        }
+        
+        // Use the correct endpoint for mobile training
+        let endpoint = "/mobile-training/encrypted"
+        
+        return await performUserAuthenticatedRequestWithDictionary(
+            endpoint: endpoint,
+            method: .POST,
+            body: body,
+            responseType: [String: AnyCodable].self
+        ).map { response in
+            response.mapValues { $0.value }
+        }
+    }
+    
+    /// Start Enoch AI model training (user-authenticated operation)
+    /// - Parameters:
+    ///   - socketId: Socket.IO connection ID
+    ///   - userData: User data for training
+    ///   - connectedPlatforms: Connected social media platforms
+    /// - Returns: Training start response
+    public func startEnochAITraining(socketId: String, userData: [String: Any], connectedPlatforms: [String: Any]) async -> Result<[String: Any], OnairosError> {
+        log("📤 Starting Enoch AI training with JWT authentication for user", level: .info)
+        
+        // Prepare request body according to backend schema
+        var body: [String: Any] = [
+            "socketId": socketId,
+            "connectedPlatforms": connectedPlatforms
+        ]
+        
+        // Add user data fields
+        if let email = userData["email"] as? String {
+            body["email"] = email
+        }
+        if let username = userData["username"] as? String {
+            body["username"] = username
+        }
         
         return await performUserAuthenticatedRequestWithDictionary(
             endpoint: "/enoch/trainModel/mobile",

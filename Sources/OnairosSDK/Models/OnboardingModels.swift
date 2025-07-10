@@ -714,12 +714,19 @@ public struct TrainingProgress {
     }
 }
 
-/// Socket.IO training events
+/// Socket.IO training events (matching backend schema)
 public enum TrainingEvent: String {
+    case etaUpdate = "trainingETAUpdate"
+    case update = "trainingUpdate"
+    case completed = "trainingCompleted"
+    case inferenceCompleted = "inferenceCompleted"
+    case modelStandby = "modelStandby"
+    case start = "start_training"
+    
+    // Legacy events for backward compatibility
     case progress = "training_progress"
     case complete = "training_complete"
     case error = "training_error"
-    case start = "start_training"
 }
 
 /// Helper for encoding Any values
