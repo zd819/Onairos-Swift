@@ -111,7 +111,8 @@ public class PINStepViewController: BaseStepViewController {
         let requirements = [
             "At least 8 characters",
             "Contains numbers",
-            "Contains special characters"
+            "Contains special characters",
+            "Contains capital letters"
         ]
         
         for requirement in requirements {
@@ -184,8 +185,9 @@ public class PINStepViewController: BaseStepViewController {
             let hasMinLength = text.count >= 8
             let hasNumbers = text.rangeOfCharacter(from: .decimalDigits) != nil
             let hasSpecialChars = text.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+            let hasCapitalLetters = text.rangeOfCharacter(from: .uppercaseLetters) != nil
             
-            primaryButton.isEnabled = hasMinLength && hasNumbers && hasSpecialChars && !state.isLoading
+            primaryButton.isEnabled = hasMinLength && hasNumbers && hasSpecialChars && hasCapitalLetters && !state.isLoading
             primaryButton.alpha = primaryButton.isEnabled ? 1.0 : 0.6
         }
         
@@ -240,7 +242,8 @@ public class PINStepViewController: BaseStepViewController {
             // Fallback validation
             isValidPIN = state.pin.count >= 8 && 
                         state.pin.rangeOfCharacter(from: .decimalDigits) != nil &&
-                        state.pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+                        state.pin.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil &&
+                        state.pin.rangeOfCharacter(from: .uppercaseLetters) != nil
         }
         
         primaryButton.isEnabled = isValidPIN && !state.isLoading
@@ -261,7 +264,7 @@ public class PINStepViewController: BaseStepViewController {
     public override func primaryButtonTapped() {
         // Validate PIN before proceeding
         guard state.validateCurrentStep() else {
-            state.errorMessage = "Please create a PIN that meets all requirements (8+ characters, numbers, special characters)"
+            state.errorMessage = "Please create a PIN that meets all requirements (8+ characters, numbers, special characters, capital letters)"
             return
         }
         
@@ -320,12 +323,13 @@ public class PINStepViewController: BaseStepViewController {
         
         // Check if JWT token is expired
         if let isExpired = await jwtManager.isTokenExpired(), isExpired {
+            print("❌ [PIN SUBMISSION] JWT token is expired - user needs to verify email again")
+            
+            // Clear expired token
+            _ = await jwtManager.clearJWTToken()
+            
             await MainActor.run {
-                print("❌ [PIN SUBMISSION] JWT token is expired - user needs to verify email again")
                 state.errorMessage = "Authentication expired. Please verify your email again."
-                
-                // Clear expired token
-                _ = await jwtManager.clearJWTToken()
                 
                 // Restore button state
                 primaryButton.setTitle("Create PIN", for: .normal)

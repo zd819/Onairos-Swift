@@ -83,11 +83,25 @@ public class OnboardingCoordinator {
     /// - Parameter result: Onboarding result
     private func dismiss(with result: OnboardingResult) {
         print("🔍 [DEBUG] OnboardingCoordinator.dismiss called with result: \(result)")
-        modalController?.dismiss(animated: true) { [weak self] in
-            print("🔍 [DEBUG] Modal dismissal completed, calling completion handlers")
-            self?.completion?(result)
-            self?.onCompletion?(result)
-            self?.cleanup()
+        
+        // Ensure we're on the main thread for UI operations
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if let modalController = self.modalController {
+                // Use the custom dismissModal method for better animation
+                modalController.dismissModal { [weak self] in
+                    print("🔍 [DEBUG] Modal dismissal completed, calling completion handlers")
+                    self?.completion?(result)
+                    self?.onCompletion?(result)
+                    self?.cleanup()
+                }
+            } else {
+                print("⚠️ [DEBUG] Modal controller is nil, calling completion handlers directly")
+                self.completion?(result)
+                self.onCompletion?(result)
+                self.cleanup()
+            }
         }
     }
     
@@ -157,6 +171,8 @@ public class OnboardingCoordinator {
     
     /// Go back to previous step
     public func goBackToPreviousStep() {
+        print("🔙 [COORDINATOR] Going back from step: \(state.currentStep)")
+        
         switch state.currentStep {
         case .email:
             // Can't go back from first step
@@ -170,14 +186,37 @@ public class OnboardingCoordinator {
         case .pin:
             state.currentStep = .connect // Go back to connect step, skip success
         case .training:
+            // Stop any ongoing training before going back
+            print("🛑 [COORDINATOR] Stopping training and returning to PIN step")
+            trainingManager?.disconnect()
+            
+            // Reset training state
+            state.trainingProgress = 0.0
+            state.trainingStatus = "Initializing..."
+            
+            // Go back to PIN step
             state.currentStep = .pin
         }
         
+        // Clear any error messages and loading state
         state.errorMessage = nil
+        state.isLoading = false
+        
+        print("🔙 [COORDINATOR] Moved to step: \(state.currentStep)")
     }
     
     /// Cancel onboarding flow
     public func cancelOnboarding() {
+        print("🚫 [COORDINATOR] cancelOnboarding called")
+        
+        // Stop any ongoing training
+        trainingManager?.disconnect()
+        
+        // Reset state to prevent any ongoing operations
+        state.isLoading = false
+        state.errorMessage = nil
+        
+        // Dismiss with user cancelled result
         dismiss(with: .failure(.userCancelled))
     }
     
@@ -290,7 +329,7 @@ public class OnboardingCoordinator {
                         print("✅ Email verification successful with JWT token")
                         
                         // ENHANCED: Extract and store userName from multiple possible locations
-                        await extractAndStoreUserName(from: response)
+                        extractAndStoreUserName(from: response)
                         
                         // Handle user data from the API response
                         if let user = response.user {
@@ -320,7 +359,7 @@ public class OnboardingCoordinator {
     
     /// Extract and store userName from email verification response
     /// This handles multiple possible response structures to ensure userName is always stored
-    private func extractAndStoreUserName(from response: EmailVerificationResponse) async {
+    private func extractAndStoreUserName(from response: EmailVerificationResponse) {
         print("🔍 [USERNAME DEBUG] Extracting userName from email verification response")
         
         var extractedUserName: String?
@@ -810,7 +849,7 @@ public class OnboardingCoordinator {
         let userData: [String: Any] = [
             "email": state.email,
             "username": state.email, // Use email as username for now
-            "deviceInfo": DeviceInfo()
+            "platforms": Array(state.connectedPlatforms)
         ]
         
         // Prepare connected platforms data in the correct format

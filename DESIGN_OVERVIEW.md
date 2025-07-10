@@ -122,13 +122,13 @@ Email Input → Email Verification → Platform Connection → PIN Creation → 
    - Pinterest: `POST https://api2.onairos.uk/pinterest/authorize`
    - Gmail: `POST https://api2.onairos.uk/gmail/authorize`
 
-2. **User Registration**: `POST https://api2.onairos.uk/register/enoch`
 
-3. **Token Management**: `POST https://api2.onairos.uk/youtube/refresh-token`
 
-4. **Platform Disconnection**: `POST https://api2.onairos.uk/revoke`
+2. **Token Management**: `POST https://api2.onairos.uk/youtube/refresh-token`
 
-5. **Health Check**: `GET https://api2.onairos.uk/health`
+3. **Platform Disconnection**: `POST https://api2.onairos.uk/revoke`
+
+4. **Health Check**: `GET https://api2.onairos.uk/health`
 
 ### Simulated APIs (Development/Testing)
 1. **Email Verification**: 
@@ -138,7 +138,6 @@ Email Input → Email Verification → Platform Connection → PIN Creation → 
    - **Behavior**: All codes accepted in development mode
 
 2. **AI Training**: 
-   - Start: `POST https://api2.onairos.uk/enoch/trainModel/mobile`
    - **Behavior**: Socket.IO connection with fallback simulation
 
 ## Key Components for Swift Implementation
