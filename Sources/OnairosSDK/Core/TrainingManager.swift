@@ -48,7 +48,7 @@ public class TrainingManager {
         // Get JWT token for authentication
         let jwtToken = getJWTToken()
         
-        var socketConfig: [SocketIOClientOption] = [
+        var socketConfig: SocketIOClientConfiguration = [
             .log(false),
             .compress,
             .reconnects(true),
@@ -58,7 +58,7 @@ public class TrainingManager {
         
         // Add JWT authentication if available
         if let token = jwtToken {
-            socketConfig.append(.extraHeaders(["Authorization": "Bearer \(token)"]))
+            socketConfig.insert(.extraHeaders(["Authorization": "Bearer \(token)"]))
         }
         
         manager = SocketManager(socketURL: url, config: socketConfig)
@@ -69,13 +69,17 @@ public class TrainingManager {
     
     /// Get JWT token from keychain or storage
     private func getJWTToken() -> String? {
-        // Try to get JWT token from keychain first (synchronous access to cached token)
-        if let token = JWTTokenManager.shared.getCachedToken() {
+        // Fallback to UserDefaults for now to avoid actor isolation issues
+        // TODO: Implement proper async token retrieval
+        if let token = UserDefaults.standard.string(forKey: "onairos_jwt_token") {
             return token
         }
         
-        // Fallback to UserDefaults (for development)
-        return UserDefaults.standard.string(forKey: "onairos_jwt_token")
+        // Try to get JWT token from keychain (main thread only)
+        // Skip keychain access for now to avoid actor isolation issues
+        // TODO: Implement proper async token retrieval
+        
+        return nil
     }
     
     /// Setup Socket.IO event handlers

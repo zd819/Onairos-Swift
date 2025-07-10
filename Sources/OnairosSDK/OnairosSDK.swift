@@ -1226,7 +1226,7 @@ public class JWTTokenManager {
     /// Parse JWT payload without validation (for debugging/username extraction)
     /// - Parameter token: JWT token string
     /// - Returns: Dictionary containing JWT payload, or nil if parsing fails
-    public static func parseJWTPayload(token: String) -> [String: Any]? {
+    nonisolated public static func parseJWTPayload(token: String) -> [String: Any]? {
         let parts = token.components(separatedBy: ".")
         guard parts.count == 3 else {
             print("🚨 [JWTTokenManager] Invalid JWT format - expected 3 parts")

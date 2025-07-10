@@ -788,6 +788,19 @@ public struct PINSubmissionResponse: Codable {
     public let timestamp: String?
 }
 
+/// User registration request
+public struct UserRegistrationRequest: Codable {
+    public let email: String
+    public let pin: String
+    public let connectedPlatforms: [String: PlatformData]
+    
+    public init(email: String, pin: String, connectedPlatforms: [String: PlatformData] = [:]) {
+        self.email = email
+        self.pin = pin
+        self.connectedPlatforms = connectedPlatforms
+    }
+}
+
 // MARK: - Biometric PIN Management Types
 
 /// Biometric PIN error types

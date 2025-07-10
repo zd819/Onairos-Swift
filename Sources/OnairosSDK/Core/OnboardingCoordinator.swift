@@ -863,7 +863,8 @@ public class OnboardingCoordinator {
         
         // If no username in UserDefaults, try to get it from the current JWT token
         if resolvedUsername == nil {
-            if let jwtToken = JWTTokenManager.shared.getCachedToken() {
+            // Use fallback to UserDefaults for JWT token to avoid async issues
+            if let jwtToken = UserDefaults.standard.string(forKey: "onairos_jwt_token") {
                 if let userInfo = JWTTokenManager.parseJWTPayload(token: jwtToken) {
                     // Try full_user_object.userName first (backend structure)
                     if let fullUserObject = userInfo["full_user_object"] as? [String: Any],
@@ -900,7 +901,7 @@ public class OnboardingCoordinator {
         print("🔍 [TRAINING DEBUG] Using username for training: \(finalUsername)")
         print("🔍 [TRAINING DEBUG] Username source: \(usernameSource)")
         print("🔍 [TRAINING DEBUG] UserDefaults username: \(UserDefaults.standard.string(forKey: "onairos_username") ?? "nil")")
-        print("🔍 [TRAINING DEBUG] JWT token available: \(JWTTokenManager.shared.getCachedToken() != nil ? "YES" : "NO")")
+        print("🔍 [TRAINING DEBUG] JWT token available: \(UserDefaults.standard.string(forKey: "onairos_jwt_token") != nil ? "YES" : "NO")")
         
         // Prepare connected platforms data in the correct format
         var connectedPlatformsArray: [[String: Any]] = []
