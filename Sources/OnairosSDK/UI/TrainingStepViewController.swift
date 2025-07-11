@@ -132,9 +132,14 @@ public class TrainingStepViewController: BaseStepViewController {
                 self.primaryButton.setTitle("Complete", for: .normal)
                 self.primaryButton.backgroundColor = .systemGreen
                 
-                // Auto-complete after delay
+                // Auto-complete after delay - but only if there's no error
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    if self.state.trainingProgress >= 1.0 && !self.isCancelling {
+                    // Don't auto-advance if there's an insufficient training data error
+                    let hasTrainingError = self.statusLabel.text?.contains("No negative interaction data found") == true ||
+                                          self.statusLabel.text?.contains("You need to dislike/downvote content") == true ||
+                                          self.statusLabel.text?.contains("0 disliked interactions") == true
+                    
+                    if self.state.trainingProgress >= 1.0 && !self.isCancelling && !hasTrainingError {
                         self.coordinator?.proceedToNextStep()
                     }
                 }
@@ -156,12 +161,64 @@ public class TrainingStepViewController: BaseStepViewController {
                 self.statusLabel.text = status
             }
         )
+        
+        // Check if this is an insufficient training data error
+        if status.contains("No negative interaction data found") || 
+           status.contains("You need to dislike/downvote content") ||
+           status.contains("0 disliked interactions") {
+            handleInsufficientTrainingDataError(status)
+        }
+    }
+    
+    /// Handle insufficient training data error - show briefly then navigate back to connect
+    /// - Parameter errorMessage: The error message to display
+    private func handleInsufficientTrainingDataError(_ errorMessage: String) {
+        print("⚠️ [TRAINING] Insufficient training data detected - will navigate back to connect screen")
+        
+        // Make status label red to indicate error
+        statusLabel.textColor = .systemRed
+        
+        // Update button to show error state
+        primaryButton.setTitle("Need More Data", for: .normal)
+        primaryButton.backgroundColor = .systemOrange
+        primaryButton.isEnabled = false
+        
+        // Show error message briefly (3 seconds) then navigate back
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            guard let self = self, !self.isCancelling else { return }
+            
+            print("🔄 [TRAINING] Navigating back to connect screen after insufficient training data")
+            
+            // Update UI to show transitioning
+            self.statusLabel.text = "Taking you back to connect more data..."
+            self.statusLabel.textColor = .systemBlue
+            
+            self.primaryButton.setTitle("Going Back...", for: .normal)
+            self.primaryButton.backgroundColor = .systemBlue
+            
+            // Navigate back to connect step after brief delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                guard let self = self else { return }
+                
+                // Reset to connect step while preserving current state
+                self.coordinator?.goBackToConnectStep()
+            }
+        }
     }
     
     /// Show completion animation
     private func showCompletionAnimation() {
         // Don't show completion animation if we're cancelling
         guard !isCancelling else { return }
+        
+        // Check if there's an error in the current status before showing completion
+        if statusLabel.text?.contains("No negative interaction data found") == true ||
+           statusLabel.text?.contains("You need to dislike/downvote content") == true ||
+           statusLabel.text?.contains("0 disliked interactions") == true {
+            // Don't show completion animation if there's an error
+            print("⚠️ [TRAINING] Not showing completion animation due to insufficient training data error")
+            return
+        }
         
         // Simple completion animation - just animate the progress bar to green
         UIView.animate(withDuration: 0.5) {

@@ -205,6 +205,25 @@ public class OnboardingCoordinator {
         print("🔙 [COORDINATOR] Moved to step: \(state.currentStep)")
     }
     
+    /// Go back to connect step specifically (for insufficient training data)
+    public func goBackToConnectStep() {
+        print("🔄 [COORDINATOR] Going back to connect step from training due to insufficient data")
+        
+        // Stop any ongoing training
+        trainingManager?.disconnect()
+        
+        // Reset training state
+        state.trainingProgress = 0.0
+        state.trainingStatus = ""
+        state.errorMessage = nil
+        state.isLoading = false
+        
+        // Go back to connect step while preserving connected platforms
+        state.currentStep = .connect
+        
+        print("✅ [COORDINATOR] Returned to connect step - connected platforms preserved: \(state.connectedPlatforms)")
+    }
+    
     /// Cancel onboarding flow
     public func cancelOnboarding() {
         print("🚫 [COORDINATOR] cancelOnboarding called")
