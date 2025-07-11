@@ -203,32 +203,35 @@ let config = OnairosConfig(
 
 ### YouTube (Google Sign-In)
 
-1. Add GoogleService-Info.plist to your project
-2. Configure URL scheme in Info.plist:
+⚠️ **IMPORTANT**: YouTube authentication requires specific URL scheme configuration.
 
-```xml
-<key>CFBundleURLTypes</key>
-<array>
-    <dict>
-        <key>CFBundleURLName</key>
-        <string>google-signin</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-            <string>YOUR_REVERSED_CLIENT_ID</string>
-        </array>
-    </dict>
-</array>
-```
+**Quick Setup:**
+1. Add this URL scheme to your app's `Info.plist`:
+   ```
+   com.googleusercontent.apps.1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o
+   ```
 
-3. Handle URL callbacks in AppDelegate:
+2. Initialize in your `AppDelegate`:
+   ```swift
+   import OnairosSDK
+   
+   func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+       YouTubeAuthManager.shared.initialize()
+       return true
+   }
+   
+   func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+       return YouTubeAuthManager.shared.handleURL(url)
+   }
+   ```
 
-```swift
-import GoogleSignIn
+📖 **For complete setup instructions, see [YOUTUBE_INTEGRATION_SETUP.md](YOUTUBE_INTEGRATION_SETUP.md)**
 
-func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-    return GIDSignIn.sharedInstance.handle(url)
-}
-```
+This includes:
+- Complete Info.plist configuration
+- AppDelegate and SceneDelegate setup
+- Error troubleshooting
+- Verification methods
 
 ### OAuth Platforms (Reddit, Pinterest, Gmail)
 
@@ -487,3 +490,64 @@ This SDK is proprietary software. See LICENSE file for details.
 - AI training integration
 - Comprehensive error handling
 - Debug mode and testing features 
+
+## Quick Setup for YouTube Integration
+
+### For Admin/Testing Mode (Onairos Internal)
+
+1. **Add to your AppDelegate.swift:**
+```swift
+import OnairosSDK
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        
+        // Initialize for admin/testing mode (uses hardcoded client ID)
+        YouTubeAuthManager.shared.initialize()
+        
+        return true
+    }
+    
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        return YouTubeAuthManager.shared.handleURL(url)
+    }
+}
+```
+
+2. **Add to your Info.plist:**
+```xml
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>com.googleusercontent.apps.1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o</string>
+        </array>
+    </dict>
+</array>
+```
+
+### For Normal Consuming Apps
+
+1. **Add to your AppDelegate.swift:**
+```swift
+import OnairosSDK
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        
+        // Initialize with your own Google Client ID
+        YouTubeAuthManager.shared.initialize(clientID: "YOUR_GOOGLE_CLIENT_ID")
+        
+        return true
+    }
+    
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
+        return YouTubeAuthManager.shared.handleURL(url)
+    }
+}
+```
+
+2. **Add your URL scheme to Info.plist** (see `YOUTUBE_INTEGRATION_SETUP.md` for details) 

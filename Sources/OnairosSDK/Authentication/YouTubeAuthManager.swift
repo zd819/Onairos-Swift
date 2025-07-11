@@ -2,6 +2,38 @@ import Foundation
 import GoogleSignIn
 import UIKit
 
+/// YouTube configuration validation result
+public enum YouTubeConfigurationResult {
+    case configured
+    case notInitialized
+    case notConfigured
+    case missingURLScheme(String)
+    
+    /// User-friendly description of the configuration status
+    public var description: String {
+        switch self {
+        case .configured:
+            return "YouTube authentication is properly configured"
+        case .notInitialized:
+            return "YouTube authentication not initialized. Call YouTubeAuthManager.shared.initialize() in your AppDelegate."
+        case .notConfigured:
+            return "Google Sign-In configuration is missing"
+        case .missingURLScheme(let scheme):
+            return "Missing required URL scheme in Info.plist: \(scheme)"
+        }
+    }
+    
+    /// Whether the configuration is ready for use
+    public var isReady: Bool {
+        switch self {
+        case .configured:
+            return true
+        default:
+            return false
+        }
+    }
+}
+
 /// YouTube authentication manager using Google Sign-In SDK
 public class YouTubeAuthManager {
     
@@ -10,14 +42,15 @@ public class YouTubeAuthManager {
     
     /// Configuration constants
     private struct Config {
-        static let webClientId = "1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o.apps.googleusercontent.com"
-        static let iosClientId = "1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o.apps.googleusercontent.com"
         static let scopes = ["https://www.googleapis.com/auth/youtube.readonly"]
         static let offlineAccess = true
         static let forceCodeForRefreshToken = true
+        
+        // Admin/Testing mode client ID (hardcoded for internal testing)
+        static let adminClientID = "1030678346906-lovkuds2ouqmoc8eu5qpo98spa6edv4o.apps.googleusercontent.com"
     }
     
-    /// Google client ID
+    /// Google client ID (provided by consuming app or admin default)
     private var clientID: String?
     
     /// Initialization status
@@ -26,24 +59,130 @@ public class YouTubeAuthManager {
     /// Private initializer
     private init() {}
     
-    /// Initialize Google Sign-In with enhanced configuration
-    /// - Parameter clientID: Optional custom client ID (defaults to configured iOS client ID)
-    public func initialize(clientID: String? = nil) {
-        let finalClientID = clientID ?? Config.iosClientId
-        self.clientID = finalClientID
+    /// Initialize Google Sign-In for admin/testing mode (uses hardcoded client ID)
+    /// This method is for internal testing and admin usage only
+    public func initialize() {
+        self.clientID = Config.adminClientID
         
-        // Configure Google Sign-In with enhanced settings
-        let configuration = GIDConfiguration(clientID: finalClientID, serverClientID: Config.webClientId)
+        // Configure Google Sign-In with the admin client ID
+        let configuration = GIDConfiguration(clientID: Config.adminClientID)
         
         GIDSignIn.sharedInstance.configuration = configuration
         isInitialized = true
+        
+        // Log configuration status for debugging
+        print("🔍 [YouTubeAuth] Initialized in ADMIN/TESTING mode")
+        print("🔍 [YouTubeAuth] Using hardcoded client ID: \(Config.adminClientID)")
+        
+        let configResult = validateConfiguration()
+        switch configResult {
+        case .configured:
+            print("✅ [YouTubeAuth] Configuration is valid and ready")
+        case .missingURLScheme(let scheme):
+            print("⚠️ [YouTubeAuth] Missing URL scheme: \(scheme)")
+            print("   Add this to your Info.plist to enable YouTube authentication:")
+            print("   <key>CFBundleURLTypes</key>")
+            print("   <array>")
+            print("       <dict>")
+            print("           <key>CFBundleURLSchemes</key>")
+            print("           <array>")
+            print("               <string>\(scheme)</string>")
+            print("           </array>")
+            print("       </dict>")
+            print("   </array>")
+            print("   See YOUTUBE_INTEGRATION_SETUP.md for complete instructions")
+        default:
+            print("⚠️ [YouTubeAuth] Configuration issue: \(configResult.description)")
+        }
+    }
+    
+    /// Initialize Google Sign-In with consuming app's Google Client ID
+    /// - Parameter clientID: Google Client ID from consuming app
+    public func initialize(clientID: String) {
+        self.clientID = clientID
+        
+        // Configure Google Sign-In with the provided client ID
+        let configuration = GIDConfiguration(clientID: clientID)
+        
+        GIDSignIn.sharedInstance.configuration = configuration
+        isInitialized = true
+        
+        // Log configuration status for debugging
+        print("🔍 [YouTubeAuth] Initialized with CUSTOM client ID: \(clientID)")
+        
+        let configResult = validateConfiguration()
+        switch configResult {
+        case .configured:
+            print("✅ [YouTubeAuth] Configuration is valid and ready")
+        case .missingURLScheme(let scheme):
+            print("⚠️ [YouTubeAuth] Missing URL scheme: \(scheme)")
+            print("   Add this to your Info.plist to enable YouTube authentication:")
+            print("   <key>CFBundleURLTypes</key>")
+            print("   <array>")
+            print("       <dict>")
+            print("           <key>CFBundleURLSchemes</key>")
+            print("           <array>")
+            print("               <string>\(scheme)</string>")
+            print("           </array>")
+            print("       </dict>")
+            print("   </array>")
+            print("   See YOUTUBE_INTEGRATION_SETUP.md for complete instructions")
+        default:
+            print("⚠️ [YouTubeAuth] Configuration issue: \(configResult.description)")
+        }
+    }
+    
+    /// Initialize Google Sign-In with consuming app's Google Client ID (legacy method)
+    /// - Parameters:
+    ///   - clientID: Google Client ID from consuming app (required)
+    ///   - serverClientID: Server client ID (optional, defaults to nil)
+    @available(*, deprecated, message: "Use initialize(clientID:) instead")
+    public func initialize(clientID: String, serverClientID: String? = nil) {
+        initialize(clientID: clientID)
+    }
+    
+    /// Get the expected URL scheme for the current client ID
+    /// - Returns: Expected URL scheme or nil if not initialized
+    public func getExpectedURLScheme() -> String? {
+        guard let clientID = clientID else { return nil }
+        
+        // Extract the client ID part (remove .apps.googleusercontent.com if present)
+        let cleanClientID = clientID.replacingOccurrences(of: ".apps.googleusercontent.com", with: "")
+        
+        // Generate the URL scheme: com.googleusercontent.apps.{CLIENT_ID}
+        return "com.googleusercontent.apps.\(cleanClientID)"
     }
     
     /// Authenticate with YouTube using enhanced configuration
     /// - Returns: YouTube credentials
     public func authenticate() async throws -> YouTubeCredentials {
-        guard isInitialized else {
-            throw OnairosError.googleSignInFailed("Google Sign-In not initialized")
+        // Validate configuration before attempting authentication
+        let configResult = validateConfiguration()
+        guard configResult.isReady else {
+            print("❌ [YouTubeAuth] Configuration validation failed: \(configResult.description)")
+            
+            switch configResult {
+            case .missingURLScheme(let scheme):
+                let detailedMessage = """
+                YouTube authentication requires URL scheme configuration.
+                
+                Add this to your app's Info.plist:
+                <key>CFBundleURLTypes</key>
+                <array>
+                    <dict>
+                        <key>CFBundleURLSchemes</key>
+                        <array>
+                            <string>\(scheme)</string>
+                        </array>
+                    </dict>
+                </array>
+                
+                See YOUTUBE_INTEGRATION_SETUP.md for complete instructions.
+                """
+                throw OnairosError.googleSignInFailed(detailedMessage)
+            default:
+                throw OnairosError.googleSignInFailed(configResult.description)
+            }
         }
         
         guard let presentingViewController = await getPresentingViewController() else {
@@ -178,6 +317,67 @@ public class YouTubeAuthManager {
     /// - Returns: True if Google Sign-In is configured
     public func isAvailable() -> Bool {
         return isInitialized && GIDSignIn.sharedInstance.configuration != nil
+    }
+    
+    /// Validate YouTube authentication configuration
+    /// - Returns: Configuration validation result
+    public func validateConfiguration() -> YouTubeConfigurationResult {
+        // Check if initialized
+        guard isInitialized else {
+            return .notInitialized
+        }
+        
+        // Check if Google Sign-In is configured
+        guard GIDSignIn.sharedInstance.configuration != nil else {
+            return .notConfigured
+        }
+        
+        // Check if URL scheme is configured in Info.plist
+        guard let requiredURLScheme = getExpectedURLScheme() else {
+            return .notConfigured
+        }
+        
+        guard let urlTypes = Bundle.main.infoDictionary?["CFBundleURLTypes"] as? [[String: Any]] else {
+            return .missingURLScheme(requiredURLScheme)
+        }
+        
+        for urlType in urlTypes {
+            if let schemes = urlType["CFBundleURLSchemes"] as? [String],
+               schemes.contains(requiredURLScheme) {
+                return .configured
+            }
+        }
+        
+        return .missingURLScheme(requiredURLScheme)
+    }
+    
+    /// Get detailed configuration status for debugging
+    /// - Returns: Configuration status details
+    public func getConfigurationStatus() -> [String: Any] {
+        var status: [String: Any] = [:]
+        
+        status["isInitialized"] = isInitialized
+        status["hasGoogleSignInConfiguration"] = GIDSignIn.sharedInstance.configuration != nil
+        status["clientID"] = clientID ?? "Not set"
+        
+        // Check URL schemes
+        if let urlTypes = Bundle.main.infoDictionary?["CFBundleURLTypes"] as? [[String: Any]] {
+            var configuredSchemes: [String] = []
+            for urlType in urlTypes {
+                if let schemes = urlType["CFBundleURLSchemes"] as? [String] {
+                    configuredSchemes.append(contentsOf: schemes)
+                }
+            }
+            status["configuredURLSchemes"] = configuredSchemes
+        } else {
+            status["configuredURLSchemes"] = []
+        }
+        
+        if let expectedScheme = getExpectedURLScheme() {
+            status["expectedURLScheme"] = expectedScheme
+        }
+        
+        return status
     }
     
     /// Restore previous sign-in state
