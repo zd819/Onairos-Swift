@@ -74,6 +74,27 @@ public class YouTubeAuthManager {
         print("🔍 [YouTubeAuth] Initialized in ADMIN/TESTING mode")
         print("🔍 [YouTubeAuth] Using hardcoded client ID: \(Config.adminClientID)")
         
+        // Enhanced debugging - show what's actually in Info.plist
+        print("🔍 [YouTubeAuth] DEBUGGING - Info.plist URL configuration:")
+        if let urlTypes = Bundle.main.infoDictionary?["CFBundleURLTypes"] as? [[String: Any]] {
+            print("   📋 Found CFBundleURLTypes with \(urlTypes.count) entries:")
+            for (index, urlType) in urlTypes.enumerated() {
+                print("   📋 Entry \(index): \(urlType)")
+                if let schemes = urlType["CFBundleURLSchemes"] as? [String] {
+                    print("   📋 Schemes in entry \(index): \(schemes)")
+                    for scheme in schemes {
+                        print("   📋 - \(scheme)")
+                    }
+                }
+            }
+        } else {
+            print("   ❌ No CFBundleURLTypes found in Info.plist!")
+        }
+        
+        if let expectedScheme = getExpectedURLScheme() {
+            print("🔍 [YouTubeAuth] Expected URL scheme: \(expectedScheme)")
+        }
+        
         let configResult = validateConfiguration()
         switch configResult {
         case .configured:
