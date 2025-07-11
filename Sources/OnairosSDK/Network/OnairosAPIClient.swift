@@ -320,6 +320,8 @@ public class OnairosAPIClient {
         
         log("📤 Sending authorization URL request with body: \(requestBody)", level: .debug)
         
+        // OAuth connections are ALWAYS developer operations - use API key authentication
+        log("🔑 Using API key authentication for OAuth authorization URL (developer operation)", level: .info)
         let result = await performRequestWithDictionary(
             endpoint: "/\(platform.rawValue)/authorize",
             method: .POST,
@@ -348,15 +350,15 @@ public class OnairosAPIClient {
         return components.first ?? email
     }
     
-    /// Authenticate with platform (user-authenticated operation)
+    /// Authenticate with platform (developer operation)
     /// - Parameter request: Platform authentication request
     /// - Returns: Authentication response
     public func authenticatePlatform(_ request: PlatformAuthRequest) async -> Result<PlatformAuthResponse, OnairosError> {
-        log("📤 Authenticating platform with JWT authentication: \(request.platform)", level: .info)
+        log("📤 Authenticating platform with API key authentication: \(request.platform)", level: .info)
         
         let endpoint = "/\(request.platform)/authorize"
         
-        // Convert PlatformAuthRequest to dictionary for JWT authentication
+        // Convert PlatformAuthRequest to dictionary for API key authentication
         var requestBody: [String: Any] = [
             "platform": request.platform
         ]
@@ -380,7 +382,9 @@ public class OnairosAPIClient {
             requestBody["session"] = ["username": session.username]
         }
         
-        return await performUserAuthenticatedRequestWithDictionary(
+        // Platform authentication is a developer operation - use API key authentication
+        log("🔑 Using API key authentication for platform authentication (developer operation)", level: .info)
+        return await performRequestWithDictionary(
             endpoint: endpoint,
             method: .POST,
             body: requestBody,
@@ -414,7 +418,7 @@ public class OnairosAPIClient {
         return await authenticatePlatform(request)
     }
     
-    /// Authenticate YouTube with native tokens (user-authenticated operation)
+    /// Authenticate YouTube with native tokens (developer operation)
     /// - Parameters:
     ///   - accessToken: YouTube access token
     ///   - refreshToken: YouTube refresh token
@@ -427,9 +431,9 @@ public class OnairosAPIClient {
         idToken: String?,
         username: String? = nil
     ) async -> Result<PlatformAuthResponse, OnairosError> {
-        log("📤 Authenticating YouTube with JWT authentication for user", level: .info)
+        log("📤 Authenticating YouTube with API key authentication", level: .info)
         
-        // Create request body for JWT-authenticated YouTube connection
+        // Create request body for API key-authenticated YouTube connection
         var requestBody: [String: Any] = [
             "platform": "youtube",
             "accessToken": accessToken,
@@ -444,8 +448,9 @@ public class OnairosAPIClient {
             requestBody["session"] = ["username": username]
         }
         
-        // Use JWT-authenticated request method
-        return await performUserAuthenticatedRequestWithDictionary(
+        // YouTube authentication is a developer operation - use API key authentication
+        log("🔑 Using API key authentication for YouTube authentication (developer operation)", level: .info)
+        return await performRequestWithDictionary(
             endpoint: "/youtube/native-auth",
             method: .POST,
             body: requestBody,
@@ -453,15 +458,17 @@ public class OnairosAPIClient {
         )
     }
     
-    /// Refresh YouTube token (user-authenticated operation)
+    /// Refresh YouTube token (developer operation)
     /// - Parameter refreshToken: Refresh token
     /// - Returns: New access token
     public func refreshYouTubeToken(refreshToken: String) async -> Result<String, OnairosError> {
-        log("📤 Refreshing YouTube token with JWT authentication for user", level: .info)
+        log("📤 Refreshing YouTube token with API key authentication", level: .info)
         
         let body = ["refresh_token": refreshToken]
         
-        return await performUserAuthenticatedRequestWithDictionary(
+        // YouTube token refresh is a developer operation - use API key authentication
+        log("🔑 Using API key authentication for YouTube token refresh (developer operation)", level: .info)
+        return await performRequestWithDictionary(
             endpoint: "/youtube/refresh-token",
             method: .POST,
             body: body,
@@ -471,15 +478,17 @@ public class OnairosAPIClient {
         }
     }
     
-    /// Revoke platform connection (user-authenticated operation)
+    /// Revoke platform connection (developer operation)
     /// - Parameter platform: Platform to revoke
     /// - Returns: Success status
     public func revokePlatform(_ platform: String) async -> Result<Bool, OnairosError> {
-        log("📤 Revoking platform connection with JWT authentication for user: \(platform)", level: .info)
+        log("📤 Revoking platform connection with API key authentication: \(platform)", level: .info)
         
         let body = ["platform": platform]
         
-        return await performUserAuthenticatedRequestWithDictionary(
+        // Platform revocation is a developer operation - use API key authentication
+        log("🔑 Using API key authentication for platform revocation (developer operation)", level: .info)
+        return await performRequestWithDictionary(
             endpoint: "/revoke",
             method: .POST,
             body: body,
